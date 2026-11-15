@@ -34,6 +34,7 @@ interface UniversityLike {
   id: string;
   code: string;
   name: string;
+  nameVi: string;
   color: string;
 }
 
@@ -86,10 +87,11 @@ interface DocumentLike {
 
 /* --------------------------------------------------------------- mappers */
 
-const brief = (u: UniversityLike): Pick<UniversityDto, 'id' | 'code' | 'name' | 'color'> => ({
+const brief = (u: UniversityLike): Pick<UniversityDto, 'id' | 'code' | 'name' | 'nameVi' | 'color'> => ({
   id: u.id,
   code: u.code,
   name: u.name,
+  nameVi: u.nameVi,
   color: u.color,
 });
 
@@ -214,6 +216,7 @@ export function toMajor(
     nameVi: string;
     facultyId: string;
     totalCredits: number;
+    passMark?: number;
     faculty?: { id: string; name: string; nameVi: string; universityId: string } | null;
   },
   subjectCount?: number,
@@ -225,6 +228,7 @@ export function toMajor(
     nameVi: row.nameVi,
     facultyId: row.facultyId,
     totalCredits: row.totalCredits,
+    passMark: row.passMark,
     faculty: row.faculty ?? undefined,
     subjectCount,
   };

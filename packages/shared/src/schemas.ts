@@ -150,10 +150,6 @@ export type SaveGradesInput = z.infer<typeof saveGradesSchema>;
 
 export const plannerQuerySchema = z.object({
   majorId: z.string().min(1, 'Choose a major.'),
-  requireStrongPass: z
-    .union([z.boolean(), z.string()])
-    .optional()
-    .transform((v) => v === true || v === 'true'),
   passMark: z.coerce.number().min(0).max(10).optional(),
 });
 export type PlannerQuery = z.infer<typeof plannerQuerySchema>;

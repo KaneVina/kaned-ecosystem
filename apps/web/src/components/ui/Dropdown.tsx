@@ -1,128 +1,104 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { cn } from '@/lib/cn';
 
-export interface DropdownProps {
-  /** Rendered inside the button that opens the menu. */
-  trigger: (props: { open: boolean }) => ReactNode;
-  children: ReactNode | ((close: () => void) => ReactNode);
-  align?: 'start' | 'end';
-  width?: string;
-  label: string;
-  className?: string;
-  menuClassName?: string;
+interface TriggerProps {
+  'aria-expanded': boolean;
+  'aria-controls': string;
+  'aria-haspopup': 'menu';
+  onClick: () => void;
 }
 
 /**
- * One dropdown for the whole product: the account menu, the tools menu and
- * any future menu behave the same for mouse, keyboard and screen readers.
+ * A .menu-anchor with a popover .menu. Closes on outside click, on Escape,
+ * and when any item inside is chosen.
  */
 export function Dropdown({
   trigger,
   children,
-  align = 'end',
-  width = 'min-w-[240px]',
-  label,
   className,
-  menuClassName,
-}: DropdownProps) {
+  align = 'right',
+  width,
+}: {
+  trigger: (props: TriggerProps) => ReactNode;
+  children: ReactNode;
+  className?: string;
+  align?: 'left' | 'right';
+  width?: number;
+}) {
   const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [shown, setShown] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const id = useId();
 
   useEffect(() => {
     if (!open) return;
-
-    const onPointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    // Mount first, then add .open on the next frame so the transition plays.
+    const raf = requestAnimationFrame(() => setShown(true));
+    const onDoc = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
     };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setOpen(false);
-        triggerRef.current?.focus();
-      }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
     };
-
-    document.addEventListener('pointerdown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
     return () => {
-      document.removeEventListener('pointerdown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
+      cancelAnimationFrame(raf);
+      setShown(false);
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
     };
   }, [open]);
 
   return (
-    <div ref={rootRef} className={cn('relative', className)}>
-      <button
-        ref={triggerRef}
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={label}
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center rounded outline-offset-2"
-      >
-        {trigger({ open })}
-      </button>
-
+    <div className="menu-anchor" ref={ref}>
+      {trigger({
+        'aria-expanded': open,
+        'aria-controls': id,
+        'aria-haspopup': 'menu',
+        onClick: () => setOpen((v) => !v),
+      })}
       {open && (
         <div
+          id={id}
           role="menu"
-          aria-label={label}
-          onClick={(event) => {
-            // Any menu item that is a link or a button closes the menu.
-            if ((event.target as HTMLElement).closest('a,button')) setOpen(false);
+          className={cn('menu', shown && 'open', className)}
+          style={{ ...(align === 'left' ? { left: 0, right: 'auto', transformOrigin: 'top left' } : {}), ...(width ? { width } : {}) }}
+          onClick={(e) => {
+            if ((e.target as HTMLElement).closest('[role=menuitem]')) setOpen(false);
           }}
-          className={cn(
-            'animate-scale-in absolute top-[calc(100%+8px)] z-50 rounded-xl border border-line bg-paper p-1.5 shadow-lg',
-            align === 'end' ? 'right-0 origin-top-right' : 'left-0 origin-top-left',
-            width,
-            menuClassName,
-          )}
         >
-          {typeof children === 'function' ? children(() => setOpen(false)) : children}
+          {children}
         </div>
       )}
     </div>
   );
 }
 
-export function MenuItem({
-  icon,
-  children,
-  description,
-  trailing,
-  className,
-  ...props
-}: {
-  icon?: ReactNode;
-  description?: string;
-  trailing?: ReactNode;
-} & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+export function MenuLink({ to, icon, children, count }: { to: string; icon?: ReactNode; children: ReactNode; count?: number }) {
   return (
-    <button
-      role="menuitem"
-      type="button"
-      className={cn(
-        'flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left text-sm text-ink-2',
-        'transition-colors hover:bg-sunk hover:text-ink focus-visible:bg-sunk focus-visible:outline-none',
-        className,
-      )}
-      {...props}
-    >
-      {icon && <span className="shrink-0 text-ink-3">{icon}</span>}
-      <span className="min-w-0 flex-1">
-        <span className="block truncate font-medium">{children}</span>
-        {description && <span className="block truncate text-xs text-ink-3">{description}</span>}
-      </span>
-      {trailing}
+    <Link role="menuitem" to={to}>
+      {icon}
+      {children}
+      {count !== undefined && <span className="menu-count">{count}</span>}
+    </Link>
+  );
+}
+
+export function MenuButton({ onClick, icon, children, danger }: { onClick: () => void; icon?: ReactNode; children: ReactNode; danger?: boolean }) {
+  return (
+    <button role="menuitem" type="button" onClick={onClick} className={danger ? 'menu-danger' : undefined}>
+      {icon}
+      {children}
     </button>
   );
 }
 
 export function MenuSeparator() {
-  return <div className="my-1.5 h-px bg-line" role="separator" />;
+  return <div className="menu-sep" role="separator" />;
 }
 
 export function MenuLabel({ children }: { children: ReactNode }) {
-  return <p className="px-2.5 pt-2 pb-1 text-[11.5px] font-semibold tracking-wide text-ink-4 uppercase">{children}</p>;
+  return <p className="menu-label">{children}</p>;
 }

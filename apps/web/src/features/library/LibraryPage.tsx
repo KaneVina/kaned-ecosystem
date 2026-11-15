@@ -1,345 +1,306 @@
 import { useEffect, useMemo, useState } from 'react';
-import { NavLink } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, LayoutGrid, List, Search, Upload, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ChevronLeft, ChevronRight, LayoutGrid, List, Search, SlidersHorizontal } from 'lucide-react';
 import {
   DOCUMENT_SORTS,
   DOCUMENT_SORT_LABELS,
   DOCUMENT_TYPE_LABELS,
   SEMESTER_LABELS,
   type DocumentSort,
+  type DocumentSummaryDto,
   type DocumentType,
   type Semester,
 } from '@kaned/shared';
-import { DocumentCard, DocumentCardSkeleton, DocumentRow } from '@/components/library/DocumentCard';
-import { FilterPanel, FilterToggle } from '@/components/library/FilterPanel';
-import { Button, IconButton } from '@/components/ui/Button';
-import { Input, Select } from '@/components/ui/Field';
-import { PageHeader } from '@/components/ui/Card';
+import { DocCard, DocCardSkeleton, DocRow, DocRowSkeleton } from '@/components/library/DocCard';
+import { Filters } from '@/components/library/Filters';
+import { QuickPreview } from '@/components/library/QuickPreview';
+import { Chip } from '@/components/ui/Badge';
 import { EmptyState, ErrorState } from '@/components/ui/Feedback';
-import { useDocumentFacets, useDocuments, useToggleBookmark } from './queries';
+import { PageHead } from '@/components/ui/Panel';
+import { useDocumentFacets, useDocuments, useDownload, useToggleBookmark } from './queries';
 import { useLibraryFilters } from './useLibraryFilters';
 import { useSubjects, useUniversities } from '@/features/catalog/queries';
+import { useToast } from '@/providers/ToastProvider';
+import { toApiError } from '@/lib/api';
 import { fmtInt } from '@/lib/format';
-import { cn } from '@/lib/cn';
 
 type View = 'grid' | 'list';
 
+function readView(): View {
+  try {
+    return (localStorage.getItem('kaned.library.view') as View) || 'grid';
+  } catch {
+    return 'grid';
+  }
+}
+
 export function LibraryPage() {
   const { filters, setFilters, clear, activeCount } = useLibraryFilters();
+  const toast = useToast();
   const [panelOpen, setPanelOpen] = useState(false);
-  const [view, setView] = useState<View>(() => (localStorage.getItem('kaned.library.view') as View) ?? 'grid');
+  const [view, setView] = useState<View>(readView);
   const [search, setSearch] = useState(filters.q ?? '');
+  const [preview, setPreview] = useState<DocumentSummaryDto | null>(null);
 
-  const { data, isLoading, isError, refetch, isFetching } = useDocuments(filters);
+  const sort = filters.sort ?? (filters.q ? 'relevance' : 'downloads');
+  const { data, isLoading, isError, refetch, isFetching } = useDocuments({ ...filters, sort });
   const { data: facets } = useDocumentFacets(filters);
   const { data: universities = [] } = useUniversities();
-  const { data: subjectPage } = useSubjects({ pageSize: 100 });
+  const { data: subjectPage } = useSubjects({ pageSize: 200 });
   const toggleBookmark = useToggleBookmark();
+  const download = useDownload();
 
   useEffect(() => {
-    localStorage.setItem('kaned.library.view', view);
+    try {
+      localStorage.setItem('kaned.library.view', view);
+    } catch {
+      /* storage unavailable */
+    }
   }, [view]);
 
-  // Keep the box in step when the URL changes from somewhere else (chips, back).
   useEffect(() => setSearch(filters.q ?? ''), [filters.q]);
 
-  // Debounce so typing doesn't fire a request per keystroke.
+  // Results follow the search box as you type, a beat after the last key.
   useEffect(() => {
     if (search === (filters.q ?? '')) return;
-    const timer = setTimeout(() => setFilters({ ...filters, q: search || undefined, page: 1 }), 320);
-    return () => clearTimeout(timer);
+    const t = setTimeout(() => setFilters({ ...filters, q: search || undefined, page: 1 }), 300);
+    return () => clearTimeout(t);
   }, [search, filters, setFilters]);
+
+  useEffect(() => {
+    document.body.classList.toggle('no-scroll', panelOpen);
+  }, [panelOpen]);
 
   const subjects = subjectPage?.items ?? [];
   const subjectById = useMemo(() => new Map(subjects.map((s) => [s.id, s])), [subjects]);
-  const universityById = useMemo(() => new Map(universities.map((u) => [u.id, u])), [universities]);
+  const uniById = useMemo(() => new Map(universities.map((u) => [u.id, u])), [universities]);
+
+  // Keep an open preview in step with bookmark changes.
+  const previewDoc = preview ? (data?.items.find((d) => d.id === preview.id) ?? preview) : null;
 
   const total = data?.total ?? 0;
   const totalPages = data?.totalPages ?? 1;
   const page = filters.page ?? 1;
 
-  const chips: { key: string; label: string; onRemove: () => void }[] = [];
-  for (const id of filters.universityId ?? []) {
-    chips.push({
-      key: `u-${id}`,
-      label: universityById.get(id)?.code ?? 'Trường',
-      onRemove: () => setFilters({ ...filters, universityId: filters.universityId?.filter((x) => x !== id), page: 1 }),
+  const startDownload = (doc: DocumentSummaryDto) =>
+    download.mutate(doc.id, {
+      onSuccess: ({ fileUrl }) => {
+        window.open(fileUrl, '_blank', 'noopener');
+        toast.success('Đang tải xuống', doc.title);
+      },
+      onError: (e) => toast.error('Không tải được', toApiError(e).message),
     });
-  }
-  for (const id of filters.subjectId ?? []) {
+
+  const without = <T,>(list: T[] | undefined, v: T) => {
+    const next = (list ?? []).filter((x) => x !== v);
+    return next.length ? next : undefined;
+  };
+  const chips: Array<{ key: string; k: string; label: string; remove: () => void }> = [];
+  if (filters.q)
     chips.push({
-      key: `s-${id}`,
-      label: subjectById.get(id)?.code ?? 'Môn',
-      onRemove: () => setFilters({ ...filters, subjectId: filters.subjectId?.filter((x) => x !== id), page: 1 }),
+      key: 'q',
+      k: 'Tìm',
+      label: `“${filters.q}”`,
+      remove: () => {
+        setSearch('');
+        setFilters({ ...filters, q: undefined, page: 1 });
+      },
     });
-  }
-  for (const type of filters.type ?? []) {
-    chips.push({
-      key: `t-${type}`,
-      label: DOCUMENT_TYPE_LABELS[type as DocumentType].vi,
-      onRemove: () => setFilters({ ...filters, type: filters.type?.filter((x) => x !== type), page: 1 }),
-    });
-  }
-  for (const format of filters.format ?? []) {
-    chips.push({
-      key: `f-${format}`,
-      label: format,
-      onRemove: () => setFilters({ ...filters, format: filters.format?.filter((x) => x !== format), page: 1 }),
-    });
-  }
-  for (const year of filters.year ?? []) {
-    chips.push({
-      key: `y-${year}`,
-      label: `Năm ${year}`,
-      onRemove: () => setFilters({ ...filters, year: filters.year?.filter((x) => x !== year), page: 1 }),
-    });
-  }
-  for (const semester of filters.semester ?? []) {
-    chips.push({
-      key: `se-${semester}`,
-      label: SEMESTER_LABELS[semester as Semester].vi,
-      onRemove: () => setFilters({ ...filters, semester: filters.semester?.filter((x) => x !== semester), page: 1 }),
-    });
-  }
-  if (filters.minRating) {
-    chips.push({
-      key: 'rating',
-      label: `Từ ${filters.minRating} sao`,
-      onRemove: () => setFilters({ ...filters, minRating: undefined, page: 1 }),
-    });
-  }
+  for (const id of filters.universityId ?? [])
+    chips.push({ key: `u${id}`, k: 'Trường', label: uniById.get(id)?.code ?? '…', remove: () => setFilters({ ...filters, universityId: without(filters.universityId, id), page: 1 }) });
+  for (const y of filters.year ?? [])
+    chips.push({ key: `y${y}`, k: 'Năm', label: String(y), remove: () => setFilters({ ...filters, year: without(filters.year, y), page: 1 }) });
+  for (const s of filters.semester ?? [])
+    chips.push({ key: `s${s}`, k: 'Học kỳ', label: SEMESTER_LABELS[s as Semester].vi, remove: () => setFilters({ ...filters, semester: without(filters.semester, s), page: 1 }) });
+  for (const id of filters.subjectId ?? [])
+    chips.push({ key: `m${id}`, k: 'Môn', label: subjectById.get(id)?.code ?? '…', remove: () => setFilters({ ...filters, subjectId: without(filters.subjectId, id), page: 1 }) });
+  for (const t of filters.type ?? [])
+    chips.push({ key: `t${t}`, k: 'Loại', label: DOCUMENT_TYPE_LABELS[t as DocumentType].vi, remove: () => setFilters({ ...filters, type: without(filters.type, t), page: 1 }) });
+  for (const f of filters.format ?? [])
+    chips.push({ key: `f${f}`, k: 'Định dạng', label: f, remove: () => setFilters({ ...filters, format: without(filters.format, f), page: 1 }) });
+  if (filters.minRating)
+    chips.push({ key: 'r', k: 'Đánh giá', label: `${filters.minRating}+`, remove: () => setFilters({ ...filters, minRating: undefined, page: 1 }) });
+
+  const clearAll = () => {
+    setSearch('');
+    clear();
+  };
+
+  const pageNumbers = Array.from({ length: totalPages }, (_, i) => i + 1).filter(
+    (p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1,
+  );
 
   return (
-    <div className="space-y-5">
-      <PageHeader
+    <>
+      <PageHead
+        crumbs={[{ label: 'Tổng quan', to: '/app' }, { label: 'Thư viện' }]}
         title="Thư viện học liệu"
-        subtitle="Đề thi, slide, ghi chép và bài tập được sinh viên chia sẻ, phân loại theo trường và môn học."
-        actions={
-          <NavLink
-            to="/app/upload"
-            className="inline-flex h-10 items-center gap-2 rounded-[11px] bg-brand px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-700"
-          >
-            <Upload className="size-4" aria-hidden />
-            Tải lên tài liệu
-          </NavLink>
-        }
-      />
+        description={`Ghi chép, slide, đề thi và báo cáo từ ${universities.length || 'nhiều'} trường. Kết quả cập nhật ngay khi bạn gõ và lọc.`}
+      >
+        <div className="ex-search">
+          <div className="input-group ex-search-box">
+            <Search className="ic" />
+            <label htmlFor="lib-q" className="sr-only">
+              Tìm tài liệu
+            </label>
+            <input
+              id="lib-q"
+              className="input input-lg"
+              type="search"
+              placeholder="Tìm theo tên tài liệu, mã môn, tên môn, trường hoặc người đăng"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              autoComplete="off"
+            />
+            <kbd className="ex-kbd">/</kbd>
+          </div>
+        </div>
+      </PageHead>
 
-      <div className="grid gap-5 lg:grid-cols-[272px_minmax(0,1fr)]">
-        <FilterPanel
+      <div className="container explore-layout">
+        <Filters
           filters={filters}
           onChange={setFilters}
-          onClear={() => {
-            setSearch('');
-            clear();
-          }}
+          onClear={clearAll}
           universities={universities}
           subjects={subjects}
           facets={facets}
           resultCount={total}
           open={panelOpen}
           onClose={() => setPanelOpen(false)}
+          activeCount={activeCount}
         />
 
-        <div className="min-w-0">
-          <div className="sticky top-[72px] z-20 -mx-1 mb-4 rounded-lg border border-line bg-paper/92 px-3 py-2.5 shadow-xs backdrop-blur">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <div className="min-w-[220px] flex-1 basis-[260px]">
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Tìm theo tên tài liệu, mã môn, giảng viên…"
-                  icon={<Search className="size-[18px]" />}
-                  aria-label="Tìm trong thư viện"
-                />
-              </div>
-
-              <FilterToggle count={activeCount} onClick={() => setPanelOpen(true)} />
-
-              <Select
-                sizeVariant="sm"
-                aria-label="Sắp xếp"
-                value={filters.sort ?? 'relevance'}
+        <section className="results" aria-label="Kết quả">
+          <div className="results-bar">
+            <button type="button" className="btn btn-secondary btn-sm filters-toggle" onClick={() => setPanelOpen(true)}>
+              <SlidersHorizontal className="ic ic-sm" />
+              Bộ lọc
+              <span className="filters-n">{activeCount || ''}</span>
+            </button>
+            <p className="results-count" aria-live="polite">
+              {isLoading ? (
+                'Đang tải…'
+              ) : total ? (
+                <>
+                  <b>{fmtInt(total)}</b> tài liệu{filters.q ? ` cho “${filters.q}”` : ''}
+                </>
+              ) : (
+                `Không có tài liệu${filters.q ? ` cho “${filters.q}”` : ''}`
+              )}
+              {isFetching && !isLoading && <span className="kbd-hint"> · đang cập nhật</span>}
+            </p>
+            <span className="spacer" />
+            <label className="sort">
+              <span>Sắp xếp</span>
+              <select
+                className="select select-sm"
+                value={sort}
                 onChange={(e) => setFilters({ ...filters, sort: e.target.value as DocumentSort, page: 1 })}
-                className="w-auto min-w-[168px] shrink-0"
               >
-                {DOCUMENT_SORTS.map((sort) => (
-                  <option key={sort} value={sort}>
-                    {DOCUMENT_SORT_LABELS[sort]}
+                {DOCUMENT_SORTS.filter((s) => s !== 'relevance' || filters.q).map((s) => (
+                  <option key={s} value={s}>
+                    {DOCUMENT_SORT_LABELS[s]}
                   </option>
                 ))}
-              </Select>
-
-              <div className="hidden rounded-[10px] border border-line-2 p-0.5 sm:flex" role="group" aria-label="Kiểu xem">
-                {(
-                  [
-                    { id: 'grid' as View, icon: LayoutGrid, label: 'Dạng lưới' },
-                    { id: 'list' as View, icon: List, label: 'Dạng danh sách' },
-                  ] satisfies { id: View; icon: typeof LayoutGrid; label: string }[]
-                ).map((option) => (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => setView(option.id)}
-                    aria-pressed={view === option.id}
-                    aria-label={option.label}
-                    className={cn(
-                      'grid size-8 place-items-center rounded-lg transition-colors',
-                      view === option.id ? 'bg-brand text-white' : 'text-ink-3 hover:bg-sunk hover:text-ink',
-                    )}
-                  >
-                    <option.icon className="size-[17px]" />
-                  </button>
-                ))}
-              </div>
+              </select>
+            </label>
+            <div className="seg" role="group" aria-label="Kiểu hiển thị">
+              <button type="button" aria-pressed={view === 'grid'} aria-label="Dạng lưới" onClick={() => setView('grid')}>
+                <LayoutGrid className="ic ic-sm" />
+              </button>
+              <button type="button" aria-pressed={view === 'list'} aria-label="Dạng danh sách" onClick={() => setView('list')}>
+                <List className="ic ic-sm" />
+              </button>
             </div>
+          </div>
 
+          <div className={chips.length ? 'active-chips has' : 'active-chips'}>
+            {chips.map((c) => (
+              <Chip key={c.key} k={c.k} onRemove={c.remove}>
+                {c.label}
+              </Chip>
+            ))}
             {chips.length > 0 && (
-              <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-line pt-2.5">
-                {chips.map((chip) => (
-                  <button
-                    key={chip.key}
-                    type="button"
-                    onClick={chip.onRemove}
-                    className="inline-flex h-7 items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 px-2.5 text-[12.5px] font-medium text-brand-700 transition-colors hover:bg-brand-100"
-                  >
-                    {chip.label}
-                    <X className="size-3.5" aria-hidden />
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearch('');
-                    clear();
-                  }}
-                  className="ml-1 text-[12.5px] font-medium text-ink-3 underline hover:text-ink"
-                >
-                  Xoá hết
-                </button>
-              </div>
+              <button type="button" className="link chip-clear" onClick={clearAll}>
+                Xoá tất cả
+              </button>
             )}
           </div>
 
-          <p className="mb-3.5 text-[13.5px] text-ink-3" aria-live="polite">
-            {isLoading ? (
-              'Đang tải tài liệu…'
-            ) : (
-              <>
-                <b className="tabular text-ink">{fmtInt(total)}</b> tài liệu
-                {filters.q && (
-                  <>
-                    {' '}
-                    cho <b className="text-ink">“{filters.q}”</b>
-                  </>
-                )}
-                {isFetching && <span className="ml-2 text-ink-4">đang cập nhật…</span>}
-              </>
-            )}
-          </p>
-
           {isError ? (
-            <ErrorState
-              title="Không tải được thư viện"
-              description="Kiểm tra lại API ở cổng 4000 hoặc thử lại sau ít phút."
-              onRetry={() => refetch()}
-            />
+            <ErrorState title="Không tải được thư viện" onRetry={() => refetch()} />
           ) : isLoading ? (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {Array.from({ length: 6 }, (_, i) => (
-                <DocumentCardSkeleton key={i} />
-              ))}
+            <div className={view === 'grid' ? 'grid-docs grid-3' : 'list-docs'} aria-busy="true">
+              {Array.from({ length: 6 }, (_, i) => (view === 'grid' ? <DocCardSkeleton key={i} /> : <DocRowSkeleton key={i} />))}
             </div>
           ) : !data?.items.length ? (
             <EmptyState
-              icon={<Search className="size-7" />}
-              title="Chưa có tài liệu nào khớp"
-              description="Thử bỏ một vài bộ lọc, hoặc là người đầu tiên chia sẻ tài liệu cho môn này."
+              title={filters.q ? `Không có gì khớp “${filters.q}” với bộ lọc này` : 'Không có tài liệu nào khớp bộ lọc'}
+              description={
+                activeCount
+                  ? 'Thử bỏ bớt một vài bộ lọc. Năm học và học kỳ là hai bộ lọc thu hẹp kết quả nhiều nhất.'
+                  : 'Kiểm tra lại chính tả, hoặc tìm theo mã môn (ví dụ CSD201) hay tên môn.'
+              }
               action={
-                <div className="flex flex-wrap justify-center gap-2.5">
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      setSearch('');
-                      clear();
-                    }}
-                  >
-                    Xoá bộ lọc
-                  </Button>
-                  <NavLink
-                    to="/app/upload"
-                    className="inline-flex h-10 items-center gap-2 rounded-[11px] bg-brand px-4 text-sm font-semibold text-white hover:bg-brand-700"
-                  >
-                    <Upload className="size-4" aria-hidden />
-                    Tải lên tài liệu
-                  </NavLink>
-                </div>
+                <>
+                  {(activeCount > 0 || filters.q) && (
+                    <button type="button" className="btn btn-primary" onClick={clearAll}>
+                      Xoá tìm kiếm và bộ lọc
+                    </button>
+                  )}
+                  <Link to="/app/upload" className="btn btn-secondary">
+                    Chia sẻ tài liệu đầu tiên
+                  </Link>
+                </>
               }
             />
-          ) : view === 'grid' ? (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {data.items.map((document) => (
-                <DocumentCard
-                  key={document.id}
-                  document={document}
-                  onToggleBookmark={(id) => toggleBookmark.mutate(id)}
-                />
-              ))}
-            </div>
           ) : (
-            <div className="space-y-2.5">
-              {data.items.map((document) => (
-                <DocumentRow
-                  key={document.id}
-                  document={document}
-                  onToggleBookmark={(id) => toggleBookmark.mutate(id)}
-                />
-              ))}
+            <div className={view === 'grid' ? 'grid-docs grid-3' : 'list-docs'}>
+              {data.items.map((doc) =>
+                view === 'grid' ? (
+                  <DocCard key={doc.id} doc={doc} onToggleBookmark={(id) => toggleBookmark.mutate(id)} onPreview={setPreview} />
+                ) : (
+                  <DocRow
+                    key={doc.id}
+                    doc={doc}
+                    onToggleBookmark={(id) => toggleBookmark.mutate(id)}
+                    onPreview={setPreview}
+                    onDownload={startDownload}
+                  />
+                ),
+              )}
             </div>
           )}
 
           {totalPages > 1 && (
-            <nav className="mt-7 flex items-center justify-center gap-2" aria-label="Phân trang">
-              <IconButton
-                label="Trang trước"
-                disabled={page <= 1}
-                onClick={() => setFilters({ ...filters, page: page - 1 })}
-                className="border border-line-2"
-              >
-                <ChevronLeft className="size-[18px]" />
-              </IconButton>
-
-              {Array.from({ length: totalPages }, (_, i) => i + 1)
-                .filter((n) => n === 1 || n === totalPages || Math.abs(n - page) <= 1)
-                .map((n, index, list) => (
-                  <span key={n} className="flex items-center gap-2">
-                    {index > 0 && list[index - 1] !== n - 1 && <span className="text-ink-4">…</span>}
-                    <button
-                      type="button"
-                      onClick={() => setFilters({ ...filters, page: n })}
-                      aria-current={n === page ? 'page' : undefined}
-                      className={cn(
-                        'tabular grid h-9 min-w-9 place-items-center rounded-lg px-2 text-sm font-medium transition-colors',
-                        n === page ? 'bg-brand text-white' : 'border border-line-2 text-ink-2 hover:bg-sunk',
-                      )}
-                    >
-                      {n}
-                    </button>
-                  </span>
-                ))}
-
-              <IconButton
-                label="Trang sau"
-                disabled={page >= totalPages}
-                onClick={() => setFilters({ ...filters, page: page + 1 })}
-                className="border border-line-2"
-              >
-                <ChevronRight className="size-[18px]" />
-              </IconButton>
+            <nav className="pager" aria-label="Phân trang">
+              <button type="button" disabled={page <= 1} onClick={() => setFilters({ ...filters, page: page - 1 })} aria-label="Trang trước">
+                <ChevronLeft className="ic ic-sm" />
+              </button>
+              {pageNumbers.map((p, i) => (
+                <span key={p} style={{ display: 'contents' }}>
+                  {i > 0 && pageNumbers[i - 1] !== p - 1 && <span className="gap">…</span>}
+                  <button type="button" aria-current={p === page ? 'page' : undefined} onClick={() => setFilters({ ...filters, page: p })}>
+                    {p}
+                  </button>
+                </span>
+              ))}
+              <button type="button" disabled={page >= totalPages} onClick={() => setFilters({ ...filters, page: page + 1 })} aria-label="Trang sau">
+                <ChevronRight className="ic ic-sm" />
+              </button>
             </nav>
           )}
-        </div>
+        </section>
       </div>
-    </div>
+
+      <QuickPreview
+        doc={previewDoc}
+        onClose={() => setPreview(null)}
+        onToggleBookmark={(id) => toggleBookmark.mutate(id)}
+        onDownload={startDownload}
+        downloading={download.isPending}
+      />
+    </>
   );
 }

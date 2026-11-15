@@ -1,313 +1,301 @@
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  ArrowUpRight,
-  BookMarked,
-  Calculator,
-  CalendarClock,
-  FlaskConical,
-  GraduationCap,
-  Layers,
-  Library,
-  Route,
-  Sparkles,
-  TrendingUp,
-  Upload,
-} from 'lucide-react';
-import { Card, CardBody, CardHeader, StatCard } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
-import { Progress, Skeleton } from '@/components/ui/Feedback';
-import { DocumentRow } from '@/components/library/DocumentCard';
-import { useDocuments, useSavedDocuments, useToggleBookmark } from '@/features/library/queries';
-import { useGradeSummary } from '@/features/grades/queries';
+import { ArrowRight, BookMarked, ChevronRight, CloudUpload, Library, Lock, Sparkles } from 'lucide-react';
+import type { DocumentSummaryDto } from '@kaned/shared';
+import { DocCard, DocCardSkeleton } from '@/components/library/DocCard';
+import { QuickPreview } from '@/components/library/QuickPreview';
+import { SectionHead } from '@/components/ui/Panel';
+import { Progress } from '@/components/ui/Feedback';
+import { FileIcon } from '@/components/ui/FileBadge';
+import { TOOLS } from '@/components/layout/AppShell';
+import { subjectTone } from '@/components/paper/profiles';
+import { useDocuments, useDownload, useSavedDocuments, useToggleBookmark } from '@/features/library/queries';
+import { useGradeSummary, usePlanner } from '@/features/grades/queries';
 import { useAuth } from '@/providers/AuthProvider';
-import { fmtToday } from '@/lib/format';
-
-/** The modules of the ecosystem. Live ones link out; the rest state their status. */
-const MODULES = [
-  {
-    name: 'Thư viện học liệu',
-    description: 'Đề thi, slide, ghi chép và bài tập có lọc theo trường, môn, học kỳ.',
-    to: '/app/library',
-    icon: Library,
-    status: 'live' as const,
-  },
-  {
-    name: 'Tính GPA',
-    description: 'Quy đổi điểm hệ 10 sang hệ 4, xem cần bao nhiêu để đạt mục tiêu.',
-    to: '/app/tools/gpa',
-    icon: Calculator,
-    status: 'live' as const,
-  },
-  {
-    name: 'Thông tin môn học',
-    description: 'Tra mã môn để xem tín chỉ, nội dung và điều kiện tiên quyết.',
-    to: '/app/subjects',
-    icon: GraduationCap,
-    status: 'live' as const,
-  },
-  {
-    name: 'Kế hoạch học tập',
-    description: 'Kỳ tới học được môn nào, môn nào đang bị chặn vì tiên quyết.',
-    to: '/app/planner',
-    icon: Route,
-    status: 'live' as const,
-  },
-  {
-    name: 'Thẻ ghi nhớ',
-    description: 'Ôn tập theo thuật toán lặp lại giãn cách, sinh thẻ từ tài liệu đã lưu.',
-    to: null,
-    icon: Layers,
-    status: 'soon' as const,
-  },
-  {
-    name: 'Thời khoá biểu',
-    description: 'Xếp lịch học, nhắc deadline và đồng bộ với lịch trên máy bạn.',
-    to: null,
-    icon: CalendarClock,
-    status: 'soon' as const,
-  },
-  {
-    name: 'Phòng thí nghiệm',
-    description: 'Những module đang thử nghiệm cùng một nhóm nhỏ sinh viên.',
-    to: null,
-    icon: FlaskConical,
-    status: 'lab' as const,
-  },
-];
+import { fmtToday, timeAgo } from '@/lib/format';
+import { cn } from '@/lib/cn';
 
 export function DashboardPage() {
   const { user } = useAuth();
-  const { data: recent, isLoading: loadingRecent } = useDocuments({ sort: 'recent', pageSize: 5 });
+  const { data: gpa } = useGradeSummary();
+  const { data: plan } = usePlanner(user?.majorId ?? undefined);
   const { data: saved } = useSavedDocuments();
-  const { data: gradeSummary } = useGradeSummary();
   const toggleBookmark = useToggleBookmark();
+  const download = useDownload();
+  const [preview, setPreview] = useState<DocumentSummaryDto | null>(null);
 
-  const firstName = user?.name.split(' ').slice(-1)[0] ?? 'bạn';
+  const nextIds = useMemo(() => (plan?.suggestion ?? []).map((s) => s.subjectId), [plan]);
+  const { data: forNext, isLoading: loadingNext } = useDocuments(
+    { subjectId: nextIds, sort: 'downloads', pageSize: 8 },
+    { enabled: nextIds.length > 0 },
+  );
+  const { data: trending, isLoading: loadingTrending } = useDocuments({ sort: 'downloads', pageSize: 8 });
+  const docs = (nextIds.length && forNext?.items.length ? forNext.items : trending?.items) ?? [];
+  const docsLoading = nextIds.length ? loadingNext : loadingTrending;
+
+  const firstName = user?.name.trim().split(/\s+/).slice(-1)[0] ?? 'bạn';
+  const summary = plan?.summary;
+  const blocked = summary?.blocked ?? [];
 
   return (
-    <div className="space-y-6">
-      {/* Greeting */}
-      <section className="relative overflow-hidden rounded-lg border border-line bg-[#241A63] px-6 py-7 text-white sm:px-8 sm:py-9">
-        <div
-          aria-hidden
-          className="absolute -inset-[30%] blur-[30px]"
-          style={{
-            background:
-              'radial-gradient(40% 50% at 18% 20%, rgba(104,84,220,.95), transparent 62%),' +
-              'radial-gradient(34% 44% at 88% 26%, rgba(199,130,28,.42), transparent 64%),' +
-              'radial-gradient(46% 46% at 64% 94%, rgba(68,51,180,.9), transparent 66%)',
-          }}
-        />
-        <div
-          aria-hidden
-          className="absolute inset-0 opacity-40"
-          style={{
-            backgroundImage:
-              'linear-gradient(to right, rgba(255,255,255,.08) 1px, transparent 1px),' +
-              'linear-gradient(to bottom, rgba(255,255,255,.08) 1px, transparent 1px)',
-            backgroundSize: '28px 28px',
-            maskImage: 'radial-gradient(circle at 76% 10%, #000, transparent 72%)',
-            WebkitMaskImage: 'radial-gradient(circle at 76% 10%, #000, transparent 72%)',
-          }}
-        />
-
-        <div className="relative flex flex-wrap items-end justify-between gap-6">
-          <div>
-            <p className="text-[13px] text-white/60">{fmtToday()}</p>
-            <h1 className="mt-2 text-[clamp(24px,2.6vw,32px)] leading-tight font-semibold">
-              Chào {firstName}, hôm nay học gì?
-            </h1>
-            <p className="mt-2 max-w-[48ch] text-[15px] leading-relaxed text-white/70">
-              {user?.major
-                ? `${user.major.name}${user.university ? ` · ${user.university.name}` : ''}`
-                : 'Thêm trường và ngành vào hồ sơ để Kaned gợi ý đúng môn của bạn.'}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-2.5">
-            <Link
-              to="/app/library"
-              className="inline-flex h-10 items-center gap-2 rounded-[11px] bg-white px-4 text-sm font-semibold text-[#241A63] transition-transform hover:-translate-y-0.5"
-            >
-              <Library className="size-4" aria-hidden />
-              Mở thư viện
-            </Link>
-            <Link
-              to="/app/upload"
-              className="inline-flex h-10 items-center gap-2 rounded-[11px] border border-white/25 bg-white/10 px-4 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/20"
-            >
-              <Upload className="size-4" aria-hidden />
-              Chia sẻ tài liệu
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Numbers */}
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="GPA hệ 4"
-          value={gradeSummary?.totalCredits ? gradeSummary.gpa4.toFixed(2) : '—'}
-          hint={gradeSummary?.totalCredits ? gradeSummary.classification.vi : 'Nhập điểm để xem'}
-          icon={<TrendingUp className="size-[18px]" />}
-        />
-        <StatCard
-          label="Tín chỉ tích luỹ"
-          value={gradeSummary?.earnedCredits ?? 0}
-          hint={`${gradeSummary?.gradedCount ?? 0} môn đã có điểm`}
-          icon={<GraduationCap className="size-[18px]" />}
-        />
-        <StatCard
-          label="Tài liệu đã lưu"
-          value={saved?.length ?? 0}
-          hint="Mở lại bất cứ lúc nào"
-          icon={<BookMarked className="size-[18px]" />}
-        />
-        <Card>
-          <CardBody>
-            <p className="text-xs tracking-wide text-ink-4 uppercase">Tiến độ chương trình</p>
-            <p className="tabular mt-2 text-2xl font-semibold">
-              {gradeSummary?.earnedCredits ?? 0}
-              <span className="text-base font-normal text-ink-3"> tín chỉ</span>
-            </p>
-            <Progress
-              className="mt-2.5"
-              value={Math.min(100, Math.round(((gradeSummary?.earnedCredits ?? 0) / 145) * 100))}
-            />
-            <p className="mt-1.5 text-xs text-ink-3">Ước tính trên 145 tín chỉ toàn khoá</p>
-          </CardBody>
-        </Card>
-      </section>
-
-      {/* The ecosystem */}
-      <section>
-        <div className="mb-3.5 flex items-end justify-between gap-4">
-          <div>
-            <h2 className="flex items-center gap-2 text-lg font-semibold">
-              <Sparkles className="size-[18px] text-brand" aria-hidden />
-              Hệ sinh thái Kaned
-            </h2>
-            <p className="mt-0.5 text-sm text-ink-3">
-              Thư viện là một module. Mỗi module dùng chung tài khoản và dữ liệu học tập của bạn.
-            </p>
-          </div>
-        </div>
-
-        <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-3">
-          {MODULES.map((module) => {
-            const body = (
-              <>
-                <div className="flex items-start justify-between gap-3">
-                  <span className="grid size-10 place-items-center rounded-xl bg-brand-50 text-brand">
-                    <module.icon className="size-5" aria-hidden />
-                  </span>
-                  {module.status === 'live' ? (
-                    <ArrowUpRight className="size-4 text-ink-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" aria-hidden />
-                  ) : (
-                    <Badge tone={module.status === 'lab' ? 'warn' : 'neutral'}>
-                      {module.status === 'lab' ? 'Thử nghiệm' : 'Sắp có'}
-                    </Badge>
-                  )}
-                </div>
-                <h3 className="mt-3.5 text-[15.5px] font-semibold">{module.name}</h3>
-                <p className="mt-1.5 text-[13.5px] leading-relaxed text-ink-3">{module.description}</p>
-              </>
-            );
-
-            return module.to ? (
-              <Link
-                key={module.name}
-                to={module.to}
-                className="group rounded-md border border-line bg-paper p-4 shadow-xs transition-[transform,box-shadow,border-color] hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md"
-              >
-                {body}
+    <>
+      <div className="page-head dash-head">
+        <div className="container">
+          <p className="dash-date">{fmtToday()}</p>
+          <div className="ph-row">
+            <div>
+              <h1 className="t-display dash-hi">Chào {firstName}, hôm nay học gì?</h1>
+              <p className="ph-desc">
+                {user?.major
+                  ? `${user.major.name}${user.university ? ` · ${user.university.name}` : ''}${user.year ? ` · năm ${user.year}` : ''}`
+                  : 'Thêm trường và ngành vào hồ sơ để Kaned gợi ý đúng môn của bạn.'}
+              </p>
+            </div>
+            <div className="ph-actions">
+              <Link to="/app/subjects" className="btn btn-secondary">
+                Nhập điểm
               </Link>
-            ) : (
-              <div key={module.name} className="rounded-md border border-dashed border-line-2 bg-paper-2 p-4">
-                {body}
-              </div>
-            );
-          })}
-        </div>
-      </section>
+              <Link to="/app/library" className="btn btn-primary">
+                <Library className="ic ic-sm" />
+                Mở thư viện
+              </Link>
+            </div>
+          </div>
 
-      {/* Recent documents */}
-      <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <Card className="min-w-0">
-          <CardHeader
-            title="Mới chia sẻ"
-            subtitle="Tài liệu vừa được sinh viên tải lên."
-            actions={
-              <Link to="/app/library?sort=recent" className="text-sm font-medium text-brand hover:underline">
-                Xem tất cả
+          <div className="sw-stats dash-stats">
+            <div className="sw-stat sw-progress">
+              <span className="sw-stat-l">Tiến độ chương trình</span>
+              <b>
+                {summary?.progressPercent ?? 0}
+                <small>%</small>
+              </b>
+              <Progress value={summary?.progressPercent ?? 0} tone="green" />
+              <span className="sw-stat-s">
+                {summary ? `${summary.earnedCredits}/${summary.totalCredits} tín chỉ đã qua` : 'Chọn ngành để xem tiến độ'}
+              </span>
+            </div>
+            <Link to="/app/tools/gpa" className="sw-stat sw-stat-btn st-available">
+              <span className="sw-stat-l">GPA hệ 4</span>
+              <b>{gpa?.gradedCount ? gpa.gpa4.toFixed(2) : '—'}</b>
+              <span className="sw-stat-s">{gpa?.gradedCount ? gpa.classification.vi : 'Chưa có điểm'}</span>
+            </Link>
+            <Link to="/app/subjects" className="sw-stat sw-stat-btn st-passed">
+              <span className="sw-stat-l">Học được kỳ tới</span>
+              <b>{summary?.available.length ?? '—'}</b>
+              <span className="sw-stat-s">{summary ? `${summary.availableCredits} tín chỉ đủ điều kiện` : '—'}</span>
+            </Link>
+            <Link to="/app/subjects" className="sw-stat sw-stat-btn st-blocked">
+              <span className="sw-stat-l">Đang bị chặn</span>
+              <b>{summary?.blocked.length ?? '—'}</b>
+              <span className="sw-stat-s">Thiếu điều kiện tiên quyết</span>
+            </Link>
+            <Link to="/app/saved" className="sw-stat sw-stat-btn st-in_progress">
+              <span className="sw-stat-l">Đã lưu</span>
+              <b>{saved?.length ?? 0}</b>
+              <span className="sw-stat-s">tài liệu để đọc lại</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      <div className="container">
+        {/* What to study next */}
+        {plan && (
+          <section className="section dash-next">
+            <SectionHead
+              title="Kỳ tới bạn học được"
+              description="Gợi ý từ điểm bạn đã nhập và điều kiện tiên quyết của chương trình: môn học lại trước, rồi đến môn mở khoá nhiều môn sau nhất."
+              link={
+                <Link className="link" to="/app/subjects">
+                  Xem cả lộ trình
+                  <ChevronRight className="ic ic-sm" />
+                </Link>
+              }
+            />
+            <div className="dash-next-grid">
+              <div className="dash-plan">
+                {plan.suggestion.length ? (
+                  <>
+                    <ol>
+                      {plan.suggestion.map((s, i) => {
+                        const tone = subjectTone(s.code);
+                        return (
+                          <li key={s.subjectId}>
+                            <Link to={`/app/subjects/${s.code}`} style={{ ['--tc' as string]: tone.c, ['--tt' as string]: tone.t }}>
+                              <span className="dash-n">{i + 1}</span>
+                              <span className="subj-chip">{s.code}</span>
+                              <span className="dash-plan-name">{s.nameVi ?? s.name}</span>
+                              {s.status === 'failed' && <span className="badge badge-red">Học lại</span>}
+                              {s.unlocks.length > 0 && <span className="dash-unlocks">mở {s.unlocks.length} môn</span>}
+                              <span className="dash-cr">{s.credits} TC</span>
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                    <p className="dash-plan-total">
+                      <Sparkles className="ic ic-sm" />
+                      Tổng {plan.suggestion.reduce((n, s) => n + s.credits, 0)} tín chỉ, trong giới hạn 18 tín chỉ một kỳ.
+                    </p>
+                  </>
+                ) : (
+                  <p className="t-small">Không còn môn nào đủ điều kiện — có thể bạn cần qua các môn đang bị chặn trước.</p>
+                )}
+              </div>
+
+              <div className="dash-blocked">
+                <h3>
+                  <Lock className="ic ic-sm" />
+                  Đang bị chặn
+                </h3>
+                {blocked.length ? (
+                  <ul>
+                    {blocked.slice(0, 5).map((b) => {
+                      const missing = b.checks.filter((c) => !c.ok);
+                      return (
+                        <li key={b.subjectId}>
+                          <Link to={`/app/subjects/${b.code}`}>
+                            <b>{b.code}</b>
+                            <span>{missing[0]?.text}</span>
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="t-small">Không có môn nào bị chặn. Tốt lắm!</p>
+                )}
+                {blocked.length > 5 && (
+                  <Link to="/app/subjects" className="link">
+                    Xem thêm {blocked.length - 5} môn
+                  </Link>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Documents for those subjects */}
+        <section className="section">
+          <SectionHead
+            title={nextIds.length && forNext?.items.length ? 'Tài liệu cho các môn kỳ tới' : 'Được tải nhiều tuần này'}
+            description={
+              nextIds.length && forNext?.items.length
+                ? 'Đề thi, slide và ghi chép của đúng những môn bạn sắp học.'
+                : 'Những tài liệu sinh viên tải nhiều nhất gần đây.'
+            }
+            link={
+              <Link className="link" to="/app/library">
+                Mở thư viện
+                <ChevronRight className="ic ic-sm" />
               </Link>
             }
           />
-          <CardBody className="space-y-2.5">
-            {loadingRecent
-              ? Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-24" />)
-              : recent?.items.map((document) => (
-                  <DocumentRow key={document.id} document={document} onToggleBookmark={(id) => toggleBookmark.mutate(id)} />
+          <div className="grid-docs grid-4">
+            {docsLoading
+              ? Array.from({ length: 4 }, (_, i) => <DocCardSkeleton key={i} />)
+              : docs.slice(0, 8).map((d) => (
+                  <DocCard key={d.id} doc={d} onToggleBookmark={(id) => toggleBookmark.mutate(id)} onPreview={setPreview} />
                 ))}
-          </CardBody>
-        </Card>
+          </div>
+        </section>
 
-        <div className="space-y-4">
-          <Card>
-            <CardHeader title="Đã lưu của bạn" />
-            <CardBody>
-              {!saved?.length ? (
-                <p className="text-sm text-ink-3">
-                  Chưa có tài liệu nào được lưu. Bấm dấu đánh dấu trên tài liệu để dành đọc sau.
-                </p>
+        {/* Ecosystem */}
+        <section className="section dash-eco">
+          <SectionHead
+            title="Hệ sinh thái Kaned"
+            description="Thư viện chỉ là một module. Mỗi module dùng chung tài khoản và dữ liệu học tập của bạn."
+          />
+          <div className="dash-tools">
+            <Link to="/app/library" className="dash-tool">
+              <span className="tool-ic tone-violet">
+                <Library className="ic" />
+              </span>
+              <b>Thư viện học liệu</b>
+              <small>Đề thi, slide, ghi chép — lọc theo trường, môn, học kỳ.</small>
+              <ArrowRight className="ic ic-sm dash-tool-go" />
+            </Link>
+            {TOOLS.map((t) =>
+              t.to ? (
+                <Link key={t.label} to={t.to} className="dash-tool">
+                  <span className={cn('tool-ic', `tone-${t.tone}`)}>
+                    <t.icon className="ic" />
+                  </span>
+                  <b>{t.label}</b>
+                  <small>{t.description}</small>
+                  <ArrowRight className="ic ic-sm dash-tool-go" />
+                </Link>
               ) : (
-                <ul className="space-y-1">
-                  {saved.slice(0, 5).map((document) => (
-                    <li key={document.id}>
-                      <Link
-                        to={`/app/library/${document.id}`}
-                        className="block rounded-lg px-2.5 py-2 transition-colors hover:bg-sunk"
-                      >
-                        <span className="text-[12.5px] font-bold text-brand">{document.subject.code}</span>
-                        <span className="mt-0.5 block line-clamp-2 text-[13.5px] leading-snug">{document.title}</span>
+                <div key={t.label} className="dash-tool is-soon">
+                  <span className={cn('tool-ic', `tone-${t.tone}`)}>
+                    <t.icon className="ic" />
+                  </span>
+                  <b>
+                    {t.label} <span className="badge badge-gray">Sắp có</span>
+                  </b>
+                  <small>{t.description}</small>
+                </div>
+              ),
+            )}
+          </div>
+        </section>
+
+        {/* Saved */}
+        <section className="section dash-saved-sec">
+          <div className="dash-two">
+            <div className="panel">
+              <div className="panel-head">
+                <h2 className="t-h4">
+                  <BookMarked className="ic ic-sm" style={{ display: 'inline', verticalAlign: '-3px', marginRight: 6, color: 'var(--violet)' }} />
+                  Đã lưu gần đây
+                </h2>
+                <Link className="link" to="/app/saved">
+                  Xem tất cả
+                </Link>
+              </div>
+              {saved?.length ? (
+                <ul className="dash-saved">
+                  {saved.slice(0, 5).map((d) => (
+                    <li key={d.id}>
+                      <Link to={`/app/library/${d.id}`}>
+                        <FileIcon format={d.format} size="sm" />
+                        <span>
+                          <b>{d.title}</b>
+                          <small>
+                            {d.subject.code} · {d.uploader.name} · {timeAgo(d.createdAt)}
+                          </small>
+                        </span>
                       </Link>
                     </li>
                   ))}
                 </ul>
+              ) : (
+                <p className="t-small" style={{ padding: '18px 22px' }}>
+                  Bấm biểu tượng đánh dấu trên tài liệu để dành đọc lại ở đây.
+                </p>
               )}
-              {saved && saved.length > 5 && (
-                <Link to="/app/saved" className="mt-3 inline-block text-sm font-medium text-brand hover:underline">
-                  Xem cả {saved.length} tài liệu
-                </Link>
-              )}
-            </CardBody>
-          </Card>
+            </div>
+            <div className="panel panel-pad dash-share">
+              <span className="tool-ic tone-violet">
+                <CloudUpload className="ic" />
+              </span>
+              <h2 className="t-h3">Có tài liệu hay?</h2>
+              <p>Mỗi tài liệu bạn chia sẻ giúp một lớp khác khỏi phải hỏi khắp nhóm. Mất khoảng hai phút.</p>
+              <Link to="/app/upload" className="btn btn-primary">
+                Chia sẻ tài liệu
+              </Link>
+            </div>
+          </div>
+        </section>
+      </div>
 
-          {gradeSummary?.byTerm.length ? (
-            <Card>
-              <CardHeader title="GPA theo học kỳ" />
-              <CardBody>
-                <ul className="space-y-2.5">
-                  {gradeSummary.byTerm.map((term) => (
-                    <li key={term.termNo} className="flex items-center gap-3">
-                      <span className="w-12 shrink-0 text-[13px] text-ink-3">HK{term.termNo}</span>
-                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-sunk">
-                        <div
-                          className="h-full rounded-full bg-brand transition-[width] duration-700"
-                          style={{ width: `${(term.gpa4 / 4) * 100}%` }}
-                        />
-                      </div>
-                      <span className="tabular w-10 shrink-0 text-right text-[13px] font-semibold">
-                        {term.gpa4.toFixed(2)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </CardBody>
-            </Card>
-          ) : null}
-        </div>
-      </section>
-    </div>
+      <QuickPreview
+        doc={preview ? (docs.find((d) => d.id === preview.id) ?? preview) : null}
+        onClose={() => setPreview(null)}
+        onToggleBookmark={(id) => toggleBookmark.mutate(id)}
+        onDownload={(d) => download.mutate(d.id, { onSuccess: ({ fileUrl }) => window.open(fileUrl, '_blank', 'noopener') })}
+        downloading={download.isPending}
+      />
+    </>
   );
 }

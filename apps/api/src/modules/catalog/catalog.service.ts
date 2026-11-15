@@ -1,5 +1,12 @@
 import { and, asc, count, desc, eq, ilike, inArray, or, sql, type SQL } from 'drizzle-orm';
-import type { Paginated, SubjectDetailDto, SubjectQuery, SubjectSummaryDto } from '@kaned/shared';
+import type {
+  CurriculumDto,
+  CurriculumSubjectDto,
+  Paginated,
+  SubjectDetailDto,
+  SubjectQuery,
+  SubjectSummaryDto,
+} from '@kaned/shared';
 import { db } from '../../db/index.js';
 import {
   documents,
@@ -191,10 +198,12 @@ export async function getSubject(idOrCode: string): Promise<SubjectDetailDto> {
     documentCount: counts.get(subject.id) ?? 0,
     prerequisites: subject.prerequisites.map((p) => ({
       type: p.type,
+      minScore: p.minScore,
       subject: toSubjectSummary(p.requires),
     })),
     unlocks: subject.unlocks.map((p) => ({
       type: p.type,
+      minScore: p.minScore,
       subject: toSubjectSummary(p.subject),
     })),
     majors: subject.curriculum.map((c) => ({
@@ -206,11 +215,6 @@ export async function getSubject(idOrCode: string): Promise<SubjectDetailDto> {
   };
 }
 
-export interface CurriculumSubject extends SubjectSummaryDto {
-  termNo: number | null;
-  isRequired: boolean;
-  prerequisites: Array<{ requiresId: string; type: 'PREREQUISITE' | 'COREQUISITE' | 'PRIOR' }>;
-}
 
 /** The curriculum of a major: what the planner and the GPA table are built on. */
 export async function getCurriculum(majorId: string) {
@@ -222,27 +226,21 @@ export async function getCurriculum(majorId: string) {
 
   const rows = await db.query.majorSubjects.findMany({
     where: eq(majorSubjects.majorId, majorId),
-    with: {
-      subject: {
-        with: {
-          university: true,
-          prerequisites: true,
-        },
-      },
-    },
+    with: { subject: { with: { university: true } } },
   });
 
-  const list: CurriculumSubject[] = rows
+  const counts = await documentCountsFor(rows.map((r) => r.subjectId));
+
+  const list: CurriculumSubjectDto[] = rows
     .map((row) => ({
-      ...toSubjectSummary(row.subject),
+      ...toSubjectSummary(row.subject, counts.get(row.subjectId) ?? 0),
       termNo: row.termNo,
       isRequired: row.isRequired,
-      prerequisites: row.subject.prerequisites.map((p) => ({
-        requiresId: p.requiresId,
-        type: p.type,
-      })),
+      choiceGroup: row.choiceGroup,
+      requirements: row.requirements,
     }))
     .sort((a, b) => (a.termNo ?? 99) - (b.termNo ?? 99) || a.code.localeCompare(b.code));
 
-  return { major: toMajor(major, list.length), subjects: list };
+  const result: CurriculumDto = { major: toMajor(major, list.length), subjects: list };
+  return result;
 }

@@ -8,11 +8,13 @@
  * is a new table pointing at users and subjects; nothing here has to change.
  */
 import { relations, sql } from 'drizzle-orm';
+import type { Requirement } from '@kaned/shared';
 import {
   boolean,
   doublePrecision,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   primaryKey,
@@ -100,6 +102,8 @@ export const majors = pgTable(
     name: text('name').notNull(),
     nameVi: text('name_vi').notNull(),
     totalCredits: integer('total_credits').notNull().default(145),
+    /** Score a subject needs to count as passed. FPT University uses 5.0. */
+    passMark: real('pass_mark').notNull().default(5),
     facultyId: text('faculty_id')
       .notNull()
       .references(() => faculties.id, { onDelete: 'cascade' }),
@@ -156,6 +160,15 @@ export const majorSubjects = pgTable(
       .references(() => subjects.id, { onDelete: 'cascade' }),
     termNo: integer('term_no'),
     isRequired: boolean('is_required').notNull().default(true),
+    /**
+     * What a student needs before registering, in this programme. Kept as
+     * JSON because the rules are a small tree (pass / score floor /
+     * alternatives / N-of-M / max debt / group average) that the shared
+     * planner evaluates as a whole.
+     */
+    requirements: jsonb('requirements').$type<Requirement[]>().notNull().default(sql`'[]'::jsonb`),
+    /** Subjects with the same group are alternatives, e.g. thesis or capstone. */
+    choiceGroup: varchar('choice_group', { length: 40 }),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.majorId, t.subjectId] }),
@@ -174,6 +187,8 @@ export const subjectPrerequisites = pgTable(
       .notNull()
       .references(() => subjects.id, { onDelete: 'cascade' }),
     type: prereqTypeEnum('type').notNull().default('PREREQUISITE'),
+    /** Minimum score on the 10-point scale; null means the subject must be passed. */
+    minScore: real('min_score'),
     note: text('note'),
   },
   (t) => ({

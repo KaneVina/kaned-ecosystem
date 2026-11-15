@@ -10,6 +10,7 @@ import type {
   Role,
   Semester,
 } from './domain.js';
+import type { Requirement } from './planner.js';
 
 export interface Paginated<T> {
   items: T[];
@@ -39,7 +40,7 @@ export interface FacultyDto {
   name: string;
   nameVi: string;
   universityId: string;
-  university?: Pick<UniversityDto, 'id' | 'code' | 'name' | 'color'>;
+  university?: Pick<UniversityDto, 'id' | 'code' | 'name' | 'nameVi' | 'color'>;
   majors?: MajorDto[];
 }
 
@@ -51,6 +52,8 @@ export interface MajorDto {
   facultyId: string;
   faculty?: Pick<FacultyDto, 'id' | 'name' | 'nameVi' | 'universityId'>;
   totalCredits?: number;
+  /** Score a subject needs to count as passed in this programme. */
+  passMark?: number;
   subjectCount?: number;
 }
 
@@ -65,13 +68,29 @@ export interface SubjectSummaryDto {
   typicalYear: number | null;
   typicalSemester: Semester | null;
   universityId: string;
-  university?: Pick<UniversityDto, 'id' | 'code' | 'name' | 'color'>;
+  university?: Pick<UniversityDto, 'id' | 'code' | 'name' | 'nameVi' | 'color'>;
   documentCount?: number;
 }
 
 export interface SubjectPrereqDto {
   type: PrereqType;
+  /** Minimum score on the 10-point scale; null means the subject must be passed. */
+  minScore: number | null;
   subject: SubjectSummaryDto;
+}
+
+/** A subject as it sits in one programme: its term and what it requires there. */
+export interface CurriculumSubjectDto extends SubjectSummaryDto {
+  termNo: number | null;
+  isRequired: boolean;
+  /** Subjects sharing a group are alternatives, e.g. thesis or capstone project. */
+  choiceGroup: string | null;
+  requirements: Requirement[];
+}
+
+export interface CurriculumDto {
+  major: MajorDto;
+  subjects: CurriculumSubjectDto[];
 }
 
 export interface SubjectDetailDto extends SubjectSummaryDto {
@@ -92,7 +111,7 @@ export interface UserSummaryDto {
   name: string;
   avatarUrl: string | null;
   universityId: string | null;
-  university?: Pick<UniversityDto, 'id' | 'code' | 'name' | 'color'> | null;
+  university?: Pick<UniversityDto, 'id' | 'code' | 'name' | 'nameVi' | 'color'> | null;
   major?: Pick<MajorDto, 'id' | 'name'> | null;
   year: number | null;
   uploadCount?: number;
@@ -134,7 +153,7 @@ export interface DocumentSummaryDto {
   status: DocumentStatus;
   createdAt: string;
   subject: SubjectSummaryDto;
-  university: Pick<UniversityDto, 'id' | 'code' | 'name' | 'color'>;
+  university: Pick<UniversityDto, 'id' | 'code' | 'name' | 'nameVi' | 'color'>;
   uploader: UserSummaryDto;
   tags: string[];
   isBookmarked?: boolean;

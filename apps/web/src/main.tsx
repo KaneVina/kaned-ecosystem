@@ -6,7 +6,8 @@ import App from './App';
 import { queryClient } from '@/lib/queryClient';
 import { AuthProvider } from '@/providers/AuthProvider';
 import { ToastProvider } from '@/providers/ToastProvider';
-import '@/styles/index.css';
+import '@/styles/kaned.css';
+import '@/styles/app.css';
 
 const container = document.getElementById('root');
 if (!container) throw new Error('Missing #root element in index.html');

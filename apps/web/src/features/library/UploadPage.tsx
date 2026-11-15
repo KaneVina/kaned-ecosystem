@@ -1,8 +1,23 @@
-import { useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { CheckCircle2, CloudUpload, FileUp, Plus, ShieldCheck, Trash2, X } from 'lucide-react';
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import {
+  CircleAlert,
+  CircleCheck,
+  CircleDot,
+  CloudUpload,
+  FileCheck,
+  FileText,
+  FileUp,
+  FolderOpen,
+  ListChecks,
+  Plus,
+  ScrollText,
+  Trash2,
+  X,
+} from "lucide-react";
 import {
   createDocumentSchema,
   DOCUMENT_TYPES,
@@ -12,151 +27,285 @@ import {
   SEMESTERS,
   SEMESTER_LABELS,
   STUDY_YEARS,
-  type CreateDocumentInput,
+  type DocumentSummaryDto,
   type FileFormat,
-} from '@kaned/shared';
-import { Button, IconButton } from '@/components/ui/Button';
-import { Card, CardBody, CardHeader, PageHeader } from '@/components/ui/Card';
-import { Field, Input, Select, Textarea } from '@/components/ui/Field';
-import { FileBadge } from '@/components/ui/FileBadge';
-import { Progress } from '@/components/ui/Feedback';
-import { Tag } from '@/components/ui/Badge';
-import { useCreateDocument, uploadToCloudinary } from './queries';
-import { useSubjects, useUniversities } from '@/features/catalog/queries';
-import { useToast } from '@/providers/ToastProvider';
-import { toApiError } from '@/lib/api';
-import { fmtBytes } from '@/lib/format';
-import { cn } from '@/lib/cn';
+} from "@kaned/shared";
+import { PageHead } from "@/components/ui/Panel";
+import { FileIcon } from "@/components/ui/FileBadge";
+import { DocCard } from "@/components/library/DocCard";
+import { useCreateDocument, uploadToCloudinary } from "./queries";
+import { useSubjects, useUniversities } from "@/features/catalog/queries";
+import { useAuth } from "@/providers/AuthProvider";
+import { useToast } from "@/providers/ToastProvider";
+import { toApiError } from "@/lib/api";
+import { fmtBytes } from "@/lib/format";
+import { cn } from "@/lib/cn";
+import { TYPE_ICONS } from "@/lib/typeIcons";
 
-interface Staged {
-  file: File;
-  format: FileFormat;
-}
+const EXT_TO_FORMAT: Record<string, FileFormat> = {
+  pdf: "PDF",
+  docx: "DOCX",
+  pptx: "PPTX",
+  xlsx: "XLSX",
+};
+
+/** The form's own schema: the API's, minus what the upload fills in, plus the rights box. */
+const uploadSchema = createDocumentSchema
+  .omit({ fileUrl: true, filePublicId: true, fileBytes: true, format: true })
+  .extend({
+    rights: z
+      .boolean()
+      .refine((v) => v, {
+        message: "Xác nhận bạn có quyền chia sẻ tài liệu này.",
+      }),
+  });
+type Form = z.infer<typeof uploadSchema>;
 
 export function UploadPage() {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [staged, setStaged] = useState<Staged | null>(null);
+  const input = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<{ file: File; format: FileFormat } | null>(
+    null,
+  );
+  const [fileError, setFileError] = useState("");
   const [dragging, setDragging] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
-  const [tagDraft, setTagDraft] = useState('');
+  const [tagDraft, setTagDraft] = useState("");
+  const [submitted, setSubmitted] = useState(false);
 
   const createDocument = useCreateDocument();
   const { data: universities = [] } = useUniversities();
 
-  const form = useForm<CreateDocumentInput>({
-    resolver: zodResolver(createDocumentSchema),
+  const form = useForm<Form>({
+    resolver: zodResolver(uploadSchema),
     defaultValues: {
-      title: '',
-      description: '',
-      type: 'EXAM',
-      universityId: '',
-      subjectId: '',
-      year: 3,
-      semester: 'S1',
+      title: "",
+      description: "",
+      type: undefined as never,
+      universityId: user?.universityId ?? "",
+      subjectId: "",
+      year: user?.year ?? 2,
+      semester: undefined as never,
+      schoolYear: "2025–2026",
       tags: [],
-      language: 'Vietnamese',
-      fileUrl: '',
-      filePublicId: '',
-      fileBytes: 0,
+      language: "Vietnamese",
+      rights: false,
     },
   });
-
-  const universityId = form.watch('universityId');
-  const tags = form.watch('tags') ?? [];
-  const { data: subjectPage } = useSubjects({ universityId: universityId || undefined, pageSize: 200 });
+  const v = form.watch();
+  const { errors } = form.formState;
+  const { data: subjectPage } = useSubjects(
+    { universityId: v.universityId || undefined, pageSize: 200 },
+    { enabled: Boolean(v.universityId) },
+  );
   const subjects = subjectPage?.items ?? [];
+  const subject = subjects.find((s) => s.id === v.subjectId);
 
-  const accept = (file: File) => {
-    const format = MIME_TO_FORMAT[file.type];
+  // The selects are uncontrolled: re-apply the pre-filled values once their options exist.
+  useEffect(() => {
+    if (universities.length)
+      form.setValue("universityId", form.getValues("universityId"));
+  }, [universities.length, form]);
+  useEffect(() => {
+    if (subjects.length)
+      form.setValue("subjectId", form.getValues("subjectId"));
+  }, [subjects.length, form]);
+  const university = universities.find((u) => u.id === v.universityId);
+
+  const accept = (f: File) => {
+    const ext = (f.name.split(".").pop() ?? "").toLowerCase();
+    const format = MIME_TO_FORMAT[f.type] ?? EXT_TO_FORMAT[ext];
     if (!format) {
-      toast.error('Định dạng không hỗ trợ', 'Chỉ nhận PDF, DOCX, PPTX hoặc XLSX.');
+      setFileError(
+        `“${f.name}” là file .${ext || "?"}. Hãy tải lên PDF, DOCX, PPTX hoặc XLSX.`,
+      );
+      toast.error(
+        "Định dạng không hỗ trợ",
+        "Kaned nhận PDF, DOCX, PPTX và XLSX.",
+      );
       return;
     }
-    if (file.size > MAX_UPLOAD_BYTES) {
-      toast.error('Tệp quá lớn', `Giới hạn ${fmtBytes(MAX_UPLOAD_BYTES)} cho mỗi tệp.`);
+    if (f.size > MAX_UPLOAD_BYTES) {
+      setFileError(
+        `File nặng ${fmtBytes(f.size)}. Giới hạn là ${fmtBytes(MAX_UPLOAD_BYTES)} — thử nén hoặc tách theo chương.`,
+      );
+      toast.error("File quá lớn", `Giới hạn ${fmtBytes(MAX_UPLOAD_BYTES)}.`);
       return;
     }
-    setStaged({ file, format });
-    form.setValue('format', format);
-    form.setValue('fileBytes', file.size);
-    if (!form.getValues('title')) {
-      form.setValue('title', file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' '));
+    setFileError("");
+    setFile({ file: f, format });
+    if (!form.getValues("title").trim()) {
+      form.setValue(
+        "title",
+        f.name
+          .replace(/\.[^.]+$/, "")
+          .replace(/[_-]+/g, " ")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 150),
+      );
     }
   };
 
-  const addTag = () => {
-    const value = tagDraft.trim();
-    if (!value || tags.includes(value) || tags.length >= 8) return;
-    form.setValue('tags', [...tags, value]);
-    setTagDraft('');
+  const tags = v.tags ?? [];
+  const addTag = (raw: string) => {
+    const t = raw.trim().slice(0, 30);
+    if (!t || tags.includes(t) || tags.length >= 8) return;
+    form.setValue("tags", [...tags, t]);
+    setTagDraft("");
   };
+  const suggested = subject
+    ? [subject.code, subject.nameVi.toLowerCase()].filter(
+        (t) => !tags.includes(t),
+      )
+    : [];
 
-  const onSubmit = form.handleSubmit(async (values) => {
-    if (!staged) {
-      toast.error('Chưa chọn tệp', 'Kéo tệp vào khung hoặc bấm để chọn.');
-      return;
-    }
-    try {
-      setProgress(0);
-      const uploaded = await uploadToCloudinary(staged.file, setProgress);
-      const created = await createDocument.mutateAsync({
-        ...values,
-        fileUrl: uploaded.url,
-        filePublicId: uploaded.publicId,
-        fileBytes: uploaded.bytes,
-        pages: uploaded.pages,
-      });
-      toast.success('Đã tải lên', 'Tài liệu sẽ hiển thị trong thư viện sau khi kiểm duyệt.');
-      navigate(`/app/library/${created.id}`);
-    } catch (error) {
-      const err = toApiError(error);
-      if (err.fields) {
-        for (const [field, message] of Object.entries(err.fields)) {
-          form.setError(field as keyof CreateDocumentInput, { message });
+  const checklist: Array<[string, boolean]> = [
+    ["Tệp tài liệu", Boolean(file)],
+    ["Tiêu đề", (v.title ?? "").trim().length >= 10],
+    ["Mô tả", (v.description ?? "").trim().length >= 30],
+    ["Loại tài liệu", Boolean(v.type)],
+    [
+      "Thông tin môn học",
+      Boolean(v.universityId && v.subjectId && v.year && v.semester),
+    ],
+    ["Xác nhận quyền chia sẻ", Boolean(v.rights)],
+  ];
+  const done = checklist.filter(([, ok]) => ok).length;
+
+  const previewDoc: DocumentSummaryDto | null =
+    subject && university
+      ? {
+          id: "preview",
+          title: v.title || "Tiêu đề tài liệu của bạn",
+          description: v.description,
+          type: v.type ?? "NOTES",
+          format: file?.format ?? "PDF",
+          fileBytes: file?.file.size ?? 1_200_000,
+          pages: 12,
+          thumbnailUrl: null,
+          year: Number(v.year) || 1,
+          semester: v.semester ?? "S1",
+          schoolYear: v.schoolYear ?? null,
+          language: "Vietnamese",
+          downloads: 0,
+          views: 0,
+          ratingAvg: 0,
+          ratingCount: 0,
+          status: "PUBLISHED",
+          createdAt: new Date().toISOString(),
+          subject,
+          university: {
+            id: university.id,
+            code: university.code,
+            name: university.name,
+            nameVi: university.nameVi,
+            color: university.color,
+          },
+          uploader: {
+            id: user?.id ?? "me",
+            name: user?.name ?? "Bạn",
+            avatarUrl: user?.avatarUrl ?? null,
+            universityId: null,
+            year: user?.year ?? null,
+          },
+          tags,
         }
+      : null;
+
+  const onSubmit = form.handleSubmit(
+    async (values) => {
+      setSubmitted(true);
+      if (!file) {
+        setFileError("Chọn một tệp để tải lên.");
+        return;
       }
-      toast.error('Không tải lên được', err.message);
-    } finally {
-      setProgress(null);
-    }
-  });
+      try {
+        setProgress(0);
+        const uploaded = await uploadToCloudinary(file.file, setProgress);
+        const { rights: _rights, ...rest } = values;
+        const created = await createDocument.mutateAsync({
+          ...rest,
+          format: file.format,
+          fileUrl: uploaded.url,
+          filePublicId: uploaded.publicId,
+          fileBytes: uploaded.bytes,
+          pages: uploaded.pages,
+        });
+        toast.success(
+          "Đã đăng tài liệu",
+          "Cảm ơn bạn — lớp sau sẽ tìm thấy nó trong thư viện.",
+        );
+        navigate(`/app/library/${created.id}`);
+      } catch (error) {
+        const err = toApiError(error);
+        if (err.fields)
+          for (const [f, m] of Object.entries(err.fields))
+            form.setError(f as keyof Form, { message: m });
+        toast.error("Không đăng được tài liệu", err.message);
+      } finally {
+        setProgress(null);
+      }
+    },
+    () => {
+      setSubmitted(true);
+      if (!file) setFileError("Chọn một tệp để tải lên.");
+      document
+        .querySelector(".field.invalid")
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    },
+  );
+
+  const errorCount = Object.keys(errors).length + (fileError ? 1 : 0);
+  const busy = progress !== null || createDocument.isPending;
 
   return (
-    <div className="space-y-5">
-      <PageHeader
+    <>
+      <PageHead
+        crumbs={[
+          { label: "Thư viện", to: "/app/library" },
+          { label: "Tải lên" },
+        ]}
         title="Chia sẻ tài liệu"
-        subtitle="Mỗi tài liệu bạn chia sẻ giúp một lớp khác đỡ phải hỏi khắp nhóm. Mất khoảng hai phút."
+        description="Chia sẻ tài liệu từ môn bạn đã học. Điền đúng thông tin môn học — đó là cách sinh viên cùng lớp tìm thấy nó."
       />
+      <div className="container upload-layout">
+        <form className="upload-form" onSubmit={onSubmit} noValidate>
+          {submitted && errorCount > 0 && (
+            <div className="form-errors" role="alert">
+              <CircleAlert className="ic" />
+              <div>
+                <b>Còn {errorCount} mục cần sửa trước khi đăng.</b>
+                <p>Các ô được đánh dấu đỏ bên dưới.</p>
+              </div>
+            </div>
+          )}
 
-      <form onSubmit={onSubmit} noValidate className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="min-w-0 space-y-5">
-          {/* Dropzone */}
-          <Card>
-            <CardHeader title="Tệp tài liệu" subtitle={`PDF, DOCX, PPTX hoặc XLSX, tối đa ${fmtBytes(MAX_UPLOAD_BYTES)}.`} />
-            <CardBody>
-              {staged ? (
-                <div className="flex items-center gap-4 rounded-xl border border-line bg-paper-2 p-4">
-                  <FileBadge format={staged.format} bytes={staged.file.size} className="bg-paper shadow-xs" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">{staged.file.name}</p>
-                    <p className="text-[13px] text-ink-3">{fmtBytes(staged.file.size)}</p>
-                    {progress !== null && (
-                      <div className="mt-2">
-                        <Progress value={progress} />
-                        <p className="tabular mt-1 text-xs text-ink-3">Đang tải lên {progress}%</p>
-                      </div>
-                    )}
-                  </div>
-                  {progress === null && (
-                    <IconButton label="Bỏ tệp này" onClick={() => setStaged(null)}>
-                      <Trash2 className="size-[18px]" />
-                    </IconButton>
-                  )}
-                </div>
-              ) : (
+          <section className="panel up-sec">
+            <div className="up-sec-head">
+              <span className="up-step">1</span>
+              <div>
+                <h2 className="t-h3">Chọn tệp</h2>
+                <p>
+                  PDF, Word (DOCX), PowerPoint (PPTX) hoặc Excel (XLSX), tối đa{" "}
+                  {fmtBytes(MAX_UPLOAD_BYTES)}.
+                </p>
+              </div>
+            </div>
+            <div className={cn("field", fileError && "invalid")}>
+              {!file ? (
                 <div
+                  className={cn("dropzone", dragging && "drag")}
+                  tabIndex={0}
+                  role="button"
+                  aria-label="Chọn tệp để tải lên, hoặc kéo thả vào đây"
+                  onClick={() => input.current?.click()}
+                  onKeyDown={(e) =>
+                    (e.key === "Enter" || e.key === " ") &&
+                    (e.preventDefault(), input.current?.click())
+                  }
                   onDragOver={(e) => {
                     e.preventDefault();
                     setDragging(true);
@@ -165,214 +314,464 @@ export function UploadPage() {
                   onDrop={(e) => {
                     e.preventDefault();
                     setDragging(false);
-                    const file = e.dataTransfer.files?.[0];
-                    if (file) accept(file);
+                    const f = e.dataTransfer.files?.[0];
+                    if (f) accept(f);
                   }}
-                  onClick={() => inputRef.current?.click()}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      inputRef.current?.click();
-                    }
-                  }}
-                  role="button"
-                  tabIndex={0}
-                  className={cn(
-                    'grid cursor-pointer place-items-center rounded-xl border-2 border-dashed px-6 py-12 text-center transition-colors',
-                    dragging ? 'border-brand bg-brand-50' : 'border-line-2 bg-paper-2 hover:border-brand-200',
-                  )}
                 >
-                  <CloudUpload className={cn('size-11 transition-colors', dragging ? 'text-brand' : 'text-ink-4')} aria-hidden />
-                  <p className="mt-3.5 font-semibold">Kéo tệp vào đây</p>
-                  <p className="mt-1 text-sm text-ink-3">hoặc bấm để chọn từ máy của bạn</p>
                   <input
-                    ref={inputRef}
+                    ref={input}
                     type="file"
-                    className="sr-only"
+                    hidden
                     accept=".pdf,.docx,.pptx,.xlsx"
                     onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) accept(file);
-                      e.target.value = '';
+                      const f = e.target.files?.[0];
+                      if (f) accept(f);
+                      e.target.value = "";
                     }}
                   />
+                  <span className="dz-ic">
+                    <CloudUpload className="ic ic-xl" />
+                  </span>
+                  <p className="dz-title">
+                    <b>Kéo thả tệp vào đây</b>
+                    <span>hoặc</span>
+                  </p>
+                  <span className="btn btn-secondary btn-sm dz-btn">
+                    <FolderOpen className="ic ic-sm" />
+                    Chọn tệp
+                  </span>
+                  <p className="dz-hint">
+                    <span className="ft ft-pdf">PDF</span>
+                    <span className="ft ft-docx">DOCX</span>
+                    <span className="ft ft-pptx">PPTX</span>
+                    <span className="ft ft-xlsx">XLSX</span>
+                    <span>Tối đa {fmtBytes(MAX_UPLOAD_BYTES)}</span>
+                  </p>
+                  <span className="dz-drop">
+                    <FileUp className="ic ic-xl" />
+                    <b>Thả để tải lên</b>
+                  </span>
+                </div>
+              ) : (
+                <div
+                  className={cn(
+                    "file-pill",
+                    progress !== null ? "checking" : "ready",
+                  )}
+                  style={{ ["--p" as string]: `${progress ?? 100}%` }}
+                >
+                  <FileIcon format={file.format} />
+                  <div className="fp-main">
+                    <b className="clamp-1">{file.file.name}</b>
+                    <span className="fp-sub">
+                      {fmtBytes(file.file.size)}{" "}
+                      {progress !== null ? (
+                        `— đang tải lên ${progress}%`
+                      ) : (
+                        <>
+                          <CircleCheck className="ic ic-xs" /> Sẵn sàng đăng
+                        </>
+                      )}
+                    </span>
+                    <span className="fp-bar">
+                      <i style={{ width: `${progress ?? 100}%` }} />
+                    </span>
+                  </div>
+                  {progress === null && (
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      onClick={() => setFile(null)}
+                      aria-label="Bỏ tệp"
+                    >
+                      <Trash2 className="ic ic-sm" />
+                    </button>
+                  )}
                 </div>
               )}
-            </CardBody>
-          </Card>
+              <span className="error-text">
+                <CircleAlert className="ic ic-xs" />
+                <span>{fileError}</span>
+              </span>
+            </div>
+          </section>
 
-          {/* Metadata */}
-          <Card>
-            <CardHeader title="Thông tin tài liệu" subtitle="Ghi đúng mã môn và học kỳ để người khác tìm được." />
-            <CardBody className="space-y-4">
-              <Field label="Tiêu đề" htmlFor="title" error={form.formState.errors.title?.message}>
-                <Input id="title" placeholder="Đề thi cuối kỳ CSD201 — Fall 2025 kèm lời giải" {...form.register('title')} />
-              </Field>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Trường" htmlFor="universityId" error={form.formState.errors.universityId?.message}>
-                  <Select
-                    id="universityId"
-                    {...form.register('universityId', { onChange: () => form.setValue('subjectId', '') })}
-                  >
-                    <option value="">Chọn trường</option>
-                    {universities.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.name}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-
-                <Field label="Môn học" htmlFor="subjectId" error={form.formState.errors.subjectId?.message}>
-                  <Select id="subjectId" disabled={!universityId} {...form.register('subjectId')}>
-                    <option value="">{universityId ? 'Chọn môn học' : 'Chọn trường trước'}</option>
-                    {subjects.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.code} — {s.name}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
+          <section className="panel up-sec">
+            <div className="up-sec-head">
+              <span className="up-step">2</span>
+              <div>
+                <h2 className="t-h3">Mô tả tài liệu</h2>
+                <p>Đặt tiêu đề theo cách một bạn cùng lớp sẽ gõ để tìm.</p>
               </div>
-
-              <Field label="Loại tài liệu" error={form.formState.errors.type?.message}>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {DOCUMENT_TYPES.map((type) => (
-                    <label key={type} className="block">
-                      <input type="radio" value={type} className="peer sr-only" {...form.register('type')} />
-                      <span className="flex h-11 cursor-pointer items-center gap-2 rounded-[11px] border-[1.5px] border-line bg-paper-2 px-3 text-[13.5px] font-medium text-ink-2 transition-all peer-checked:border-brand peer-checked:bg-brand-50 peer-checked:text-brand-700 hover:border-brand-200">
-                        <span aria-hidden>{DOCUMENT_TYPE_LABELS[type].icon}</span>
-                        {DOCUMENT_TYPE_LABELS[type].vi}
+            </div>
+            <div className={cn("field", errors.title && "invalid")}>
+              <label className="label" htmlFor="up-title">
+                Tiêu đề <span className="req">*</span>
+              </label>
+              <input
+                className="input"
+                id="up-title"
+                maxLength={150}
+                placeholder="Ví dụ: Đề thi cuối kỳ CSD201 – Spring 2026 (có đáp án)"
+                {...form.register("title")}
+              />
+              <div className="field-row">
+                <span className="hint">Ghi rõ môn, chương hoặc kỳ thi.</span>
+                <span className="error-text">
+                  <CircleAlert className="ic ic-xs" />
+                  <span>
+                    {errors.title?.message && "Tiêu đề cần ít nhất 10 ký tự."}
+                  </span>
+                </span>
+                <span className="counter">{(v.title ?? "").length}/150</span>
+              </div>
+            </div>
+            <div className={cn("field", errors.description && "invalid")}>
+              <label className="label" htmlFor="up-desc">
+                Mô tả <span className="req">*</span>
+              </label>
+              <textarea
+                className="textarea"
+                id="up-desc"
+                maxLength={1000}
+                placeholder="Bên trong có gì, gồm những chương nào, có đáp án không…"
+                {...form.register("description")}
+              />
+              <div className="field-row">
+                <span className="hint">Ít nhất 30 ký tự.</span>
+                <span className="error-text">
+                  <CircleAlert className="ic ic-xs" />
+                  <span>
+                    {errors.description && "Viết mô tả ít nhất 30 ký tự."}
+                  </span>
+                </span>
+                <span className="counter">
+                  {(v.description ?? "").length}/1000
+                </span>
+              </div>
+            </div>
+            <fieldset className={cn("field", errors.type && "invalid")}>
+              <legend className="label">
+                Loại tài liệu <span className="req">*</span>
+              </legend>
+              <div className="type-grid">
+                {DOCUMENT_TYPES.map((t) => {
+                  const Icon = TYPE_ICONS[t];
+                  return (
+                    <label key={t} className="type-card">
+                      <input
+                        type="radio"
+                        value={t}
+                        {...form.register("type")}
+                      />
+                      <span className="tc-ic">
+                        <Icon className="ic ic-sm" />
                       </span>
+                      <span>{DOCUMENT_TYPE_LABELS[t].vi}</span>
+                    </label>
+                  );
+                })}
+              </div>
+              <span className="error-text">
+                <CircleAlert className="ic ic-xs" />
+                <span>Chọn loại tài liệu.</span>
+              </span>
+            </fieldset>
+            <div className="field">
+              <label className="label" htmlFor="up-tag">
+                Thẻ <span className="opt">(không bắt buộc, tối đa 8)</span>
+              </label>
+              <div
+                className="tag-input"
+                onClick={() => document.getElementById("up-tag")?.focus()}
+              >
+                {tags.map((t) => (
+                  <span key={t} className="chip">
+                    {t}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        form.setValue(
+                          "tags",
+                          tags.filter((x) => x !== t),
+                        )
+                      }
+                      aria-label={`Bỏ thẻ ${t}`}
+                    >
+                      <X className="ic ic-xs" />
+                    </button>
+                  </span>
+                ))}
+                <input
+                  id="up-tag"
+                  placeholder={tags.length ? "" : "Gõ từ khoá rồi nhấn Enter"}
+                  maxLength={30}
+                  value={tagDraft}
+                  onChange={(e) => setTagDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === ",") {
+                      e.preventDefault();
+                      addTag(tagDraft);
+                    } else if (
+                      e.key === "Backspace" &&
+                      !tagDraft &&
+                      tags.length
+                    ) {
+                      form.setValue("tags", tags.slice(0, -1));
+                    }
+                  }}
+                />
+              </div>
+              {suggested.length > 0 && tags.length < 8 && (
+                <div className="tag-suggest">
+                  <span>Gợi ý:</span>
+                  {suggested.map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      className="tag"
+                      onClick={() => addTag(t)}
+                    >
+                      <Plus className="ic ic-xs" />
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="panel up-sec">
+            <div className="up-sec-head">
+              <span className="up-step">3</span>
+              <div>
+                <h2 className="t-h3">Xếp vào môn học</h2>
+                <p>
+                  Kaned đã điền sẵn theo hồ sơ của bạn. Sửa lại chỗ nào không
+                  khớp.
+                </p>
+              </div>
+            </div>
+            <div className="form-grid">
+              <div className={cn("field", errors.universityId && "invalid")}>
+                <label className="label" htmlFor="up-uni">
+                  Trường <span className="req">*</span>
+                </label>
+                <select
+                  className="select"
+                  id="up-uni"
+                  {...form.register("universityId", {
+                    onChange: () => form.setValue("subjectId", ""),
+                  })}
+                >
+                  <option value="">Chọn trường</option>
+                  {universities.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}
+                    </option>
+                  ))}
+                </select>
+                <span className="error-text">
+                  <CircleAlert className="ic ic-xs" />
+                  <span>Chọn trường.</span>
+                </span>
+              </div>
+              <div className={cn("field", errors.subjectId && "invalid")}>
+                <label className="label" htmlFor="up-subject">
+                  Môn học <span className="req">*</span>
+                </label>
+                <select
+                  className="select"
+                  id="up-subject"
+                  disabled={!v.universityId}
+                  {...form.register("subjectId")}
+                >
+                  <option value="">
+                    {v.universityId ? "Chọn môn học" : "Chọn trường trước"}
+                  </option>
+                  {subjects.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.code} — {s.nameVi}
+                    </option>
+                  ))}
+                </select>
+                <span className="error-text">
+                  <CircleAlert className="ic ic-xs" />
+                  <span>Chọn môn mà tài liệu thuộc về.</span>
+                </span>
+              </div>
+              <fieldset className={cn("field", errors.year && "invalid")}>
+                <legend className="label">
+                  Năm học <span className="req">*</span>
+                </legend>
+                <div className="pill-radios">
+                  {STUDY_YEARS.map((y) => (
+                    <label key={y} className="pill-radio">
+                      <input
+                        type="radio"
+                        value={y}
+                        {...form.register("year")}
+                      />
+                      <span>Năm {y}</span>
                     </label>
                   ))}
                 </div>
-              </Field>
-
-              <div className="grid gap-4 sm:grid-cols-3">
-                <Field label="Năm học" htmlFor="year" error={form.formState.errors.year?.message}>
-                  <Select id="year" {...form.register('year')}>
-                    {STUDY_YEARS.map((year) => (
-                      <option key={year} value={year}>
-                        Năm {year}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-
-                <Field label="Học kỳ" htmlFor="semester" error={form.formState.errors.semester?.message}>
-                  <Select id="semester" {...form.register('semester')}>
-                    {SEMESTERS.map((s) => (
-                      <option key={s} value={s}>
-                        {SEMESTER_LABELS[s].vi}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-
-                <Field label="Niên khoá" htmlFor="schoolYear" hint="Ví dụ: 2025-2026">
-                  <Input id="schoolYear" placeholder="2025-2026" {...form.register('schoolYear')} />
-                </Field>
-              </div>
-
-              <Field
-                label="Mô tả"
-                htmlFor="description"
-                hint="Nói rõ tài liệu gồm những gì, có lời giải chưa, nguồn từ lớp nào."
-                error={form.formState.errors.description?.message}
-              >
-                <Textarea
-                  id="description"
-                  rows={5}
-                  placeholder="Đề thi cuối kỳ gồm 6 câu tự luận về cây AVL, bảng băm và đồ thị. Có lời giải chi tiết do mình tự làm và đối chiếu với đáp án của giảng viên…"
-                  {...form.register('description')}
-                />
-              </Field>
-
-              <Field label="Thẻ" hint="Tối đa 8 thẻ. Enter để thêm.">
-                <div className="flex gap-2">
-                  <Input
-                    value={tagDraft}
-                    onChange={(e) => setTagDraft(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addTag();
-                      }
-                    }}
-                    placeholder="có lời giải, cuối kỳ, AVL…"
-                  />
-                  <Button type="button" variant="secondary" onClick={addTag} icon={<Plus className="size-4" />}>
-                    Thêm
-                  </Button>
+              </fieldset>
+              <fieldset className={cn("field", errors.semester && "invalid")}>
+                <legend className="label">
+                  Học kỳ <span className="req">*</span>
+                </legend>
+                <div className="pill-radios">
+                  {SEMESTERS.map((s) => (
+                    <label key={s} className="pill-radio">
+                      <input
+                        type="radio"
+                        value={s}
+                        {...form.register("semester")}
+                      />
+                      <span>{SEMESTER_LABELS[s].vi}</span>
+                    </label>
+                  ))}
                 </div>
-                {tags.length > 0 && (
-                  <div className="mt-2.5 flex flex-wrap gap-1.5">
-                    {tags.map((tag) => (
-                      <Tag key={tag}>
-                        {tag}
-                        <button
-                          type="button"
-                          onClick={() => form.setValue('tags', tags.filter((t) => t !== tag))}
-                          aria-label={`Bỏ thẻ ${tag}`}
-                          className="ml-1 rounded hover:text-ink"
-                        >
-                          <X className="size-3" />
-                        </button>
-                      </Tag>
-                    ))}
-                  </div>
-                )}
-              </Field>
-            </CardBody>
-          </Card>
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-4 lg:sticky lg:top-[88px] lg:self-start">
-          <Card>
-            <CardBody>
-              <Button
-                type="submit"
-                size="lg"
-                block
-                icon={<FileUp className="size-[18px]" />}
-                loading={progress !== null || createDocument.isPending}
-                disabled={!staged}
-              >
-                Tải lên tài liệu
-              </Button>
-              <p className="mt-3 text-center text-xs leading-relaxed text-ink-4">
-                Bằng việc tải lên, bạn xác nhận mình có quyền chia sẻ tài liệu này.
-              </p>
-            </CardBody>
-          </Card>
-
-          <Card>
-            <CardHeader title="Trước khi tải lên" />
-            <CardBody>
-              <ul className="space-y-3 text-[13.5px] text-ink-2">
-                {[
-                  'Tệp rõ nét, đọc được toàn bộ nội dung',
-                  'Không có tên, mã số sinh viên của người khác',
-                  'Không phải tài liệu bán hoặc có bản quyền của trung tâm',
-                  'Ghi đúng mã môn để lớp sau tìm được',
-                ].map((rule) => (
-                  <li key={rule} className="flex gap-2.5">
-                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-[var(--color-ok)]" aria-hidden />
-                    {rule}
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-4 flex gap-2.5 rounded-xl border border-dashed border-line-2 bg-paper-2 p-3 text-[12.5px] leading-relaxed text-ink-3">
-                <ShieldCheck className="mt-0.5 size-4 shrink-0 text-ink-4" aria-hidden />
-                Tài liệu vi phạm sẽ được gỡ trong 24 giờ kể từ khi có báo cáo.
+                <span className="error-text">
+                  <CircleAlert className="ic ic-xs" />
+                  <span>Chọn học kỳ.</span>
+                </span>
+              </fieldset>
+              <div className="field">
+                <label className="label" htmlFor="up-ay">
+                  Niên khoá
+                </label>
+                <select
+                  className="select"
+                  id="up-ay"
+                  {...form.register("schoolYear")}
+                >
+                  {[
+                    "2026–2027",
+                    "2025–2026",
+                    "2024–2025",
+                    "2023–2024",
+                    "Cũ hơn",
+                  ].map((y) => (
+                    <option key={y}>{y}</option>
+                  ))}
+                </select>
               </div>
-            </CardBody>
-          </Card>
-        </div>
-      </form>
-    </div>
+            </div>
+          </section>
+
+          <section className="panel up-sec">
+            <div className="up-sec-head">
+              <span className="up-step">4</span>
+              <div>
+                <h2 className="t-h3">Đăng</h2>
+                <p>
+                  Tài liệu được kiểm tra tự động rồi hiện lên thư viện ngay.
+                </p>
+              </div>
+            </div>
+            <div className={cn("field", errors.rights && "invalid")}>
+              <label className="check check-top">
+                <input type="checkbox" {...form.register("rights")} />
+                <span className="box">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                </span>
+                <span>
+                  Tôi là người viết tài liệu này hoặc được phép chia sẻ nó, và
+                  nó tuân theo quy tắc cộng đồng.
+                </span>
+              </label>
+              <span className="error-text">
+                <CircleAlert className="ic ic-xs" />
+                <span>{errors.rights?.message}</span>
+              </span>
+            </div>
+            <div className="up-submit">
+              <Link to="/app/library" className="btn btn-ghost">
+                Huỷ
+              </Link>
+              <button
+                type="submit"
+                className={cn("btn btn-primary btn-lg", busy && "is-loading")}
+                disabled={busy}
+              >
+                <CloudUpload className="ic ic-sm" />
+                Đăng tài liệu
+              </button>
+            </div>
+          </section>
+        </form>
+
+        <aside className="upload-side">
+          <div className="panel panel-pad up-preview">
+            <div className="row" style={{ justifyContent: "space-between" }}>
+              <h2 className="t-h4">Xem trước</h2>
+              <span className="t-xs">
+                {done}/{checklist.length} xong
+              </span>
+            </div>
+            <p className="t-small" style={{ margin: "2px 0 14px" }}>
+              Tài liệu của bạn sẽ hiện trong thư viện thế này.
+            </p>
+            {previewDoc ? (
+              <div className="up-card-inert" aria-hidden>
+                <DocCard doc={previewDoc} />
+              </div>
+            ) : (
+              <div className="up-card-empty">
+                <FileText className="ic ic-xl" />
+                <p>Chọn môn học để xem thẻ tài liệu.</p>
+              </div>
+            )}
+            <ul className="checklist">
+              {checklist.map(([label, ok]) => (
+                <li key={label} className={ok ? "ok" : undefined}>
+                  {ok ? (
+                    <CircleCheck className="ic ic-sm" />
+                  ) : (
+                    <CircleDot className="ic ic-sm" />
+                  )}
+                  {label}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="panel panel-pad up-tips">
+            <h2 className="t-h4">Tài liệu nào được tải nhiều nhất</h2>
+            <ul>
+              <li>
+                <FileCheck className="ic ic-sm" />
+                <span>
+                  <b>Đề thi có đáp án.</b> Ghi rõ kỳ thi và có lời giải hay
+                  chưa.
+                </span>
+              </li>
+              <li>
+                <ListChecks className="ic ic-sm" />
+                <span>
+                  <b>Trọn chương.</b> Một file mỗi chương dễ tìm hơn một file
+                  300 trang.
+                </span>
+              </li>
+              <li>
+                <ScrollText className="ic ic-sm" />
+                <span>
+                  <b>Bản scan rõ nét.</b> Scan vở viết tay ở 300 dpi, đủ sáng.
+                </span>
+              </li>
+            </ul>
+          </div>
+        </aside>
+      </div>
+    </>
   );
 }

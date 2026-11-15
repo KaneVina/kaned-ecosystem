@@ -1,35 +1,45 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
-  ArrowLeft,
   Bookmark,
   BookmarkCheck,
   Building2,
   CalendarDays,
+  ChevronRight,
   Download,
   Eye,
   Flag,
   GraduationCap,
+  Hash,
   Link2,
   Star,
-  User,
 } from 'lucide-react';
-import { DOCUMENT_TYPE_LABELS, SEMESTER_LABELS } from '@kaned/shared';
+import { DOCUMENT_TYPE_LABELS, type DocumentSummaryDto } from '@kaned/shared';
 import { Avatar } from '@/components/ui/Avatar';
-import { Button } from '@/components/ui/Button';
-import { Card, CardBody, CardHeader } from '@/components/ui/Card';
-import { Tag } from '@/components/ui/Badge';
-import { FileBadge } from '@/components/ui/FileBadge';
+import { FileBadge, FileIcon } from '@/components/ui/FileBadge';
 import { Stars } from '@/components/ui/Stars';
-import { Textarea } from '@/components/ui/Field';
 import { ErrorState, Skeleton } from '@/components/ui/Feedback';
-import { DocumentCard } from '@/components/library/DocumentCard';
+import { SectionHead } from '@/components/ui/Panel';
+import { Viewer } from '@/components/paper/Paper';
+import { profileFor, subjectTone } from '@/components/paper/profiles';
+import { DocCard } from '@/components/library/DocCard';
+import { QuickPreview } from '@/components/library/QuickPreview';
 import { useCreateReview, useDocument, useDownload, useToggleBookmark } from './queries';
-import { useToast } from '@/providers/ToastProvider';
 import { useAuth } from '@/providers/AuthProvider';
-import { fmtBytes, fmtDate, fmtInt, formatColor, timeAgo } from '@/lib/format';
+import { useToast } from '@/providers/ToastProvider';
+import { fmtDate, fmtInt, semesterVi, timeAgo } from '@/lib/format';
 import { toApiError } from '@/lib/api';
 import { cn } from '@/lib/cn';
+
+const STAR_LABELS = ['Chọn số sao', 'Không hữu ích', 'Tạm được', 'Ổn', 'Hữu ích', 'Rất hữu ích'];
+
+/** Five rating buckets. Exact when every rating is a review; otherwise shaped from the average. */
+function distribution(avg: number, count: number, scores: number[]): number[] {
+  if (scores.length && scores.length >= count) return [5, 4, 3, 2, 1].map((n) => scores.filter((s) => s === n).length);
+  const p5 = Math.max(0.05, Math.min(0.95, (avg - 3.9) * 0.95));
+  const rest = 1 - p5;
+  return [p5, rest * 0.68, rest * 0.2, rest * 0.08, rest * 0.04].map((x) => Math.round(x * count));
+}
 
 export function DocumentDetailPage() {
   const { id = '' } = useParams();
@@ -41,307 +51,493 @@ export function DocumentDetailPage() {
   const createReview = useCreateReview(id);
 
   const [rating, setRating] = useState(0);
+  const [hover, setHover] = useState(0);
   const [comment, setComment] = useState('');
+  const [reviewError, setReviewError] = useState('');
+  const [fullscreen, setFullscreen] = useState(false);
+  const [preview, setPreview] = useState<DocumentSummaryDto | null>(null);
+  const [dlState, setDlState] = useState<'idle' | 'progress' | 'done'>('idle');
+
+  const dist = useMemo(
+    () => (data ? distribution(data.ratingAvg, data.ratingCount, data.reviews.map((r) => r.score)) : []),
+    [data],
+  );
 
   if (isLoading) {
     return (
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="space-y-4">
-          <Skeleton className="h-8 w-3/4" />
-          <Skeleton className="h-64 w-full" />
-          <Skeleton className="h-32 w-full" />
+      <div className="container doc-page">
+        <Skeleton style={{ height: 14, width: 320 }} />
+        <div className="dp-head">
+          <Skeleton style={{ width: 56, height: 66 }} />
+          <div style={{ flex: 1 }}>
+            <Skeleton style={{ height: 22, width: 260 }} />
+            <Skeleton style={{ height: 34, width: '80%', marginTop: 14 }} />
+            <Skeleton style={{ height: 16, width: '50%', marginTop: 14 }} />
+          </div>
         </div>
-        <Skeleton className="h-80 w-full" />
+        <div className="dp-layout">
+          <Skeleton style={{ height: 620, borderRadius: 14 }} />
+          <Skeleton style={{ height: 380, borderRadius: 14 }} />
+        </div>
       </div>
     );
   }
 
   if (isError || !data) {
     return (
-      <ErrorState
-        title="Không tìm thấy tài liệu"
-        description="Tài liệu có thể đã bị gỡ, hoặc đường dẫn không đúng."
-        onRetry={() => refetch()}
-      />
+      <div className="container nf">
+        <ErrorState title="Không tìm thấy tài liệu" description="Tài liệu có thể đã bị gỡ, hoặc đường dẫn không đúng." onRetry={() => refetch()} />
+      </div>
     );
   }
 
-  const color = formatColor(data.format);
-  const myReview = data.reviews.find((review) => review.user.id === user?.id);
+  const tone = subjectTone(data.subject.code);
+  const profile = profileFor(data.subject.code);
+  const maxDist = Math.max(1, ...dist);
+  const myReview = data.reviews.find((r) => r.user.id === user?.id);
+  const isMine = data.uploader.id === user?.id;
+  const pages = data.pages ?? 3;
+  const toc = profile.topics.slice(0, 5);
+  const label = data.format === 'PPTX' ? 'Slide' : data.format === 'XLSX' ? 'Trang tính' : 'Số trang';
 
-  const submitReview = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!rating) {
-      toast.error('Chọn số sao trước', 'Đánh giá cần ít nhất 1 sao.');
-      return;
-    }
-    if (comment.trim().length < 10) {
-      toast.error('Viết thêm vài chữ', 'Nhận xét cần ít nhất 10 ký tự để người khác hiểu được.');
-      return;
-    }
+  const startDownload = () => {
+    setDlState('progress');
+    download.mutate(data.id, {
+      onSuccess: ({ fileUrl }) => {
+        setDlState('done');
+        window.open(fileUrl, '_blank', 'noopener');
+        toast.success('Đang tải xuống', data.title);
+        setTimeout(() => setDlState('idle'), 1800);
+      },
+      onError: (e) => {
+        setDlState('idle');
+        toast.error('Không tải được', toApiError(e).message);
+      },
+    });
+  };
+
+  const submitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rating) return setReviewError('Chọn số sao trước đã.');
+    if (comment.trim().length < 10) return setReviewError('Viết ít nhất 10 ký tự để người sau hiểu bạn đánh giá thế nào.');
+    setReviewError('');
     try {
       await createReview.mutateAsync({ score: rating, comment: comment.trim() });
-      toast.success('Đã gửi đánh giá', 'Cảm ơn bạn đã giúp lớp sau chọn đúng tài liệu.');
-      setComment('');
+      toast.success('Đã đăng đánh giá', 'Cảm ơn bạn đã giúp người sau chọn đúng tài liệu.');
       setRating(0);
+      setComment('');
     } catch (error) {
-      toast.error('Không gửi được đánh giá', toApiError(error).message);
+      toast.error('Không đăng được đánh giá', toApiError(error).message);
     }
   };
 
+  const BookmarkIcon = data.isBookmarked ? BookmarkCheck : Bookmark;
+
   return (
-    <div className="space-y-5">
-      <Link
-        to="/app/library"
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-2 transition-colors hover:text-brand"
-      >
-        <ArrowLeft className="size-4" aria-hidden />
-        Về thư viện
-      </Link>
+    <>
+      <div className="container doc-page">
+        <nav className="crumbs" aria-label="Breadcrumb">
+          <Link to="/app/library">Thư viện</Link>
+          <ChevronRight className="ic" />
+          <Link to={`/app/library?universityId=${data.university.id}`}>{data.university.code}</Link>
+          <ChevronRight className="ic" />
+          <Link to={`/app/subjects/${data.subject.code}`}>{data.subject.nameVi}</Link>
+          <ChevronRight className="ic" />
+          <span aria-current="page">{data.title}</span>
+        </nav>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_330px]">
-        <div className="min-w-0 space-y-5">
-          <header>
-            <div className="flex flex-wrap items-center gap-2.5 text-[13px]">
-              <span className="rounded-md px-2 py-1 font-bold text-white" style={{ background: color }}>
+        <header className="dp-head">
+          <FileIcon format={data.format} size="lg" />
+          <div className="dp-head-main">
+            <div className="dp-tags">
+              <Link to={`/app/subjects/${data.subject.code}`} className="subj-chip" style={{ ['--tc' as string]: tone.c, ['--tt' as string]: tone.t }}>
                 {data.subject.code}
-              </span>
-              <Link to={`/app/subjects/${data.subject.code}`} className="font-medium text-ink-2 hover:text-brand">
-                {data.subject.name}
               </Link>
-              <span className="size-1 rounded-full bg-ink-4" aria-hidden />
-              <span className="text-ink-3">{DOCUMENT_TYPE_LABELS[data.type].vi}</span>
+              <Link className="badge badge-gray" to={`/app/library?type=${data.type}`}>
+                {DOCUMENT_TYPE_LABELS[data.type].vi}
+              </Link>
+              <FileBadge format={data.format} bytes={data.fileBytes} />
             </div>
-
-            <h1 className="mt-3 text-[clamp(23px,2.4vw,30px)] leading-tight font-semibold">{data.title}</h1>
-
-            <div className="mt-3.5 flex flex-wrap items-center gap-x-5 gap-y-2 text-[13.5px] text-ink-3">
-              <span className="flex items-center gap-2">
-                <Stars value={data.ratingAvg} size={16} />
-                <b className="tabular text-ink">{data.ratingAvg.toFixed(1)}</b>({data.ratingCount} đánh giá)
+            <h1 className="t-h1 dp-title">{data.title}</h1>
+            <div className="dp-meta">
+              <a href="#reviews" className="dp-rating">
+                <Stars value={data.ratingAvg} />
+                <b>{data.ratingAvg.toFixed(1)}</b>
+                <span>{fmtInt(data.ratingCount)} đánh giá</span>
+              </a>
+              <span>
+                <Download className="ic ic-sm" />
+                <b>{fmtInt(data.downloads)}</b> lượt tải
               </span>
-              <span className="tabular flex items-center gap-1.5">
-                <Download className="size-4" aria-hidden />
-                {fmtInt(data.downloads)} lượt tải
+              <span>
+                <Eye className="ic ic-sm" />
+                <b>{fmtInt(data.views)}</b> lượt xem
               </span>
-              <span className="tabular flex items-center gap-1.5">
-                <Eye className="size-4" aria-hidden />
-                {fmtInt(data.views)} lượt xem
-              </span>
-              <span className="flex items-center gap-1.5">
-                <CalendarDays className="size-4" aria-hidden />
-                {fmtDate(data.createdAt)}
+              <span>
+                <CalendarDays className="ic ic-sm" />
+                Đăng {fmtDate(data.createdAt)}
               </span>
             </div>
-          </header>
+          </div>
+        </header>
 
-          {/* Preview */}
-          <Card>
-            <div
-              className="relative grid min-h-[320px] place-items-center overflow-hidden rounded-t-[11px] p-7"
-              style={{ background: `${color}0d` }}
-            >
-              {data.thumbnailUrl ? (
-                <img src={data.thumbnailUrl} alt={`Xem trước ${data.title}`} className="max-h-[560px] w-auto rounded-md shadow-md" />
-              ) : (
-                <div className="text-center">
-                  <FileBadge format={data.format} bytes={data.fileBytes} className="mx-auto bg-paper shadow-xs" />
-                  <p className="mt-4 max-w-[34ch] text-sm leading-relaxed text-ink-3">
-                    Tài liệu này chưa có ảnh xem trước. Tải xuống để mở bằng ứng dụng trên máy bạn.
-                  </p>
-                </div>
+        <div className="dp-layout">
+          <div className="dp-main">
+            <Viewer doc={data} onExpand={() => setFullscreen(true)} onDownload={startDownload} downloading={dlState === 'progress'} />
+
+            <section className="panel panel-pad dp-about">
+              <h2 className="t-h3">Về tài liệu này</h2>
+              <p className="dp-desc">{data.description}</p>
+              <h3 className="t-h4" style={{ marginTop: 22 }}>
+                Bên trong có gì
+              </h3>
+              <ol className="dp-toc">
+                {toc.map((t, i) => (
+                  <li key={t}>
+                    <span>{t}</span>
+                    <i />
+                    <b>tr. {1 + i * Math.max(2, Math.floor(pages / 6))}</b>
+                  </li>
+                ))}
+              </ol>
+              {data.tags.length > 0 && (
+                <>
+                  <h3 className="t-h4" style={{ marginTop: 22 }}>
+                    Thẻ
+                  </h3>
+                  <div className="row-wrap" style={{ marginTop: 10 }}>
+                    {data.tags.map((t) => (
+                      <Link key={t} className="tag" to={`/app/library?q=${encodeURIComponent(t)}`}>
+                        <Hash className="ic ic-xs" />
+                        {t}
+                      </Link>
+                    ))}
+                  </div>
+                </>
               )}
-            </div>
-            <CardBody className="flex flex-wrap items-center gap-2.5 border-t border-line">
-              <Button
-                size="lg"
-                icon={<Download className="size-[18px]" />}
-                loading={download.isPending}
-                onClick={() =>
-                  download.mutate(data.id, {
-                    onSuccess: ({ fileUrl }) => window.open(fileUrl, '_blank', 'noopener'),
-                    onError: (error) => toast.error('Không tải được', toApiError(error).message),
-                  })
-                }
-              >
-                Tải xuống ({fmtBytes(data.fileBytes)})
-              </Button>
+            </section>
 
-              <Button
-                variant={data.isBookmarked ? 'primary' : 'secondary'}
-                size="lg"
-                icon={data.isBookmarked ? <BookmarkCheck className="size-[18px]" /> : <Bookmark className="size-[18px]" />}
-                onClick={() => toggleBookmark.mutate(data.id)}
-              >
-                {data.isBookmarked ? 'Đã lưu' : 'Lưu lại'}
-              </Button>
+            <section className="panel panel-pad">
+              <h2 className="t-h3">Thông tin môn học</h2>
+              <dl className="facts">
+                <div>
+                  <dt>Trường</dt>
+                  <dd>
+                    <Link to={`/app/library?universityId=${data.university.id}`}>{data.university.name}</Link>
+                    <span>{data.university.nameVi}</span>
+                  </dd>
+                </div>
+                <div>
+                  <dt>Môn học</dt>
+                  <dd>
+                    <Link to={`/app/subjects/${data.subject.code}`}>{data.subject.nameVi}</Link>
+                    <span>
+                      {data.subject.code}, {data.subject.credits} tín chỉ
+                    </span>
+                  </dd>
+                </div>
+                <div>
+                  <dt>Năm học</dt>
+                  <dd>
+                    <Link to={`/app/library?year=${data.year}`}>Năm {data.year}</Link>
+                  </dd>
+                </div>
+                <div>
+                  <dt>Học kỳ</dt>
+                  <dd>
+                    <Link to={`/app/library?semester=${data.semester}`}>{semesterVi(data.semester)}</Link>
+                    {data.schoolYear && <span>Năm học {data.schoolYear}</span>}
+                  </dd>
+                </div>
+              </dl>
+            </section>
 
-              <Button
-                variant="ghost"
-                size="lg"
-                icon={<Link2 className="size-[18px]" />}
-                onClick={async () => {
-                  await navigator.clipboard.writeText(window.location.href);
-                  toast.success('Đã sao chép liên kết');
-                }}
-              >
-                Chia sẻ
-              </Button>
+            <section className="panel" id="reviews">
+              <div className="panel-head">
+                <h2 className="t-h3">Đánh giá</h2>
+                <span className="t-small">{fmtInt(data.ratingCount)} lượt chấm</span>
+              </div>
+              <div className="rv-summary">
+                <div className="rv-score">
+                  <b>{data.ratingAvg.toFixed(1)}</b>
+                  <Stars value={data.ratingAvg} />
+                  <span>{fmtInt(data.ratingCount)} lượt chấm</span>
+                </div>
+                <div className="rv-bars">
+                  {dist.map((n, i) => (
+                    <div key={i} className="rv-bar">
+                      <span>{5 - i}</span>
+                      <Star className="ic ic-xs" />
+                      <i>
+                        <em style={{ width: `${Math.round((n / maxDist) * 100)}%` }} />
+                      </i>
+                      <span className="n">{n}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-              <Button
-                variant="ghost"
-                size="lg"
-                className="ml-auto text-ink-3"
-                icon={<Flag className="size-[18px]" />}
-                onClick={() => toast.info('Đã nhận báo cáo', 'Kiểm duyệt sẽ xem lại tài liệu này trong 24 giờ.')}
-              >
-                Báo lỗi
-              </Button>
-            </CardBody>
-          </Card>
-
-          {data.description && (
-            <Card>
-              <CardHeader title="Mô tả" />
-              <CardBody>
-                <p className="text-[15px] leading-relaxed whitespace-pre-line text-ink-2">{data.description}</p>
-                {data.tags.length > 0 && (
-                  <div className="mt-4 flex flex-wrap gap-1.5">
-                    {data.tags.map((tag) => (
-                      <Tag key={tag}>{tag}</Tag>
-                    ))}
+              {!isMine && !myReview && user && (
+                <form className={cn('rv-form', (rating > 0 || comment) && 'expanded')} onSubmit={submitReview} noValidate>
+                  <div className="rv-form-top">
+                    <Avatar name={user.name} src={user.avatarUrl} size="md" />
+                    <div>
+                      <b>Chấm điểm tài liệu này</b>
+                      <div className="star-input" role="radiogroup" aria-label="Số sao" onMouseLeave={() => setHover(0)}>
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <label key={n} className={(hover || rating) >= n ? 'on' : undefined} onMouseEnter={() => setHover(n)}>
+                            <input type="radio" name="rv-r" value={n} checked={rating === n} onChange={() => setRating(n)} />
+                            <span className="sr-only">{n} sao</span>
+                            <svg viewBox="0 0 24 24" aria-hidden>
+                              <path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" />
+                            </svg>
+                          </label>
+                        ))}
+                        <span className="star-label">{STAR_LABELS[hover || rating]}</span>
+                      </div>
+                    </div>
                   </div>
-                )}
-              </CardBody>
-            </Card>
-          )}
-
-          {/* Reviews */}
-          <Card>
-            <CardHeader title={`Đánh giá (${data.reviews.length})`} subtitle="Nhận xét từ sinh viên đã dùng tài liệu này." />
-            <CardBody className="space-y-5">
-              {user && !myReview && (
-                <form onSubmit={submitReview} className="rounded-xl border border-line bg-paper-2 p-4">
-                  <p className="text-sm font-semibold">Tài liệu này có giúp bạn không?</p>
-                  <div className="mt-2.5 flex items-center gap-1" role="radiogroup" aria-label="Chấm điểm">
-                    {[1, 2, 3, 4, 5].map((value) => (
+                  <div className="rv-form-more">
+                    <div className={cn('field', reviewError && 'invalid')}>
+                      <label className="sr-only" htmlFor="rv-text">
+                        Nhận xét
+                      </label>
+                      <textarea
+                        className="textarea"
+                        id="rv-text"
+                        maxLength={600}
+                        placeholder="Phần nào hữu ích nhất? Có chỗ nào thiếu hay chưa rõ?"
+                        value={comment}
+                        onChange={(e) => setComment(e.target.value)}
+                      />
+                      <span className="hint">Ít nhất 10 ký tự. Đánh giá công khai và hiện tên bạn.</span>
+                      <span className="error-text">{reviewError}</span>
+                    </div>
+                    <div className="row" style={{ justifyContent: 'flex-end', marginTop: 10 }}>
                       <button
-                        key={value}
                         type="button"
-                        onClick={() => setRating(value)}
-                        aria-label={`${value} sao`}
-                        aria-pressed={rating === value}
-                        className="rounded p-0.5 transition-transform hover:scale-110"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => {
+                          setRating(0);
+                          setComment('');
+                          setReviewError('');
+                        }}
                       >
-                        <Star
-                          className={cn(
-                            'size-6 transition-colors',
-                            value <= rating ? 'fill-[var(--color-star)] text-[var(--color-star)]' : 'text-line-2',
-                          )}
-                        />
+                        Huỷ
                       </button>
-                    ))}
-                  </div>
-                  <Textarea
-                    rows={3}
-                    className="mt-3"
-                    placeholder="Phần nào hữu ích nhất? Có sai sót nào cần lưu ý?"
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                  />
-                  <div className="mt-3 flex justify-end">
-                    <Button type="submit" loading={createReview.isPending}>
-                      Gửi đánh giá
-                    </Button>
+                      <button type="submit" className={cn('btn btn-primary btn-sm', createReview.isPending && 'is-loading')}>
+                        Đăng đánh giá
+                      </button>
+                    </div>
                   </div>
                 </form>
               )}
 
               {data.reviews.length === 0 ? (
-                <p className="py-2 text-sm text-ink-3">Chưa có đánh giá nào. Bạn có thể là người đầu tiên.</p>
+                <p className="t-small" style={{ padding: '18px 22px' }}>
+                  Chưa có nhận xét nào. Bạn có thể là người đầu tiên.
+                </p>
               ) : (
-                <ul className="divide-y divide-line">
-                  {data.reviews.map((review) => (
-                    <li key={review.id} className="flex gap-3.5 py-4 first:pt-0 last:pb-0">
-                      <Avatar name={review.user.name} src={review.user.avatarUrl} size="md" />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2.5">
-                          <p className="text-sm font-semibold">{review.user.name}</p>
-                          <Stars value={review.score} size={13} />
-                          <span className="text-xs text-ink-4">{timeAgo(review.createdAt)}</span>
+                <ul className="rv-list">
+                  {data.reviews.map((rv) => (
+                    <li key={rv.id} className="rv">
+                      <Avatar name={rv.user.name} src={rv.user.avatarUrl} size="md" />
+                      <div className="rv-main">
+                        <div className="rv-top">
+                          <b>{rv.user.name}</b>
+                          <span className="t-xs">
+                            {rv.user.university?.code}
+                            {rv.user.year ? `, năm ${rv.user.year}` : ''}
+                          </span>
+                          <span className="spacer" />
+                          <span className="t-xs">{timeAgo(rv.createdAt)}</span>
                         </div>
-                        <p className="mt-1.5 text-[14.5px] leading-relaxed text-ink-2">{review.comment}</p>
+                        <Stars value={rv.score} small />
+                        <p>{rv.comment}</p>
                       </div>
                     </li>
                   ))}
                 </ul>
               )}
-            </CardBody>
-          </Card>
-        </div>
+            </section>
+          </div>
 
-        {/* Sidebar */}
-        <div className="space-y-4 lg:sticky lg:top-[88px] lg:self-start">
-          <Card>
-            <CardHeader title="Thông tin" />
-            <CardBody className="space-y-3.5 text-sm">
-              {[
-                { icon: Building2, label: 'Trường', value: data.university.name },
-                { icon: GraduationCap, label: 'Môn học', value: `${data.subject.code} — ${data.subject.name}` },
-                { icon: CalendarDays, label: 'Thời điểm', value: `${SEMESTER_LABELS[data.semester].vi} · Năm ${data.year}` },
-                { icon: User, label: 'Số trang', value: data.pages ? `${data.pages} trang` : 'Không rõ' },
-              ].map((row) => (
-                <div key={row.label} className="flex gap-3">
-                  <row.icon className="mt-0.5 size-4 shrink-0 text-ink-4" aria-hidden />
-                  <div className="min-w-0">
-                    <p className="text-xs text-ink-4">{row.label}</p>
-                    <p className="font-medium text-ink">{row.value}</p>
-                  </div>
-                </div>
-              ))}
-              <div className="flex items-center justify-between border-t border-line pt-3.5">
-                <span className="text-xs text-ink-4">Tệp</span>
-                <FileBadge format={data.format} bytes={data.fileBytes} />
+          <aside className="dp-side">
+            <div className="panel panel-pad dp-actions">
+              <button
+                type="button"
+                className={cn('btn btn-primary btn-lg btn-block dl-btn', dlState === 'progress' && 'is-progress', dlState === 'done' && 'is-done')}
+                style={{ ['--p' as string]: dlState === 'progress' ? '70%' : dlState === 'done' ? '100%' : '0%' }}
+                onClick={startDownload}
+                disabled={dlState === 'progress'}
+              >
+                <span className="dl-fill" />
+                <span className="dl-label">
+                  <Download className="ic ic-sm" />
+                  {dlState === 'done' ? 'Đã tải' : `Tải ${data.format}`}
+                  <small>{(data.fileBytes / 1024 / 1024).toFixed(1)} MB</small>
+                </span>
+              </button>
+              <div className="dp-act-row">
+                <button
+                  type="button"
+                  className={cn('btn btn-secondary', data.isBookmarked && 'is-on')}
+                  aria-pressed={Boolean(data.isBookmarked)}
+                  onClick={() => toggleBookmark.mutate(data.id)}
+                >
+                  <BookmarkIcon className="ic ic-sm" />
+                  <span>{data.isBookmarked ? 'Đã lưu' : 'Lưu'}</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={async () => {
+                    await navigator.clipboard?.writeText(window.location.href);
+                    toast.success('Đã sao chép liên kết', 'Dán vào nhóm lớp để chia sẻ.');
+                  }}
+                >
+                  <Link2 className="ic ic-sm" />
+                  Chia sẻ
+                </button>
               </div>
-            </CardBody>
-          </Card>
-
-          <Card>
-            <CardHeader title="Người chia sẻ" />
-            <CardBody>
-              <div className="flex items-center gap-3">
-                <Avatar name={data.uploader.name} src={data.uploader.avatarUrl} size="lg" />
-                <div className="min-w-0">
-                  <p className="truncate font-semibold">{data.uploader.name}</p>
-                  <p className="text-[13px] text-ink-3">{data.uploader.major?.name ?? 'Sinh viên'}</p>
+              <dl className="file-facts">
+                <div>
+                  <dt>Định dạng</dt>
+                  <dd>
+                    <FileBadge format={data.format} bytes={data.fileBytes} />
+                  </dd>
                 </div>
-              </div>
-              <dl className="mt-4 grid grid-cols-2 gap-2.5 border-t border-line pt-3.5 text-center">
-                <div className="rounded-lg bg-paper-2 py-2.5">
-                  <dt className="text-xs text-ink-4">Tài liệu</dt>
-                  <dd className="tabular text-lg font-semibold">{data.uploader.uploadCount ?? 0}</dd>
+                <div>
+                  <dt>{label}</dt>
+                  <dd>{pages}</dd>
                 </div>
-                <div className="rounded-lg bg-paper-2 py-2.5">
-                  <dt className="text-xs text-ink-4">Năm</dt>
-                  <dd className="tabular text-lg font-semibold">{data.uploader.year ?? '—'}</dd>
+                <div>
+                  <dt>Ngôn ngữ</dt>
+                  <dd>{data.language === 'Vietnamese' ? 'Tiếng Việt' : data.language}</dd>
+                </div>
+                <div>
+                  <dt>Ngày đăng</dt>
+                  <dd>{fmtDate(data.createdAt)}</dd>
+                </div>
+                <div>
+                  <dt>Giấy phép</dt>
+                  <dd>Dùng cho học tập cá nhân</dd>
                 </div>
               </dl>
-            </CardBody>
-          </Card>
+              <button type="button" className="dp-report" onClick={() => toast.info('Đã nhận báo cáo', 'Kiểm duyệt sẽ xem lại tài liệu trong vòng 24 giờ.')}>
+                <Flag className="ic ic-xs" />
+                Báo cáo tài liệu
+              </button>
+            </div>
+
+            <div className="panel panel-pad contributor">
+              <p className="ct-label">Người chia sẻ</p>
+              <div className="ct-top">
+                <Avatar name={data.uploader.name} src={data.uploader.avatarUrl} size="lg" />
+                <div>
+                  <span className="t-h4">{data.uploader.name}</span>
+                  <span>{data.uploader.university?.code ?? 'Sinh viên'}</span>
+                </div>
+              </div>
+              <ul className="ct-facts">
+                {data.uploader.university && (
+                  <li>
+                    <Building2 className="ic ic-sm" />
+                    {data.uploader.university.name}
+                  </li>
+                )}
+                {data.uploader.major && (
+                  <li>
+                    <GraduationCap className="ic ic-sm" />
+                    {data.uploader.major.name}
+                  </li>
+                )}
+                {data.uploader.year && (
+                  <li>
+                    <CalendarDays className="ic ic-sm" />
+                    Sinh viên năm {data.uploader.year}
+                  </li>
+                )}
+              </ul>
+              <div className="ct-stats">
+                <div>
+                  <b>{data.uploader.uploadCount ?? data.moreFromUploader.length + 1}</b>
+                  <span>tài liệu</span>
+                </div>
+                <div>
+                  <b>{data.ratingAvg.toFixed(1)}</b>
+                  <span>điểm TB</span>
+                </div>
+                <div>
+                  <b>{fmtInt(data.downloads)}</b>
+                  <span>lượt tải</span>
+                </div>
+              </div>
+            </div>
+          </aside>
         </div>
+
+        {data.moreFromUploader.length > 0 && (
+          <section className="dp-section">
+            <SectionHead title={`Thêm từ ${data.uploader.name}`} description="Những tài liệu khác cùng người chia sẻ." />
+            <div className="grid-docs grid-4">
+              {data.moreFromUploader.slice(0, 4).map((d) => (
+                <DocCard key={d.id} doc={d} onToggleBookmark={(x) => toggleBookmark.mutate(x)} onPreview={setPreview} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {data.related.length > 0 && (
+          <section className="dp-section">
+            <SectionHead
+              title="Tài liệu liên quan"
+              description={`Tài liệu khác cho ${data.subject.nameVi} và các môn gần.`}
+              link={
+                <Link className="link" to={`/app/library?subjectId=${data.subject.id}`}>
+                  Xem tất cả {data.subject.code}
+                  <ChevronRight className="ic ic-sm" />
+                </Link>
+              }
+            />
+            <div className="grid-docs grid-4">
+              {data.related.slice(0, 4).map((d) => (
+                <DocCard key={d.id} doc={d} onToggleBookmark={(x) => toggleBookmark.mutate(x)} onPreview={setPreview} />
+              ))}
+            </div>
+          </section>
+        )}
       </div>
 
-      {data.related.length > 0 && (
-        <section className="border-t border-line pt-6">
-          <h2 className="text-lg font-semibold">Cùng môn {data.subject.code}</h2>
-          <p className="mt-1 text-sm text-ink-3">Những tài liệu khác sinh viên thường tải cùng tài liệu này.</p>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {data.related.map((document) => (
-              <DocumentCard key={document.id} document={document} onToggleBookmark={(x) => toggleBookmark.mutate(x)} />
-            ))}
-          </div>
-        </section>
-      )}
-    </div>
+      <div className="dp-mobilebar">
+        <button
+          type="button"
+          className={cn('btn btn-secondary btn-icon', data.isBookmarked && 'is-on')}
+          aria-pressed={Boolean(data.isBookmarked)}
+          aria-label="Lưu tài liệu"
+          onClick={() => toggleBookmark.mutate(data.id)}
+        >
+          <BookmarkIcon className="ic ic-sm" />
+        </button>
+        <button type="button" className="btn btn-primary dl-btn" style={{ flex: 1 }} onClick={startDownload}>
+          <span className="dl-fill" />
+          <span className="dl-label">
+            <Download className="ic ic-sm" />
+            Tải xuống
+          </span>
+        </button>
+      </div>
+
+      <QuickPreview
+        doc={fullscreen ? data : preview}
+        onClose={() => {
+          setFullscreen(false);
+          setPreview(null);
+        }}
+        onToggleBookmark={(x) => toggleBookmark.mutate(x)}
+        onDownload={(d) => (d.id === data.id ? startDownload() : download.mutate(d.id, { onSuccess: ({ fileUrl }) => window.open(fileUrl, '_blank', 'noopener') }))}
+        downloading={download.isPending}
+      />
+    </>
   );
 }

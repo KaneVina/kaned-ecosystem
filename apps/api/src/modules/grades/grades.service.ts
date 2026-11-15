@@ -4,13 +4,12 @@ import {
   evaluatePlan,
   suggestNextTerm,
   type GpaSummary,
-  type PlannerEdge,
   type PlannerQuery,
   type PlannerSubject,
   type SaveGradesInput,
 } from '@kaned/shared';
 import { db } from '../../db/index.js';
-import { grades } from '../../db/schema.js';
+import { grades, users } from '../../db/schema.js';
 import { subjectWith, toGrade } from '../../lib/dto.js';
 import { getCurriculum } from '../catalog/catalog.service.js';
 
@@ -71,11 +70,15 @@ export async function saveGrades(userId: string, input: SaveGradesInput) {
 }
 
 export async function gradeSummary(userId: string): Promise<GpaSummary> {
-  const rows = await db.query.grades.findMany({
-    where: and(eq(grades.userId, userId), eq(grades.inProgress, false)),
-    with: { subject: true },
-  });
+  const [rows, user] = await Promise.all([
+    db.query.grades.findMany({
+      where: and(eq(grades.userId, userId), eq(grades.inProgress, false)),
+      with: { subject: true },
+    }),
+    db.query.users.findFirst({ where: eq(users.id, userId), with: { major: true } }),
+  ]);
 
+  // Earned credits depend on the programme's pass mark (5.0 at FPT University).
   return computeGpa(
     rows.map((g) => ({
       subjectId: g.subjectId,
@@ -85,6 +88,7 @@ export async function gradeSummary(userId: string): Promise<GpaSummary> {
       score10: g.score10,
       termNo: g.termNo,
     })),
+    user?.major?.passMark,
   );
 }
 
@@ -103,21 +107,14 @@ export async function plan(userId: string, query: PlannerQuery) {
     credits: s.credits,
     termNo: s.termNo,
     isRequired: s.isRequired,
+    choiceGroup: s.choiceGroup,
+    requirements: s.requirements,
   }));
-
-  const edges: PlannerEdge[] = curriculum.flatMap((s) =>
-    s.prerequisites.map((p) => ({ subjectId: s.id, requiresId: p.requiresId, type: p.type })),
-  );
 
   const summary = evaluatePlan(
     plannerSubjects,
-    edges,
-    gradeRows.map((g) => ({
-      subjectId: g.subjectId,
-      score10: g.score10,
-      inProgress: g.inProgress,
-    })),
-    { passMark: query.passMark, requireStrongPass: query.requireStrongPass },
+    gradeRows.map((g) => ({ subjectId: g.subjectId, score10: g.score10, inProgress: g.inProgress })),
+    { passMark: query.passMark ?? major.passMark },
   );
 
   return { major, subjects: curriculum, summary, suggestion: suggestNextTerm(summary) };

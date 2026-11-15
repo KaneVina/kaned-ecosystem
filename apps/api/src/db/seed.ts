@@ -6,8 +6,16 @@
  *   npm run db:seed -w @kaned/api
  */
 import bcrypt from 'bcryptjs';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, notInArray, sql } from 'drizzle-orm';
+import { requirementCodes, type Requirement } from '@kaned/shared';
 import { db, sqlClient } from './index.js';
+import {
+  FPTU_SE,
+  FPTU_SE_PASS_MARK,
+  FPTU_SE_RENAMES,
+  termToYear,
+  type CurriculumEntry,
+} from './curricula/fptu-se.js';
 import {
   documentTags,
   documents,
@@ -24,7 +32,6 @@ import {
 } from './schema.js';
 
 type Semester = 'S1' | 'S2' | 'SUMMER';
-type PrereqType = 'PREREQUISITE' | 'COREQUISITE' | 'PRIOR';
 
 const UNIVERSITIES = [
   {
@@ -75,191 +82,34 @@ const UNIVERSITIES = [
   },
 ];
 
-interface SeedSubject {
-  code: string;
-  name: string;
-  nameVi: string;
-  credits: number;
-  termNo: number;
-  typicalYear: number;
-  typicalSemester: Semester;
-  description: string;
-  topics: string[];
-  outcomes?: string[];
-  assessment?: string;
-  requires?: Array<[string, PrereqType]>;
-}
-
-/** FPT University — Software Engineering, terms 1 to 9. */
-const SE_CURRICULUM: SeedSubject[] = [
-  {
-    code: 'PRF192', name: 'Programming Fundamentals', nameVi: 'Nhập môn lập trình',
-    credits: 3, termNo: 1, typicalYear: 1, typicalSemester: 'S1',
-    description: 'First programming course, taught in C: variables, control flow, functions, arrays, pointers and files.',
-    topics: ['Biến, kiểu dữ liệu và toán tử', 'Cấu trúc điều khiển', 'Hàm và truyền tham số', 'Mảng và chuỗi ký tự', 'Con trỏ và cấp phát động', 'Cấu trúc và tập tin'],
-    outcomes: ['Đọc hiểu và viết được chương trình C cơ bản', 'Sử dụng mảng, con trỏ và cấu trúc để giải bài toán nhỏ'],
-    assessment: 'Lab 20% · Progress test 20% · Practical exam 30% · Final exam 30%',
-  },
-  {
-    code: 'MAE101', name: 'Mathematics for Engineering', nameVi: 'Toán cho ngành kỹ thuật',
-    credits: 3, termNo: 1, typicalYear: 1, typicalSemester: 'S1',
-    description: 'Calculus and linear algebra for computing: limits, derivatives, integrals and matrices.',
-    topics: ['Giới hạn và liên tục', 'Đạo hàm và ứng dụng', 'Tích phân', 'Ma trận và định thức', 'Hệ phương trình tuyến tính'],
-  },
-  {
-    code: 'SSL101c', name: 'Academic Skills for University Success', nameVi: 'Kỹ năng học tập đại học',
-    credits: 3, termNo: 1, typicalYear: 1, typicalSemester: 'S1',
-    description: 'Study skills, teamwork, presentation and academic integrity.',
-    topics: ['Quản lý thời gian', 'Làm việc nhóm', 'Thuyết trình', 'Liêm chính học thuật'],
-  },
-  {
-    code: 'PRO192', name: 'Object-Oriented Programming', nameVi: 'Lập trình hướng đối tượng',
-    credits: 3, termNo: 2, typicalYear: 1, typicalSemester: 'S2',
-    description: 'Object-oriented design in Java: encapsulation, inheritance, polymorphism, interfaces, exceptions and collections.',
-    topics: ['Lớp và đối tượng trong Java', 'Đóng gói và phạm vi truy cập', 'Kế thừa', 'Đa hình và lớp trừu tượng', 'Interface', 'Xử lý ngoại lệ', 'Collections Framework'],
-    outcomes: ['Thiết kế được lớp và quan hệ giữa các lớp', 'Áp dụng đa hình để viết mã mở rộng được'],
-    assessment: 'Assignment 30% · Practical exam 30% · Final exam 40%',
-    requires: [['PRF192', 'PREREQUISITE']],
-  },
-  {
-    code: 'MAD101', name: 'Discrete Mathematics', nameVi: 'Toán rời rạc',
-    credits: 3, termNo: 2, typicalYear: 1, typicalSemester: 'S2',
-    description: 'Logic, sets, proofs, relations, combinatorics, Boolean algebra and an introduction to graphs.',
-    topics: ['Logic mệnh đề', 'Vị từ và lượng từ', 'Tập hợp và ánh xạ', 'Quy nạp toán học', 'Quan hệ', 'Tổ hợp', 'Đại số Boole', 'Lý thuyết đồ thị cơ bản'],
-    requires: [['MAE101', 'PRIOR']],
-  },
-  {
-    code: 'OSG202', name: 'Operating Systems', nameVi: 'Hệ điều hành',
-    credits: 3, termNo: 3, typicalYear: 2, typicalSemester: 'S1',
-    description: 'Processes and threads, CPU scheduling, synchronisation, deadlock, memory management and file systems.',
-    topics: ['Tiến trình và luồng', 'Lập lịch CPU', 'Đồng bộ hóa và semaphore', 'Deadlock', 'Quản lý bộ nhớ và phân trang', 'Bộ nhớ ảo', 'Hệ thống tập tin'],
-    requires: [['PRF192', 'PREREQUISITE']],
-  },
-  {
-    code: 'CSD201', name: 'Data Structures and Algorithms', nameVi: 'Cấu trúc dữ liệu và giải thuật',
-    credits: 3, termNo: 3, typicalYear: 2, typicalSemester: 'S1',
-    description: 'How data is organised in memory and how to reason about algorithm cost: lists, trees, hashing, graphs and sorting.',
-    topics: ['Độ phức tạp thuật toán và ký hiệu Big-O', 'Mảng và danh sách liên kết', 'Ngăn xếp và hàng đợi', 'Đệ quy và quay lui', 'Cây nhị phân tìm kiếm (BST)', 'Cây AVL và các phép xoay', 'Bảng băm', 'Đồ thị: BFS, DFS, Dijkstra', 'Các thuật toán sắp xếp'],
-    outcomes: ['Phân tích được độ phức tạp của thuật toán', 'Chọn đúng cấu trúc dữ liệu cho bài toán', 'Cài đặt được cây cân bằng và các thuật toán đồ thị cơ bản'],
-    assessment: 'Assignment 20% · Progress test 20% · Practical exam 20% · Final exam 40%',
-    requires: [['PRO192', 'PREREQUISITE'], ['MAD101', 'PREREQUISITE']],
-  },
-  {
-    code: 'DBI202', name: 'Database Systems', nameVi: 'Hệ quản trị cơ sở dữ liệu',
-    credits: 3, termNo: 3, typicalYear: 2, typicalSemester: 'S1',
-    description: 'Designing a relational database from requirements to a working schema: ER modelling, normalisation, SQL, indexing and transactions.',
-    topics: ['Mô hình thực thể – liên kết (ERD)', 'Mô hình quan hệ và đại số quan hệ', 'SQL: truy vấn cơ bản', 'JOIN, GROUP BY và truy vấn lồng', 'Phụ thuộc hàm và chuẩn hóa', 'Chỉ mục và tối ưu truy vấn', 'Giao tác và điều khiển đồng thời'],
-    outcomes: ['Thiết kế được lược đồ ở dạng chuẩn 3NF', 'Viết được truy vấn SQL nhiều bảng'],
-    assessment: 'Assignment 30% · Progress test 20% · Final exam 50%',
-    requires: [['PRF192', 'PREREQUISITE']],
-  },
-  {
-    code: 'WED201', name: 'Web Design', nameVi: 'Thiết kế web',
-    credits: 3, termNo: 4, typicalYear: 2, typicalSemester: 'S2',
-    description: 'Semantic HTML, modern CSS layout, responsive design and accessible interfaces.',
-    topics: ['HTML5 ngữ nghĩa', 'CSS: Flexbox và Grid', 'Thiết kế responsive', 'Khả năng truy cập'],
-  },
-  {
-    code: 'NWC203', name: 'Computer Networks', nameVi: 'Mạng máy tính',
-    credits: 3, termNo: 4, typicalYear: 2, typicalSemester: 'S2',
-    description: 'How data moves between machines: the OSI and TCP/IP models, addressing and subnetting, routing and transport protocols.',
-    topics: ['Mô hình OSI và TCP/IP', 'Tầng liên kết dữ liệu', 'Địa chỉ IPv4 và chia subnet', 'Định tuyến tĩnh và động', 'TCP, UDP và kiểm soát tắc nghẽn', 'DNS, HTTP và DHCP', 'VLAN và chuyển mạch'],
-    outcomes: ['Chia được subnet theo yêu cầu', 'Giải thích được quá trình bắt tay ba bước của TCP'],
-    requires: [['OSG202', 'PRIOR']],
-  },
-  {
-    code: 'SWE201', name: 'Introduction to Software Engineering', nameVi: 'Nhập môn kỹ thuật phần mềm',
-    credits: 3, termNo: 4, typicalYear: 2, typicalSemester: 'S2',
-    description: 'How software gets built by teams: process models, requirements, design, version control and estimation.',
-    topics: ['Quy trình phát triển phần mềm', 'Mô hình thác nước, Agile và Scrum', 'Thu thập và đặc tả yêu cầu', 'Use Case và User Story', 'Thiết kế kiến trúc phần mềm', 'Quản lý cấu hình với Git', 'Ước lượng và quản lý dự án'],
-    requires: [['PRO192', 'PRIOR']],
-  },
-  {
-    code: 'PRJ301', name: 'Java Web Application Development', nameVi: 'Lập trình Java web',
-    credits: 3, termNo: 5, typicalYear: 3, typicalSemester: 'S1',
-    description: 'Servlets, JSP, the MVC pattern, JDBC and session management.',
-    topics: ['Servlet và JSP', 'Mô hình MVC', 'JDBC và DAO', 'Session và Cookie', 'Bảo mật ứng dụng web'],
-    requires: [['PRO192', 'PREREQUISITE'], ['DBI202', 'PREREQUISITE'], ['WED201', 'PRIOR']],
-  },
-  {
-    code: 'SWR302', name: 'Software Requirement', nameVi: 'Đặc tả yêu cầu phần mềm',
-    credits: 3, termNo: 5, typicalYear: 3, typicalSemester: 'S1',
-    description: 'Eliciting, specifying and validating requirements; writing an SRS to IEEE 830.',
-    topics: ['Kỹ thuật thu thập yêu cầu', 'Phân loại yêu cầu', 'Tài liệu SRS', 'Kiểm tra và xác nhận yêu cầu'],
-    requires: [['SWE201', 'PREREQUISITE']],
-  },
-  {
-    code: 'SWT301', name: 'Software Testing', nameVi: 'Kiểm thử phần mềm',
-    credits: 3, termNo: 6, typicalYear: 3, typicalSemester: 'S2',
-    description: 'Testing principles and techniques: test levels, black-box and white-box design, test plans and automation.',
-    topics: ['Nguyên lý kiểm thử phần mềm', 'Các mức kiểm thử', 'Kỹ thuật hộp đen', 'Kỹ thuật hộp trắng', 'Test case và test plan', 'Kiểm thử đơn vị với JUnit', 'Kiểm thử tự động với Selenium'],
-    outcomes: ['Thiết kế test case từ đặc tả', 'Viết được báo cáo lỗi rõ ràng'],
-    requires: [['SWR302', 'PREREQUISITE']],
-  },
-  {
-    code: 'SAD302', name: 'System Analysis and Design', nameVi: 'Phân tích và thiết kế hệ thống',
-    credits: 3, termNo: 6, typicalYear: 3, typicalSemester: 'S2',
-    description: 'Turning a business process into a specification with DFD and UML models.',
-    topics: ['Khảo sát hiện trạng', 'Sơ đồ phân rã chức năng', 'Sơ đồ luồng dữ liệu (DFD)', 'Mô hình hóa với UML', 'Sơ đồ lớp và sơ đồ tuần tự', 'Thiết kế cơ sở dữ liệu'],
-    requires: [['SWR302', 'PREREQUISITE'], ['DBI202', 'PREREQUISITE']],
-  },
-  {
-    code: 'SWP391', name: 'Software Development Project', nameVi: 'Đồ án phát triển phần mềm',
-    credits: 4, termNo: 6, typicalYear: 3, typicalSemester: 'S2',
-    description: 'A team project that runs a full iteration: requirements, design, build, test and demo.',
-    topics: ['Lập kế hoạch dự án', 'Phân chia công việc', 'Quản lý mã nguồn', 'Báo cáo và bảo vệ'],
-    requires: [['PRJ301', 'PREREQUISITE'], ['SWR302', 'PREREQUISITE'], ['SWT301', 'COREQUISITE']],
-  },
-  {
-    code: 'OJT202', name: 'On-the-Job Training', nameVi: 'Thực tập tại doanh nghiệp',
-    credits: 10, termNo: 7, typicalYear: 4, typicalSemester: 'S1',
-    description: 'One term working inside a software company, with a report and a supervisor review.',
-    topics: ['Quy trình làm việc thực tế', 'Báo cáo thực tập', 'Đánh giá của doanh nghiệp'],
-    requires: [['SWP391', 'PREREQUISITE']],
-  },
-  {
-    code: 'MLN111', name: 'Philosophy of Marxism and Leninism', nameVi: 'Triết học Mác – Lênin',
-    credits: 3, termNo: 8, typicalYear: 4, typicalSemester: 'S2',
-    description: 'Compulsory political theory module.',
-    topics: ['Chủ nghĩa duy vật biện chứng', 'Chủ nghĩa duy vật lịch sử'],
-  },
-  {
-    code: 'SEP490', name: 'Capstone Project', nameVi: 'Đồ án tốt nghiệp',
-    credits: 10, termNo: 9, typicalYear: 4, typicalSemester: 'S2',
-    description: 'The graduation project: a complete product built and defended by a team.',
-    topics: ['Đề xuất đề tài', 'Thiết kế hệ thống', 'Triển khai', 'Bảo vệ trước hội đồng'],
-    requires: [['OJT202', 'PREREQUISITE'], ['SAD302', 'PREREQUISITE']],
-  },
-];
-
 /** HCMUT — Computer Science, a smaller slice for cross-university browsing. */
-const CS_CURRICULUM: SeedSubject[] = [
+const CS_CURRICULUM: CurriculumEntry[] = [
   {
     code: 'CO1003', name: 'Introduction to Computing', nameVi: 'Nhập môn điện toán',
-    credits: 3, termNo: 1, typicalYear: 1, typicalSemester: 'S1',
+    credits: 3, termNo: 1,
     description: 'First programming course in C for engineering students.',
     topics: ['Thuật toán và lưu đồ', 'Ngôn ngữ C', 'Hàm và mảng'],
   },
   {
     code: 'CO2003', name: 'Data Structures and Algorithms', nameVi: 'Cấu trúc dữ liệu và giải thuật',
-    credits: 4, termNo: 3, typicalYear: 2, typicalSemester: 'S1',
+    credits: 4, termNo: 3,
     description: 'Lists, trees, graphs, hashing and algorithm analysis, taught in C++.',
     topics: ['Phân tích độ phức tạp', 'Danh sách liên kết', 'Cây tìm kiếm', 'Bảng băm', 'Đồ thị'],
-    requires: [['CO1003', 'PREREQUISITE']],
+    requirements: [{ kind: 'subject', codes: ['CO1003'], min: 'pass' }],
   },
   {
     code: 'CO2013', name: 'Database Systems', nameVi: 'Hệ cơ sở dữ liệu',
-    credits: 3, termNo: 4, typicalYear: 2, typicalSemester: 'S2',
+    credits: 3, termNo: 4,
     description: 'Relational model, SQL, normalisation and transaction processing.',
     topics: ['Mô hình quan hệ', 'SQL nâng cao', 'Chuẩn hóa', 'Giao tác'],
-    requires: [['CO1003', 'PREREQUISITE']],
+    requirements: [{ kind: 'subject', codes: ['CO1003'], min: 'pass' }],
   },
   {
     code: 'CO3001', name: 'Software Engineering', nameVi: 'Công nghệ phần mềm',
-    credits: 3, termNo: 5, typicalYear: 3, typicalSemester: 'S1',
+    credits: 3, termNo: 5,
     description: 'Software processes, requirements, architecture and quality.',
     topics: ['Quy trình phần mềm', 'Phân tích yêu cầu', 'Kiến trúc phần mềm', 'Đảm bảo chất lượng'],
-    requires: [['CO2003', 'PREREQUISITE']],
+    requirements: [{ kind: 'subject', codes: ['CO2003'], min: 'pass' }],
   },
 ];
 
@@ -307,11 +157,20 @@ const slugify = (input: string) =>
     .replace(/^-+|-+$/g, '')
     .slice(0, 60);
 
+/**
+ * Upserts one programme: faculty, major, its subjects, the curriculum rows
+ * carrying each subject's requirements, and a flat prerequisite index derived
+ * from those requirements for the subject pages. Re-running it on a database
+ * seeded by an older version renames moved codes (documents follow) and
+ * removes curriculum rows, edges and empty subjects that are no longer part
+ * of the programme.
+ */
 async function seedCurriculum(
   universityId: string,
   faculty: { code: string; name: string; nameVi: string },
-  major: { code: string; name: string; nameVi: string; totalCredits: number },
-  list: SeedSubject[],
+  major: { code: string; name: string; nameVi: string; totalCredits: number; passMark: number },
+  list: CurriculumEntry[],
+  renames: Record<string, string> = {},
 ) {
   const [facultyRow] = await db
     .insert(faculties)
@@ -327,74 +186,121 @@ async function seedCurriculum(
     .values({ ...major, facultyId: facultyRow.id })
     .onConflictDoUpdate({
       target: [majors.facultyId, majors.code],
-      set: { name: major.name, nameVi: major.nameVi, totalCredits: major.totalCredits },
+      set: {
+        name: major.name,
+        nameVi: major.nameVi,
+        totalCredits: major.totalCredits,
+        passMark: major.passMark,
+      },
     })
     .returning({ id: majors.id });
+
+  // Move renamed codes in place so the documents attached to them follow.
+  for (const [from, to] of Object.entries(renames)) {
+    const target = await db.query.subjects.findFirst({
+      where: and(eq(subjects.universityId, universityId), eq(subjects.code, to)),
+    });
+    if (target) continue;
+    await db
+      .update(subjects)
+      .set({ code: to })
+      .where(and(eq(subjects.universityId, universityId), eq(subjects.code, from)));
+  }
 
   const subjectIds: Record<string, string> = {};
 
   for (const s of list) {
+    const { year, semester } = termToYear(s.termNo);
+    const values = {
+      name: s.name,
+      nameVi: s.nameVi,
+      credits: s.credits,
+      description: s.description,
+      topics: s.topics,
+      outcomes: s.outcomes ?? [],
+      assessment: s.assessment ?? null,
+      typicalYear: year,
+      typicalSemester: semester,
+      facultyId: facultyRow.id,
+    };
     const [row] = await db
       .insert(subjects)
-      .values({
-        code: s.code,
-        name: s.name,
-        nameVi: s.nameVi,
-        credits: s.credits,
-        description: s.description,
-        topics: s.topics,
-        outcomes: s.outcomes ?? [],
-        assessment: s.assessment ?? null,
-        typicalYear: s.typicalYear,
-        typicalSemester: s.typicalSemester,
-        universityId,
-        facultyId: facultyRow.id,
-      })
-      .onConflictDoUpdate({
-        target: [subjects.universityId, subjects.code],
-        set: {
-          name: s.name,
-          nameVi: s.nameVi,
-          credits: s.credits,
-          description: s.description,
-          topics: s.topics,
-          outcomes: s.outcomes ?? [],
-          assessment: s.assessment ?? null,
-          typicalYear: s.typicalYear,
-          typicalSemester: s.typicalSemester,
-          facultyId: facultyRow.id,
-        },
-      })
+      .values({ ...values, code: s.code, universityId })
+      .onConflictDoUpdate({ target: [subjects.universityId, subjects.code], set: values })
       .returning({ id: subjects.id });
-
     subjectIds[s.code] = row.id;
 
+    const curriculumRow = {
+      termNo: s.termNo,
+      isRequired: !s.choiceGroup,
+      requirements: s.requirements ?? [],
+      choiceGroup: s.choiceGroup ?? null,
+    };
     await db
       .insert(majorSubjects)
-      .values({ majorId: majorRow.id, subjectId: row.id, termNo: s.termNo, isRequired: true })
-      .onConflictDoUpdate({
-        target: [majorSubjects.majorId, majorSubjects.subjectId],
-        set: { termNo: s.termNo },
-      });
+      .values({ majorId: majorRow.id, subjectId: row.id, ...curriculumRow })
+      .onConflictDoUpdate({ target: [majorSubjects.majorId, majorSubjects.subjectId], set: curriculumRow });
   }
 
-  // Prerequisite edges, once every subject exists.
+  const ids = Object.values(subjectIds);
+
+  // Curriculum rows from an older version of this programme.
+  await db
+    .delete(majorSubjects)
+    .where(and(eq(majorSubjects.majorId, majorRow.id), notInArray(majorSubjects.subjectId, ids)));
+
+  // Rebuild the prerequisite index from the requirements. Only top-level
+  // subject rules become edges; groups such as "3 of 4" stay in the rules.
+  await db.delete(subjectPrerequisites).where(inArray(subjectPrerequisites.subjectId, ids));
   for (const s of list) {
-    for (const [requiredCode, type] of s.requires ?? []) {
-      const subjectId = subjectIds[s.code];
-      const requiresId = subjectIds[requiredCode];
-      if (!subjectId || !requiresId) continue;
-      await db
-        .insert(subjectPrerequisites)
-        .values({ subjectId, requiresId, type })
-        .onConflictDoUpdate({
-          target: [subjectPrerequisites.subjectId, subjectPrerequisites.requiresId],
-          set: { type },
-        });
+    for (const req of s.requirements ?? []) {
+      if (req.kind !== 'subject') continue;
+      for (const code of req.codes) {
+        const requiresId = subjectIds[code];
+        if (!requiresId) continue;
+        await db
+          .insert(subjectPrerequisites)
+          .values({
+            subjectId: subjectIds[s.code],
+            requiresId,
+            type: 'PREREQUISITE',
+            minScore: req.min === 'pass' ? null : req.min,
+          })
+          .onConflictDoNothing();
+      }
     }
   }
 
+  // Subjects of this university that no programme uses and nobody uploaded to.
+  const orphans = await db
+    .select({ id: subjects.id })
+    .from(subjects)
+    .where(
+      and(
+        eq(subjects.universityId, universityId),
+        sql`not exists (select 1 from ${majorSubjects} ms where ms.subject_id = ${subjects.id})`,
+        sql`not exists (select 1 from ${documents} d where d.subject_id = ${subjects.id})`,
+      ),
+    );
+  if (orphans.length) {
+    await db.delete(subjects).where(inArray(subjects.id, orphans.map((o) => o.id)));
+  }
+
   return { facultyId: facultyRow.id, majorId: majorRow.id, subjectIds };
+}
+
+/** Sanity check: every code a rule mentions should be a subject of the programme or a known alternative. */
+function reportUnknownCodes(label: string, list: CurriculumEntry[]) {
+  const known = new Set(list.map((s) => s.code));
+  const unknown = new Set<string>();
+  for (const s of list) {
+    for (const req of s.requirements ?? []) {
+      for (const code of requirementCodes(req as Requirement)) if (!known.has(code)) unknown.add(code);
+    }
+  }
+  if (unknown.size) {
+    console.log(`  ${label}: alternatives outside the programme (kept as-is): ${[...unknown].join(', ')}`);
+  }
 }
 
 async function main() {
@@ -413,15 +319,23 @@ async function main() {
   const se = await seedCurriculum(
     universityIds.FPTU,
     { code: 'IT', name: 'Information Technology', nameVi: 'Công nghệ Thông tin' },
-    { code: 'SE', name: 'Software Engineering', nameVi: 'Kỹ thuật phần mềm', totalCredits: 145 },
-    SE_CURRICULUM,
+    {
+      code: 'SE',
+      name: 'Software Engineering',
+      nameVi: 'Kỹ thuật phần mềm',
+      totalCredits: FPTU_SE.filter((s) => !s.choiceGroup).reduce((n, s) => n + s.credits, 0) + 10,
+      passMark: FPTU_SE_PASS_MARK,
+    },
+    FPTU_SE,
+    FPTU_SE_RENAMES,
   );
+  reportUnknownCodes('FPTU SE', FPTU_SE);
 
   console.log('→ HCMUT Computer Science curriculum');
   const cs = await seedCurriculum(
     universityIds.HCMUT,
     { code: 'CSE', name: 'Computer Science and Engineering', nameVi: 'Khoa học và Kỹ thuật Máy tính' },
-    { code: 'CS', name: 'Computer Science', nameVi: 'Khoa học máy tính', totalCredits: 142 },
+    { code: 'CS', name: 'Computer Science', nameVi: 'Khoa học máy tính', totalCredits: 142, passMark: 4 },
     CS_CURRICULUM,
   );
 
@@ -449,7 +363,7 @@ async function main() {
   let index = 0;
 
   for (const doc of DOCUMENTS) {
-    const subjectId = subjectIds[doc.subject];
+    const subjectId = subjectIds[FPTU_SE_RENAMES[doc.subject] ?? doc.subject];
     if (!subjectId) continue;
 
     const existing = await db.query.documents.findFirst({ where: eq(documents.title, doc.title) });
@@ -517,29 +431,22 @@ async function main() {
 
   console.log('→ grades for the demo account');
   const demoUser = userIds[0];
-  const recorded: Array<[string, number, number]> = [
-    ['PRF192', 8.6, 1],
-    ['MAE101', 7.8, 1],
-    ['SSL101c', 9.0, 1],
-    ['PRO192', 8.2, 2],
-    ['MAD101', 6.9, 2],
-    ['OSG202', 7.4, 3],
-    ['CSD201', 8.8, 3],
-    ['DBI202', 7.1, 3],
-    ['WED201', 9.2, 4],
-    ['NWC203', 3.5, 4], // a fail, so the planner has something to block
+  // A student in term 5. DBI202 is 4.5: not a pass (5.0), but enough for
+  // PRJ301, which only asks for ≥ 4. JPD113 at 3.8 holds back JPD123.
+  const recorded: Array<[code: string, score: number | null, termNo: number, inProgress?: boolean]> = [
+    ['PRF192', 8.6, 1], ['CEA201', 7.2, 1], ['CSI104', 8.0, 1], ['MAE101', 7.8, 1], ['SSL101c', 9.0, 1],
+    ['PRO192', 8.2, 2], ['OSG202', 7.4, 2], ['NWC204', 6.5, 2], ['MAD101', 6.9, 2], ['SSG104', 8.5, 2],
+    ['LAB211', 8.0, 3], ['CSD201', 8.8, 3], ['DBI202', 4.5, 3], ['JPD113', 3.8, 3], ['WED201c', 9.2, 3],
+    ['PRJ301', 7.6, 4], ['IOT102', 7.0, 4], ['MAS291', 6.2, 4], ['SWE201c', 8.1, 4],
+    ['SWP391', null, 5, true], ['FER202', null, 5, true],
   ];
 
-  for (const [code, score, termNo] of recorded) {
+  // Start the demo account from a clean slate so re-seeding is predictable.
+  await db.delete(grades).where(eq(grades.userId, demoUser));
+  for (const [code, score, termNo, inProgress = false] of recorded) {
     const subjectId = se.subjectIds[code];
     if (!subjectId) continue;
-    await db
-      .insert(grades)
-      .values({ userId: demoUser, subjectId, score10: score, termNo })
-      .onConflictDoUpdate({
-        target: [grades.userId, grades.subjectId],
-        set: { score10: score, termNo },
-      });
+    await db.insert(grades).values({ userId: demoUser, subjectId, score10: score, termNo, inProgress });
   }
 
   const [[u], [s], [p], [d], [usr]] = await Promise.all([

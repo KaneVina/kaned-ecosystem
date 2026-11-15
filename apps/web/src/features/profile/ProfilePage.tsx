@@ -1,220 +1,299 @@
 import { useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Mail, Save, ShieldCheck, Upload } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { STUDY_YEARS, updateProfileSchema, type UpdateProfileInput } from '@kaned/shared';
+import { z } from 'zod';
+import { Bookmark, Building2, CalendarDays, Clock, CloudUpload, Compass, FileText, GraduationCap, Pencil, X } from 'lucide-react';
+import { STUDY_YEARS, updateProfileSchema, type DocumentSummaryDto, type UpdateProfileInput } from '@kaned/shared';
 import { Avatar } from '@/components/ui/Avatar';
-import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
-import { Card, CardBody, CardHeader, PageHeader } from '@/components/ui/Card';
+import { Modal } from '@/components/ui/Modal';
 import { Field, Input, Select, Textarea } from '@/components/ui/Field';
-import { useFaculties, useMajors, useUniversities } from '@/features/catalog/queries';
+import { EmptyState } from '@/components/ui/Feedback';
+import { DocCard, DocCardSkeleton } from '@/components/library/DocCard';
+import { QuickPreview } from '@/components/library/QuickPreview';
+import { useDocuments, useDownload, useSavedDocuments, useToggleBookmark } from '@/features/library/queries';
+import { useMajors, useUniversities } from '@/features/catalog/queries';
 import { useAuth } from '@/providers/AuthProvider';
 import { useToast } from '@/providers/ToastProvider';
 import { toApiError } from '@/lib/api';
-import { fmtDate, fmtInt } from '@/lib/format';
+import { avatarColor, fmtDate, fmtInt } from '@/lib/format';
+import { cn } from '@/lib/cn';
 
-export function ProfilePage() {
+type Tab = 'saved' | 'uploads';
+
+/** Empty selects and inputs mean “not set”, which the API spells null. */
+const emptyToNull = (v: unknown) => (v === '' ? null : v);
+const profileFormSchema = updateProfileSchema.extend({
+  bio: z.preprocess(emptyToNull, updateProfileSchema.shape.bio),
+  avatarUrl: z.preprocess(emptyToNull, updateProfileSchema.shape.avatarUrl),
+  universityId: z.preprocess(emptyToNull, updateProfileSchema.shape.universityId),
+  majorId: z.preprocess(emptyToNull, updateProfileSchema.shape.majorId),
+  year: z.preprocess(emptyToNull, updateProfileSchema.shape.year),
+});
+
+function EditProfile({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { user, updateProfile } = useAuth();
   const toast = useToast();
-
-  const form = useForm<UpdateProfileInput>({
-    resolver: zodResolver(updateProfileSchema),
-    defaultValues: {
-      name: user?.name ?? '',
-      bio: user?.bio ?? '',
-      universityId: user?.universityId ?? null,
-      majorId: user?.majorId ?? null,
-      year: user?.year ?? null,
-      avatarUrl: user?.avatarUrl ?? null,
-    },
-  });
-
-  // The profile arrives after the first paint, so sync once it lands.
-  useEffect(() => {
-    if (!user) return;
-    form.reset({
-      name: user.name,
-      bio: user.bio ?? '',
-      universityId: user.universityId,
-      majorId: user.majorId,
-      year: user.year,
-      avatarUrl: user.avatarUrl,
-    });
-  }, [user, form]);
-
+  const form = useForm<UpdateProfileInput>({ resolver: zodResolver(profileFormSchema) as never });
   const universityId = form.watch('universityId');
-  const [facultyId, setFacultyId] = useState('');
-
   const { data: universities = [] } = useUniversities();
-  const { data: faculties = [] } = useFaculties(universityId ?? undefined);
   const { data: majors = [] } = useMajors(universityId ?? undefined);
-  const majorsInFaculty = facultyId ? majors.filter((major) => major.facultyId === facultyId) : majors;
+
+  useEffect(() => {
+    if (open && user) {
+      form.reset({
+        name: user.name,
+        bio: user.bio ?? '',
+        avatarUrl: user.avatarUrl ?? '',
+        universityId: user.universityId,
+        majorId: user.majorId,
+        year: user.year,
+      });
+    }
+  }, [open, user, form]);
+
+  // Majors load after the university is known; put the saved major back once they arrive.
+  useEffect(() => {
+    if (open && majors.length) form.setValue('majorId', form.getValues('majorId'));
+  }, [open, majors.length, form]);
 
   const onSubmit = form.handleSubmit(async (values) => {
     try {
       await updateProfile(values);
       toast.success('Đã lưu hồ sơ');
-    } catch (error) {
-      const err = toApiError(error);
-      if (err.fields) {
-        for (const [field, message] of Object.entries(err.fields)) {
-          form.setError(field as keyof UpdateProfileInput, { message });
-        }
-      }
+      onClose();
+    } catch (e) {
+      const err = toApiError(e);
+      if (err.fields) for (const [f, m] of Object.entries(err.fields)) form.setError(f as keyof UpdateProfileInput, { message: m });
       toast.error('Không lưu được hồ sơ', err.message);
     }
   });
 
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Sửa hồ sơ"
+      description="Trường và ngành quyết định chương trình học Kaned dùng để gợi ý môn cho bạn."
+      footer={
+        <>
+          <button type="button" className="btn btn-ghost" onClick={onClose}>
+            Huỷ
+          </button>
+          <button type="submit" form="edit-profile" className={cn('btn btn-primary', form.formState.isSubmitting && 'is-loading')}>
+            Lưu thay đổi
+          </button>
+        </>
+      }
+    >
+      <form id="edit-profile" onSubmit={onSubmit} className="stack-form" noValidate>
+        <Field label="Họ và tên" htmlFor="pf-name" error={form.formState.errors.name?.message}>
+          <Input id="pf-name" {...form.register('name')} />
+        </Field>
+        <Field label="Giới thiệu" htmlFor="pf-bio" optional hint="Một hai câu để người tải tài liệu của bạn biết bạn là ai.">
+          <Textarea id="pf-bio" rows={3} maxLength={280} {...form.register('bio')} />
+        </Field>
+        <Field label="Ảnh đại diện" htmlFor="pf-av" optional error={form.formState.errors.avatarUrl?.message} hint="Dán liên kết ảnh, hoặc để trống để dùng chữ cái đầu tên.">
+          <Input id="pf-av" placeholder="https://…" {...form.register('avatarUrl')} />
+        </Field>
+        <Field label="Trường" htmlFor="pf-uni">
+          <Select id="pf-uni" {...form.register('universityId', { onChange: () => form.setValue('majorId', null) })}>
+            <option value="">Chưa chọn</option>
+            {universities.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <div className="form-grid">
+          <Field label="Ngành" htmlFor="pf-major">
+            <Select id="pf-major" disabled={!universityId} {...form.register('majorId')}>
+              <option value="">Chưa chọn</option>
+              {majors.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.nameVi}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Năm học" htmlFor="pf-year">
+            <Select id="pf-year" {...form.register('year')}>
+              <option value="">Chưa chọn</option>
+              {STUDY_YEARS.map((y) => (
+                <option key={y} value={y}>
+                  Năm {y}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+export function ProfilePage({ defaultTab = 'uploads' }: { defaultTab?: Tab }) {
+  const { user } = useAuth();
+  const [params, setParams] = useSearchParams();
+  const tab: Tab = params.get('tab') === 'saved' || params.get('tab') === 'uploads' ? (params.get('tab') as Tab) : defaultTab;
+  const [editing, setEditing] = useState(false);
+  const [preview, setPreview] = useState<DocumentSummaryDto | null>(null);
+  const toggleBookmark = useToggleBookmark();
+  const download = useDownload();
+
+  const { data: saved, isLoading: loadingSaved } = useSavedDocuments();
+  const { data: uploads, isLoading: loadingUploads } = useDocuments({ uploaderId: user?.id, sort: 'recent', pageSize: 48 }, { enabled: Boolean(user) });
+
   if (!user) return null;
+  const list = tab === 'saved' ? (saved ?? []) : (uploads?.items ?? []);
+  const loading = tab === 'saved' ? loadingSaved : loadingUploads;
+  const avgRating = uploads?.items.length ? uploads.items.reduce((n, d) => n + d.ratingAvg, 0) / uploads.items.length : 0;
 
   return (
-    <div className="space-y-5">
-      <PageHeader title="Hồ sơ của bạn" subtitle="Trường và ngành quyết định những gì Kaned gợi ý cho bạn." />
-
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <form onSubmit={onSubmit} noValidate className="min-w-0 space-y-5">
-          <Card>
-            <CardHeader title="Thông tin cá nhân" />
-            <CardBody className="space-y-4">
-              <div className="flex items-center gap-4">
-                <Avatar name={user.name} src={user.avatarUrl} size="xl" />
-                <div className="min-w-0 flex-1">
-                  <Field label="Ảnh đại diện" htmlFor="avatarUrl" hint="Dán liên kết ảnh, hoặc để trống dùng chữ cái đầu.">
-                    <Input id="avatarUrl" placeholder="https://…" {...form.register('avatarUrl')} />
-                  </Field>
-                </div>
-              </div>
-
-              <Field label="Họ và tên" htmlFor="name" error={form.formState.errors.name?.message}>
-                <Input id="name" {...form.register('name')} />
-              </Field>
-
-              <Field label="Email" hint="Email đăng nhập không đổi được ở đây.">
-                <div className="flex h-11 items-center gap-2.5 rounded-[11px] border-[1.5px] border-line bg-paper-2 px-3.5 text-sm text-ink-3">
-                  <Mail className="size-4 shrink-0" aria-hidden />
-                  <span className="truncate">{user.email}</span>
-                  {user.hasGoogle && <Badge tone="ok">Google</Badge>}
-                </div>
-              </Field>
-
-              <Field label="Giới thiệu" htmlFor="bio" hint="Một hai câu để người tải tài liệu biết bạn là ai.">
-                <Textarea id="bio" rows={3} placeholder="Sinh viên Kỹ thuật phần mềm, thích thuật toán và cà phê sữa đá." {...form.register('bio')} />
-              </Field>
-            </CardBody>
-          </Card>
-
-          <Card>
-            <CardHeader title="Học tập" subtitle="Dùng cho thư viện, công cụ GPA và kế hoạch học tập." />
-            <CardBody className="space-y-4">
-              <Field label="Trường" htmlFor="profileUniversity">
-                <Select
-                  id="profileUniversity"
-                  {...form.register('universityId', {
-                    onChange: () => {
-                      setFacultyId('');
-                      form.setValue('majorId', null);
-                    },
-                  })}
-                >
-                  <option value="">Chưa chọn</option>
-                  {universities.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Khoa / Viện" htmlFor="profileFaculty">
-                  <Select
-                    id="profileFaculty"
-                    disabled={!universityId}
-                    value={facultyId}
-                    onChange={(event) => {
-                      setFacultyId(event.target.value);
-                      form.setValue('majorId', null);
-                    }}
-                  >
-                    <option value="">Chưa chọn</option>
-                    {faculties.map((faculty) => (
-                      <option key={faculty.id} value={faculty.id}>
-                        {faculty.nameVi}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-
-                <Field label="Ngành" htmlFor="profileMajor">
-                  <Select id="profileMajor" disabled={!universityId} {...form.register('majorId')}>
-                    <option value="">Chưa chọn</option>
-                    {majorsInFaculty.map((major) => (
-                      <option key={major.id} value={major.id}>
-                        {major.name}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-              </div>
-
-              <Field label="Năm học" htmlFor="profileYear">
-                <Select id="profileYear" {...form.register('year')}>
-                  <option value="">Chưa chọn</option>
-                  {STUDY_YEARS.map((year) => (
-                    <option key={year} value={year}>
-                      Năm {year}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-            </CardBody>
-          </Card>
-
-          <div className="flex justify-end">
-            <Button type="submit" size="lg" icon={<Save className="size-[18px]" />} loading={form.formState.isSubmitting}>
-              Lưu thay đổi
-            </Button>
+    <>
+      <div className="profile-cover" style={{ ['--uc' as string]: user.university?.color ?? avatarColor(user.name) }}>
+        <div className="entity-paper" aria-hidden />
+      </div>
+      <div className="container profile-head">
+        <Avatar name={user.name} src={user.avatarUrl} size="xl" />
+        <div className="ph-info">
+          <div className="ph-name">
+            <h1 className="t-h1">{user.name}</h1>
+            {user.hasGoogle && <span className="badge badge-blue">Google</span>}
           </div>
-        </form>
-
-        <div className="space-y-4 lg:sticky lg:top-[88px] lg:self-start">
-          <Card>
-            <CardHeader title="Đóng góp của bạn" />
-            <CardBody>
-              <dl className="grid grid-cols-2 gap-2.5 text-center">
-                <div className="rounded-lg bg-paper-2 py-3">
-                  <dt className="text-xs text-ink-4">Tài liệu</dt>
-                  <dd className="tabular text-xl font-semibold">{user.stats?.uploads ?? 0}</dd>
-                </div>
-                <div className="rounded-lg bg-paper-2 py-3">
-                  <dt className="text-xs text-ink-4">Lượt tải</dt>
-                  <dd className="tabular text-xl font-semibold">{fmtInt(user.stats?.downloadsReceived ?? 0)}</dd>
-                </div>
-              </dl>
-              <p className="mt-3.5 text-[12.5px] text-ink-4">Tham gia từ {fmtDate(user.createdAt)}</p>
-              <Link
-                to="/app/upload"
-                className="mt-3.5 inline-flex h-10 w-full items-center justify-center gap-2 rounded-[11px] border-[1.5px] border-line-2 text-sm font-semibold text-ink-2 transition-colors hover:border-brand-200 hover:text-brand"
-              >
-                <Upload className="size-4" aria-hidden />
-                Chia sẻ thêm tài liệu
-              </Link>
-            </CardBody>
-          </Card>
-
-          <Card>
-            <CardBody className="flex gap-3">
-              <ShieldCheck className="mt-0.5 size-[18px] shrink-0 text-ink-4" aria-hidden />
-              <p className="text-[12.5px] leading-relaxed text-ink-3">
-                Chỉ tên, ảnh và phần giới thiệu của bạn hiện công khai trên tài liệu bạn chia sẻ. Email và điểm số luôn
-                riêng tư.
-              </p>
-            </CardBody>
-          </Card>
+          <ul className="eh-meta">
+            {user.university && (
+              <li>
+                <Building2 className="ic ic-sm" />
+                {user.university.name}
+              </li>
+            )}
+            {user.major && (
+              <li>
+                <GraduationCap className="ic ic-sm" />
+                {user.major.name}
+              </li>
+            )}
+            {user.year && (
+              <li>
+                <CalendarDays className="ic ic-sm" />
+                Năm {user.year}
+              </li>
+            )}
+            <li>
+              <Clock className="ic ic-sm" />
+              Tham gia {fmtDate(user.createdAt)}
+            </li>
+          </ul>
+          <p className="ph-bio">{user.bio || 'Chưa có giới thiệu. Thêm vài dòng để người tải tài liệu của bạn biết bạn là ai.'}</p>
+        </div>
+        <div className="ph-actions">
+          <button type="button" className="btn btn-secondary" onClick={() => setEditing(true)}>
+            <Pencil className="ic ic-sm" />
+            Sửa hồ sơ
+          </button>
+          <Link className="btn btn-primary" to="/app/upload">
+            <CloudUpload className="ic ic-sm" />
+            Tải lên
+          </Link>
         </div>
       </div>
-    </div>
+
+      <div className="container">
+        <dl className="profile-stats">
+          <div>
+            <dt>Tài liệu đã đăng</dt>
+            <dd>{user.stats?.uploads ?? uploads?.total ?? 0}</dd>
+          </div>
+          <div>
+            <dt>Lượt tải nhận được</dt>
+            <dd>{fmtInt(user.stats?.downloadsReceived ?? 0)}</dd>
+          </div>
+          <div>
+            <dt>Điểm đánh giá TB</dt>
+            <dd>{avgRating ? avgRating.toFixed(1) : '–'}</dd>
+          </div>
+          <div>
+            <dt>Đã lưu</dt>
+            <dd>{saved?.length ?? 0}</dd>
+          </div>
+          <div>
+            <dt>Đánh giá đã viết</dt>
+            <dd>{user.stats?.reviews ?? 0}</dd>
+          </div>
+        </dl>
+
+        <div className="tabs profile-tabs" role="tablist">
+          <button type="button" role="tab" aria-selected={tab === 'saved'} onClick={() => setParams({ tab: 'saved' })}>
+            <Bookmark className="ic ic-sm" />
+            Đã lưu<span className="count">{saved?.length ?? 0}</span>
+          </button>
+          <button type="button" role="tab" aria-selected={tab === 'uploads'} onClick={() => setParams({ tab: 'uploads' })}>
+            <FileText className="ic ic-sm" />
+            Đã đăng<span className="count">{uploads?.total ?? 0}</span>
+          </button>
+        </div>
+
+        <div className="profile-body">
+          {loading ? (
+            <div className="grid-docs grid-4">
+              {Array.from({ length: 4 }, (_, i) => (
+                <DocCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : !list.length ? (
+            tab === 'saved' ? (
+              <EmptyState
+                title="Chưa lưu tài liệu nào"
+                description="Bấm biểu tượng đánh dấu trên bất kỳ tài liệu nào để dành lại đây cho mùa thi."
+                action={
+                  <Link className="btn btn-primary" to="/app/library">
+                    <Compass className="ic ic-sm" />
+                    Mở thư viện
+                  </Link>
+                }
+              />
+            ) : (
+              <EmptyState
+                title="Bạn chưa đăng tài liệu nào"
+                description="Chia sẻ ghi chép hay đề thi của một môn bạn đã học. Mất khoảng hai phút."
+                action={
+                  <Link className="btn btn-primary" to="/app/upload">
+                    <CloudUpload className="ic ic-sm" />
+                    Chia sẻ tài liệu
+                  </Link>
+                }
+              />
+            )
+          ) : (
+            <div className="grid-docs grid-4">
+              {list.map((d) =>
+                tab === 'saved' ? (
+                  <div key={d.id} className="saved-item">
+                    <DocCard doc={d} onToggleBookmark={(id) => toggleBookmark.mutate(id)} onPreview={setPreview} />
+                    <button type="button" className="saved-remove" onClick={() => toggleBookmark.mutate(d.id)}>
+                      <X className="ic ic-xs" />
+                      Bỏ khỏi đã lưu
+                    </button>
+                  </div>
+                ) : (
+                  <DocCard key={d.id} doc={d} onToggleBookmark={(id) => toggleBookmark.mutate(id)} onPreview={setPreview} />
+                ),
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <EditProfile open={editing} onClose={() => setEditing(false)} />
+      <QuickPreview
+        doc={preview ? (list.find((d) => d.id === preview.id) ?? preview) : null}
+        onClose={() => setPreview(null)}
+        onToggleBookmark={(id) => toggleBookmark.mutate(id)}
+        onDownload={(d) => download.mutate(d.id, { onSuccess: ({ fileUrl }) => window.open(fileUrl, '_blank', 'noopener') })}
+        downloading={download.isPending}
+      />
+    </>
   );
 }

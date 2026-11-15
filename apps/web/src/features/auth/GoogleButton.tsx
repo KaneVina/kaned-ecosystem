@@ -69,12 +69,11 @@ export function GoogleButton({ onCredential, disabled }: { onCredential: (creden
 
   if (!clientId) {
     return (
-      <div className="rounded-lg border border-dashed border-line-2 bg-paper-2 px-4 py-3 text-[13px] text-ink-3">
-        Đăng nhập Google chưa được cấu hình. Thêm <code className="font-mono text-ink-2">GOOGLE_CLIENT_ID</code> vào{' '}
-        <code className="font-mono text-ink-2">apps/api/.env</code> để bật.
-      </div>
+      <p className="auth-note">
+        Đăng nhập Google chưa bật. Thêm <code>GOOGLE_CLIENT_ID</code> vào <code>apps/api/.env</code> rồi khởi động lại API.
+      </p>
     );
   }
 
-  return <div ref={holder} className={disabled ? 'pointer-events-none opacity-60' : undefined} />;
+  return <div ref={holder} className="auth-google" style={disabled ? { pointerEvents: 'none', opacity: 0.6 } : undefined} />;
 }

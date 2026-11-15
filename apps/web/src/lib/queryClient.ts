@@ -30,5 +30,5 @@ export const queryKeys = {
   saved: ['documents', 'saved'] as const,
   grades: ['grades', 'list'] as const,
   gradeSummary: ['grades', 'summary'] as const,
-  planner: (majorId: string, strong: boolean) => ['grades', 'planner', majorId, strong] as const,
+  planner: (majorId: string) => ['grades', 'planner', majorId] as const,
 };

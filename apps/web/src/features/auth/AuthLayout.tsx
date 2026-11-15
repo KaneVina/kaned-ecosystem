@@ -1,154 +1,192 @@
-import type { ReactNode } from 'react';
+import { forwardRef, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, BookOpenCheck, Eye, FileCheck, LayoutGrid, ShieldCheck } from 'lucide-react';
+import {
+  ArrowLeft,
+  BookOpen,
+  Calculator,
+  CalendarDays,
+  CircleAlert,
+  CircleCheck,
+  GraduationCap,
+  Layers,
+  LayoutGrid,
+  Library,
+  ShieldCheck,
+  Users,
+} from 'lucide-react';
 import { Wordmark } from '@/components/ui/Wordmark';
 import { Avatar } from '@/components/ui/Avatar';
+import { cn } from '@/lib/cn';
 
 const MODULES = [
-  { name: 'Thư viện', status: 'Đang mở' },
-  { name: 'Tính GPA', status: 'Đang mở' },
-  { name: 'Thông tin môn', status: 'Đang mở' },
-  { name: 'Kế hoạch học', status: 'Đang mở' },
-  { name: 'Thẻ ghi nhớ', status: 'Sắp có' },
-  { name: 'Thời khoá biểu', status: 'Sắp có' },
+  { name: 'Thư viện', state: 'Đang mở', icon: Library },
+  { name: 'Tính GPA', state: 'Đang mở', icon: Calculator },
+  { name: 'Môn học & điều kiện', state: 'Đang mở', icon: GraduationCap },
+  { name: 'Thẻ ghi nhớ', state: 'Sắp có', icon: Layers },
+  { name: 'Thời khoá biểu', state: 'Sắp có', icon: CalendarDays },
+  { name: 'Nhóm học', state: 'Đang thiết kế', icon: Users },
 ];
 
-const POINTS = [
-  { icon: FileCheck, text: 'Đề thi các năm kèm lời giải' },
-  { icon: BookOpenCheck, text: 'Ghi chép và slide từ chính lớp bạn' },
-  { icon: Eye, text: 'Xem trước từng trang trước khi tải' },
-  { icon: ShieldCheck, text: 'Có kiểm duyệt, gỡ tài liệu vi phạm trong 24 giờ' },
-];
-
-/**
- * Two columns: the form on paper white, the ecosystem on deep violet.
- * The right panel never scrolls with the form, so the brand stays put.
- */
+/** The split auth screen: the form on paper, the ecosystem on deep violet. */
 export function AuthLayout({
-  eyebrow,
   title,
   subtitle,
+  eyebrow = 'Tài khoản sinh viên',
+  steps,
   children,
-  footer,
 }: {
-  eyebrow: string;
   title: string;
   subtitle: string;
+  eyebrow?: string;
+  steps?: { current: number; total: number };
   children: ReactNode;
-  footer?: ReactNode;
 }) {
   return (
-    <div className="grid min-h-screen bg-paper lg:grid-cols-[1.06fr_0.94fr]">
-      {/* ─── Form side ─────────────────────────────────────────── */}
-      <div className="flex flex-col px-6 py-7 sm:px-10">
-        <div className="flex items-center justify-between gap-4">
-          <Link to="/" className="rounded">
-            <Wordmark />
-          </Link>
-          <Link
-            to="/"
-            className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-ink-2 transition-colors hover:bg-sunk hover:text-ink"
-          >
-            <ArrowLeft className="size-4" aria-hidden />
-            Trang chủ
-          </Link>
-        </div>
-
-        <div className="mx-auto flex w-full max-w-[430px] flex-1 flex-col justify-center py-10">
-          <p className="inline-flex items-center gap-2 text-xs font-semibold tracking-[0.12em] text-brand uppercase">
-            <ShieldCheck className="size-3.5" aria-hidden />
-            {eyebrow}
-          </p>
-          <h1 className="mt-3.5 text-[clamp(28px,3vw,36px)] leading-tight font-semibold">{title}</h1>
-          <p className="mt-2 text-[15px] leading-relaxed text-ink-3">{subtitle}</p>
-
-          <div className="mt-7">{children}</div>
-        </div>
-
-        <p className="text-center text-xs leading-relaxed text-ink-4">{footer}</p>
-      </div>
-
-      {/* ─── Brand side ────────────────────────────────────────── */}
-      <aside className="relative hidden overflow-hidden bg-[#241A63] px-11 py-9 text-white lg:flex lg:flex-col">
-        <div
-          aria-hidden
-          className="absolute -inset-[20%] blur-[26px]"
-          style={{
-            background:
-              'radial-gradient(42% 46% at 22% 18%, rgba(104,84,220,.95), transparent 60%),' +
-              'radial-gradient(38% 44% at 82% 30%, rgba(199,130,28,.5), transparent 62%),' +
-              'radial-gradient(52% 50% at 60% 88%, rgba(68,51,180,.9), transparent 64%)',
-          }}
-        />
-        <div
-          aria-hidden
-          className="absolute inset-0 opacity-50"
-          style={{
-            backgroundImage:
-              'linear-gradient(to right, rgba(255,255,255,.09) 1px, transparent 1px),' +
-              'linear-gradient(to bottom, rgba(255,255,255,.09) 1px, transparent 1px)',
-            backgroundSize: '30px 30px',
-            maskImage: 'radial-gradient(circle at 68% 24%, #000, transparent 76%)',
-            WebkitMaskImage: 'radial-gradient(circle at 68% 24%, #000, transparent 76%)',
-          }}
-        />
-        <span
-          aria-hidden
-          className="absolute inset-y-0 left-7 w-px"
-          style={{ background: 'linear-gradient(to bottom, transparent, rgba(255,138,128,.5), transparent)' }}
-        />
-
-        <div className="relative flex items-center justify-between">
-          <Wordmark light />
-          <span className="inline-flex h-[30px] items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 text-[12.5px] backdrop-blur">
-            <LayoutGrid className="size-3.5" aria-hidden />6 module
-          </span>
-        </div>
-
-        <div className="relative my-auto">
-          <h2 className="max-w-[17ch] text-[clamp(26px,2.5vw,34px)] leading-tight font-semibold">
-            Một tài khoản cho mọi thứ môn học của bạn cần.
-          </h2>
-          <p className="mt-3.5 max-w-[42ch] text-[15px] leading-relaxed text-white/70">
-            Tài liệu đã lưu, điểm số và kế hoạch học tập đều nằm trên cùng một tài khoản sinh viên.
-          </p>
-
-          <div className="mt-8 grid max-w-[440px] grid-cols-3 gap-2.5">
-            {MODULES.map((module) => (
-              <div
-                key={module.name}
-                className="rounded-xl border border-white/12 bg-white/8 p-3 backdrop-blur transition-transform duration-300 hover:-translate-y-1 hover:bg-white/15"
-              >
-                <p className="text-[12.5px] leading-snug font-semibold">{module.name}</p>
-                <p className="mt-0.5 text-[10.5px] text-white/55">{module.status}</p>
-              </div>
-            ))}
+    <section className="screen-auth">
+      <div className="auth-split">
+        <div className="auth-pane">
+          <div className="auth-pane-head">
+            <Link to="/" aria-label="Kaned — trang chủ">
+              <Wordmark />
+            </Link>
+            <Link to="/" className="auth-back">
+              <ArrowLeft className="ic ic-sm" />
+              Trang chủ
+            </Link>
           </div>
 
-          <ul className="mt-9 space-y-3">
-            {POINTS.map((point) => (
-              <li key={point.text} className="flex items-center gap-3 text-[14.5px] text-white/90">
-                <point.icon className="size-[18px] shrink-0 text-brand-200" aria-hidden />
-                {point.text}
-              </li>
-            ))}
-          </ul>
+          <div className="auth-inner">
+            <span className="auth-eyebrow">
+              <ShieldCheck className="ic ic-xs" />
+              {eyebrow}
+            </span>
+            <h1>{title}</h1>
+            <p>{subtitle}</p>
+            {steps && (
+              <div className="steps" aria-label={`Bước ${steps.current} trên ${steps.total}`}>
+                {Array.from({ length: steps.total }, (_, i) => (
+                  <i key={i} className={i < steps.current ? 'on' : undefined} />
+                ))}
+                <span>
+                  Bước {steps.current} / {steps.total}
+                </span>
+              </div>
+            )}
+            {children}
+          </div>
+
+          <p className="auth-legal">
+            Khi tiếp tục, bạn đồng ý với <Link to="/">Điều khoản sử dụng</Link> và <Link to="/">Chính sách riêng tư</Link>.
+          </p>
         </div>
 
-        <div className="relative border-t border-white/15 pt-6">
-          <blockquote className="text-[16.5px] leading-snug">
-            “Mình tìm được đề thi của đúng môn, đúng học kỳ trong hai phút. Kỳ trước mình hỏi khắp nhóm lớp mà không ai
-            có.”
-          </blockquote>
-          <div className="mt-4 flex items-center gap-3">
-            <Avatar name="Lê Thảo Vy" size="md" />
-            <div>
-              <p className="text-[13.5px] font-semibold">Lê Thảo Vy</p>
-              <p className="text-xs text-white/60">Hệ thống thông tin, Đại học Cần Thơ</p>
+        <aside className="auth-canvas" aria-hidden>
+          <span className="canvas-mesh" />
+          <span className="canvas-grid" />
+          <span className="canvas-margin" />
+          <div className="canvas-top">
+            <Wordmark />
+            <span className="canvas-chip">
+              <LayoutGrid className="ic ic-xs" />
+              {MODULES.length} module
+            </span>
+          </div>
+          <div className="canvas-body">
+            <h2>Một tài khoản cho mọi thứ môn học của bạn cần.</h2>
+            <p>Đăng nhập một lần. Tài liệu đã lưu, bảng điểm và kế hoạch học đều nằm trên cùng một tài khoản sinh viên.</p>
+            <div className="canvas-mods">
+              {MODULES.map((m, i) => (
+                <div key={m.name} className="cmod" style={{ animationDelay: `${120 + i * 60}ms` }}>
+                  <m.icon className="ic ic-sm" />
+                  <div>
+                    <b>{m.name}</b>
+                    <span>{m.state}</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
-      </aside>
-    </div>
+          <div className="canvas-quote">
+            <blockquote>
+              “Mình tìm được đề thi của đúng môn, đúng học kỳ trong hai phút. Kỳ trước mình hỏi khắp nhóm lớp mà không ai có.”
+            </blockquote>
+            <div className="cq-who">
+              <Avatar name="Lê Thảo Vy" size="md" />
+              <div>
+                <b>Lê Thảo Vy</b>
+                <span>Hệ thống thông tin, Đại học Cần Thơ</span>
+              </div>
+            </div>
+            <div className="canvas-stats">
+              <div>
+                <b>43</b>
+                <span>môn FPTU SE</span>
+              </div>
+              <div>
+                <b>9</b>
+                <span>kỳ học</span>
+              </div>
+              <div>
+                <b>
+                  <BookOpen className="ic ic-sm" style={{ display: 'inline', verticalAlign: '-2px' }} /> 1
+                </b>
+                <span>tài khoản</span>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
   );
 }
+
+interface FloatFieldProps extends InputHTMLAttributes<HTMLInputElement> {
+  label: string;
+  error?: string;
+  valid?: boolean;
+  action?: ReactNode;
+  after?: ReactNode;
+}
+
+/** A large input whose label floats up when it has focus or a value. */
+export const FloatField = forwardRef<HTMLInputElement, FloatFieldProps>(function FloatField(
+  { label, error, valid, action, after, id, className, ...rest },
+  ref,
+) {
+  return (
+    <div className={cn('ffield', error && 'invalid', valid && !error && 'valid', className)}>
+      <input ref={ref} id={id} className="finput" placeholder=" " aria-invalid={Boolean(error) || undefined} {...rest} />
+      <label htmlFor={id}>{label}</label>
+      {action}
+      {!action && <CircleCheck className="ic ic-sm f-ok" aria-hidden />}
+      <span className="err" role={error ? 'alert' : undefined}>
+        <CircleAlert className="ic ic-xs" />
+        <span>{error}</span>
+      </span>
+      {after}
+    </div>
+  );
+});
+
+interface FloatSelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
+  label: string;
+  error?: string;
+}
+
+export const FloatSelect = forwardRef<HTMLSelectElement, FloatSelectProps>(function FloatSelect(
+  { label, error, id, children, ...rest },
+  ref,
+) {
+  return (
+    <div className={cn('ffield', error && 'invalid')}>
+      <select ref={ref} id={id} className="finput" {...rest}>
+        {children}
+      </select>
+      <label htmlFor={id}>{label}</label>
+      <span className="err">
+        <CircleAlert className="ic ic-xs" />
+        <span>{error}</span>
+      </span>
+    </div>
+  );
+});

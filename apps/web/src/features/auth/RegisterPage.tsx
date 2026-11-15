@@ -4,199 +4,192 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowLeft, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { registerSchema, STUDY_YEARS, type RegisterInput } from '@kaned/shared';
-import { AuthLayout } from './AuthLayout';
+import { AuthLayout, FloatField, FloatSelect } from './AuthLayout';
 import { GoogleButton } from './GoogleButton';
-import { Button } from '@/components/ui/Button';
-import { Field, Input, Select } from '@/components/ui/Field';
 import { useAuth } from '@/providers/AuthProvider';
 import { useToast } from '@/providers/ToastProvider';
 import { useMajors, useUniversities } from '@/features/catalog/queries';
 import { toApiError } from '@/lib/api';
 import { cn } from '@/lib/cn';
 
-/** Registration runs in two steps so the first screen stays short. */
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** 0–4: length, mixed case, digits, symbols. */
+function strength(pw: string) {
+  if (pw.length < 8) return pw ? 1 : 0;
+  let s = 1;
+  if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) s++;
+  if (/\d/.test(pw)) s++;
+  if (/[^A-Za-z0-9]/.test(pw) || pw.length >= 14) s++;
+  return Math.min(4, s);
+}
+const STRENGTH_WORD = ['', 'Quá ngắn', 'Tạm được', 'Khá mạnh', 'Rất mạnh'];
+
 export function RegisterPage() {
   const { register: signUp, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
   const [step, setStep] = useState<1 | 2>(1);
+  const [back, setBack] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [shake, setShake] = useState(false);
 
   const form = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
     defaultValues: { name: '', email: '', password: '', universityId: null, majorId: null, year: 3 },
   });
+  const { errors, isSubmitting } = form.formState;
+  const [name, email, password, universityId] = form.watch(['name', 'email', 'password', 'universityId']);
+  const level = strength(password ?? '');
 
-  const universityId = form.watch('universityId');
   const { data: universities = [] } = useUniversities();
   const { data: majors = [] } = useMajors(universityId ?? undefined);
 
-  const goToStep2 = async () => {
-    const valid = await form.trigger(['name', 'email', 'password']);
-    if (valid) setStep(2);
+  const fail = () => {
+    setShake(true);
+    setTimeout(() => setShake(false), 450);
   };
 
-  const onSubmit = form.handleSubmit(async (values) => {
-    try {
-      await signUp(values);
-      toast.success(`Chào mừng ${values.name.split(' ').slice(-1)[0]} đến với Kaned`, 'Tài khoản dùng chung cho mọi module.');
-      navigate('/app', { replace: true });
-    } catch (error) {
-      const err = toApiError(error);
-      if (err.fields) {
-        for (const [field, message] of Object.entries(err.fields)) {
-          form.setError(field as keyof RegisterInput, { message });
+  const next = async () => {
+    if (await form.trigger(['name', 'email', 'password'])) {
+      setBack(false);
+      setStep(2);
+    } else fail();
+  };
+
+  const onSubmit = form.handleSubmit(
+    async (values) => {
+      try {
+        await signUp(values);
+        toast.success(`Chào ${values.name.trim().split(/\s+/).slice(-1)[0]}!`, 'Tài khoản đã sẵn sàng cho mọi module.');
+        navigate('/app', { replace: true });
+      } catch (error) {
+        const err = toApiError(error);
+        if (err.fields) {
+          for (const [f, m] of Object.entries(err.fields)) form.setError(f as keyof RegisterInput, { message: m });
+          if (err.fields.email || err.fields.password || err.fields.name) setStep(1);
         }
-        if (err.fields.email || err.fields.password || err.fields.name) setStep(1);
+        toast.error('Chưa tạo được tài khoản', err.message);
+        fail();
       }
-      toast.error('Không tạo được tài khoản', err.message);
-    }
-  });
-
-  const handleGoogle = async (credential: string) => {
-    try {
-      await loginWithGoogle(credential);
-      navigate('/app', { replace: true });
-    } catch (error) {
-      toast.error('Không đăng ký được bằng Google', toApiError(error).message);
-    }
-  };
+    },
+    () => fail(),
+  );
 
   return (
     <AuthLayout
       eyebrow="Tạo tài khoản"
-      title="Tham gia hệ sinh thái"
+      title="Tham gia Kaned"
       subtitle="Một tài khoản cho thư viện và mọi công cụ đi kèm. Miễn phí cho sinh viên."
-      footer={
-        <>
-          Khi tiếp tục, bạn đồng ý với <Link to="/register" className="underline">Điều khoản sử dụng</Link> và{' '}
-          <Link to="/register" className="underline">Chính sách riêng tư</Link>.
-        </>
-      }
+      steps={{ current: step, total: 2 }}
     >
-      <div className="mb-6 flex items-center gap-3">
-        <span className={cn('h-[3px] flex-1 rounded-full', 'bg-brand')} />
-        <span className={cn('h-[3px] flex-1 rounded-full transition-colors', step === 2 ? 'bg-brand' : 'bg-line')} />
-        <span className="tabular shrink-0 text-xs text-ink-3">Bước {step} / 2</span>
-      </div>
-
-      <form onSubmit={onSubmit} noValidate className="space-y-4">
+      <form onSubmit={onSubmit} noValidate className={cn(shake && 'shake')}>
         {step === 1 ? (
-          <div className="animate-fade-in space-y-4">
-            <Field label="Họ và tên" htmlFor="name" error={form.formState.errors.name?.message}>
-              <Input id="name" autoComplete="name" placeholder="Trần Bảo Ngọc" {...form.register('name')} />
-            </Field>
-
-            <Field label="Email sinh viên" htmlFor="email" error={form.formState.errors.email?.message}>
-              <Input id="email" type="email" autoComplete="email" placeholder="ngoc.tb@fpt.edu.vn" {...form.register('email')} />
-            </Field>
-
-            <Field
-              label="Mật khẩu"
-              htmlFor="password"
-              hint="Ít nhất 8 ký tự."
-              error={form.formState.errors.password?.message}
-            >
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="new-password"
-                  className="pr-11"
-                  {...form.register('password')}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-                  className="absolute top-1/2 right-1.5 grid size-8 -translate-y-1/2 place-items-center rounded-md text-ink-3 hover:bg-sunk hover:text-ink"
-                >
-                  {showPassword ? <EyeOff className="size-[18px]" /> : <Eye className="size-[18px]" />}
-                </button>
-              </div>
-            </Field>
-
-            <Button type="button" size="lg" block onClick={goToStep2} iconEnd={<ArrowRight className="size-4" />}>
-              Tiếp tục
-            </Button>
+          <div className={cn('step-pane', back && 'back')} key="s1">
+            <div className="auth-fields">
+              <FloatField id="name" label="Họ và tên" autoComplete="name" error={errors.name?.message} valid={(name ?? '').trim().length >= 2} {...form.register('name')} />
+              <FloatField id="email" type="email" label="Email sinh viên" autoComplete="email" error={errors.email?.message} valid={EMAIL_RE.test(email ?? '')} {...form.register('email')} />
+              <FloatField
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                label="Mật khẩu (ít nhất 8 ký tự)"
+                autoComplete="new-password"
+                error={errors.password?.message}
+                action={
+                  <button type="button" className="f-act" onClick={() => setShowPassword((v) => !v)} aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}>
+                    {showPassword ? <EyeOff className="ic ic-sm" /> : <Eye className="ic ic-sm" />}
+                  </button>
+                }
+                after={
+                  password ? (
+                    <div className={cn('pw-meter', `s${level}`)}>
+                      <span className="bars">
+                        <i />
+                        <i />
+                        <i />
+                        <i />
+                      </span>
+                      <span>{STRENGTH_WORD[level]}</span>
+                    </div>
+                  ) : null
+                }
+                {...form.register('password')}
+              />
+            </div>
+            <div className="auth-actions">
+              <button type="button" className="btn btn-primary btn-auth btn-block" onClick={next}>
+                Tiếp tục
+                <ArrowRight className="ic ic-sm" />
+              </button>
+            </div>
           </div>
         ) : (
-          <div className="animate-fade-in space-y-4">
-            <Field label="Trường" htmlFor="universityId" error={form.formState.errors.universityId?.message}>
-              <Select
+          <div className="step-pane" key="s2">
+            <div className="auth-fields">
+              <FloatSelect
                 id="universityId"
-                {...form.register('universityId', {
-                  onChange: () => form.setValue('majorId', null),
-                })}
+                label="Trường"
+                required
+                error={errors.universityId?.message}
+                {...form.register('universityId', { onChange: () => form.setValue('majorId', null) })}
               >
-                <option value="">Chọn trường của bạn</option>
+                <option value="" disabled />
                 {universities.map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.name}
                   </option>
                 ))}
-              </Select>
-            </Field>
-
-            <Field label="Ngành" htmlFor="majorId" error={form.formState.errors.majorId?.message}>
-              <Select id="majorId" disabled={!universityId} {...form.register('majorId')}>
-                <option value="">{universityId ? 'Chọn ngành học' : 'Chọn trường trước'}</option>
+              </FloatSelect>
+              <FloatSelect id="majorId" label="Ngành" required disabled={!universityId} error={errors.majorId?.message} {...form.register('majorId')}>
+                <option value="" disabled />
                 {majors.map((m) => (
                   <option key={m.id} value={m.id}>
-                    {m.name} — {m.nameVi}
+                    {m.nameVi} — {m.name}
                   </option>
                 ))}
-              </Select>
-            </Field>
-
-            <Field label="Năm học">
-              <div className="flex gap-2">
-                {STUDY_YEARS.map((year) => (
-                  <label key={year} className="flex-1">
-                    <input type="radio" value={year} className="peer sr-only" {...form.register('year')} />
-                    <span
-                      className={cn(
-                        'grid h-11 cursor-pointer place-items-center rounded-[11px] border-[1.5px] border-line bg-paper-2 text-sm font-medium text-ink-2 transition-all',
-                        'peer-checked:border-brand peer-checked:bg-brand peer-checked:text-white hover:border-brand-200',
-                      )}
-                    >
-                      Năm {year}
-                    </span>
+              </FloatSelect>
+              <div className="year-pills" role="radiogroup" aria-label="Năm học">
+                {STUDY_YEARS.map((y) => (
+                  <label key={y}>
+                    <input type="radio" value={y} {...form.register('year')} />
+                    <span>Năm {y}</span>
                   </label>
                 ))}
               </div>
-            </Field>
-
-            <div className="flex gap-2.5 pt-1">
-              <Button
+            </div>
+            <div className="auth-actions">
+              <button
                 type="button"
-                variant="secondary"
-                size="lg"
-                onClick={() => setStep(1)}
-                icon={<ArrowLeft className="size-4" />}
+                className="btn btn-secondary btn-auth"
+                onClick={() => {
+                  setBack(true);
+                  setStep(1);
+                }}
               >
+                <ArrowLeft className="ic ic-sm" />
                 Quay lại
-              </Button>
-              <Button type="submit" size="lg" className="flex-1" loading={form.formState.isSubmitting}>
+              </button>
+              <button type="submit" className={cn('btn btn-primary btn-auth', isSubmitting && 'is-loading')} style={{ flex: 1 }}>
                 Tạo tài khoản
-              </Button>
+              </button>
             </div>
           </div>
         )}
 
-        <div className="flex items-center gap-3.5 py-1 text-[12.5px] text-ink-4">
-          <span className="h-px flex-1 bg-line" />
-          hoặc tiếp tục với
-          <span className="h-px flex-1 bg-line" />
-        </div>
+        <div className="auth-or">hoặc tiếp tục với</div>
+        <GoogleButton
+          onCredential={async (credential) => {
+            try {
+              await loginWithGoogle(credential);
+              navigate('/app', { replace: true });
+            } catch (error) {
+              toast.error('Không đăng ký được bằng Google', toApiError(error).message);
+            }
+          }}
+        />
 
-        <GoogleButton onCredential={handleGoogle} />
-
-        <p className="pt-2 text-center text-sm text-ink-3">
-          Đã có tài khoản?{' '}
-          <Link to="/login" className="font-semibold text-brand hover:underline">
-            Đăng nhập
-          </Link>
+        <p className="auth-switch">
+          Đã có tài khoản? <Link to="/login" className="link">Đăng nhập</Link>
         </p>
       </form>
     </AuthLayout>

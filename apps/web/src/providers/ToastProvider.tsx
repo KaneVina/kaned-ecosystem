@@ -10,6 +10,7 @@ export interface Toast {
   tone: ToastTone;
   title: string;
   description?: string;
+  leaving?: boolean;
 }
 
 interface ToastContextValue {
@@ -23,18 +24,22 @@ const ToastContext = createContext<ToastContextValue | null>(null);
 
 let nextId = 1;
 
+const ICON: Record<ToastTone, typeof Info> = { success: CircleCheck, error: CircleAlert, info: Info };
+
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
+  // Play the leave animation, then remove.
   const dismiss = useCallback((id: number) => {
-    setToasts((list) => list.filter((t) => t.id !== id));
+    setToasts((list) => list.map((t) => (t.id === id ? { ...t, leaving: true } : t)));
+    window.setTimeout(() => setToasts((list) => list.filter((t) => t.id !== id)), 220);
   }, []);
 
   const toast = useCallback(
     (input: Omit<Toast, 'id'>) => {
       const id = nextId++;
       setToasts((list) => [...list.slice(-2), { ...input, id }]);
-      window.setTimeout(() => dismiss(id), input.tone === 'error' ? 6000 : 4200);
+      window.setTimeout(() => dismiss(id), input.tone === 'error' ? 6500 : 4200);
     },
     [dismiss],
   );
@@ -53,46 +58,28 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={value}>
       {children}
       {createPortal(
-        <div
-          aria-live="polite"
-          className="pointer-events-none fixed right-4 bottom-4 z-[130] flex w-[min(380px,calc(100vw-2rem))] flex-col gap-2.5"
-        >
-          {toasts.map((t) => (
-            <ToastCard key={t.id} toast={t} onDismiss={() => dismiss(t.id)} />
-          ))}
+        <div className="toast-region" aria-live="polite">
+          {toasts.map((t) => {
+            const Icon = ICON[t.tone];
+            return (
+              <div key={t.id} className={cn('toast', `toast-${t.tone}`, t.leaving && 'leaving')} role={t.tone === 'error' ? 'alert' : 'status'}>
+                <span className="toast-ic">
+                  <Icon className="ic" />
+                </span>
+                <div className="toast-body">
+                  <p className="toast-title">{t.title}</p>
+                  {t.description && <p className="toast-text">{t.description}</p>}
+                </div>
+                <button type="button" className="toast-close" onClick={() => dismiss(t.id)} aria-label="Đóng thông báo">
+                  <X className="ic ic-sm" />
+                </button>
+              </div>
+            );
+          })}
         </div>,
         document.body,
       )}
     </ToastContext.Provider>
-  );
-}
-
-function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }) {
-  const Icon = toast.tone === 'success' ? CircleCheck : toast.tone === 'error' ? CircleAlert : Info;
-  const tone = {
-    success: 'text-[#7BDDB0]',
-    error: 'text-[#FF9B91]',
-    info: 'text-[#B9B0F5]',
-  }[toast.tone];
-
-  return (
-    <div
-      role="status"
-      className="animate-toast-in pointer-events-auto flex items-start gap-3 rounded-xl bg-[#1E1B30] p-3.5 pr-2.5 text-white shadow-lg"
-    >
-      <Icon className={cn('mt-0.5 size-[18px] shrink-0', tone)} aria-hidden />
-      <div className="min-w-0 flex-1">
-        <p className="text-sm leading-snug font-semibold">{toast.title}</p>
-        {toast.description && <p className="mt-0.5 text-[13px] leading-snug text-white/70">{toast.description}</p>}
-      </div>
-      <button
-        onClick={onDismiss}
-        aria-label="Đóng thông báo"
-        className="grid size-6 shrink-0 place-items-center rounded-md text-white/50 hover:bg-white/10 hover:text-white"
-      >
-        <X className="size-3.5" />
-      </button>
-    </div>
   );
 }
 

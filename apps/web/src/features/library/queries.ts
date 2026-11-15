@@ -28,7 +28,7 @@ export function toParams(filters: LibraryFilters): Record<string, string> {
   return params;
 }
 
-export function useDocuments(filters: LibraryFilters) {
+export function useDocuments(filters: LibraryFilters, options: { enabled?: boolean } = {}) {
   const params = toParams(filters);
   return useQuery({
     queryKey: queryKeys.documents(params),
@@ -37,6 +37,7 @@ export function useDocuments(filters: LibraryFilters) {
       return data;
     },
     placeholderData: (previous) => previous,
+    enabled: options.enabled ?? true,
   });
 }
 

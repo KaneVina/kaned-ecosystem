@@ -56,3 +56,18 @@ export function fmtToday(date = new Date()): string {
   const weekdays = ['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
   return `${weekdays[date.getDay()]}, ${date.getDate()} ${MONTHS_VI[date.getMonth()]} ${date.getFullYear()}`;
 }
+
+/** Compact age for card footers: "hôm nay", "3 ngày", "2 tuần", "12/10". */
+export function timeShort(iso: string): string {
+  const d = new Date(iso);
+  const days = Math.floor((Date.now() - d.getTime()) / 86_400_000);
+  if (days < 1) return 'hôm nay';
+  if (days < 7) return `${days} ngày`;
+  if (days < 35) return `${Math.floor(days / 7)} tuần`;
+  return `${d.getDate()}/${d.getMonth() + 1}`;
+}
+
+/** The last two words of a Vietnamese name: "Trần Bảo Ngọc" → "Bảo Ngọc". */
+export const shortName = (name: string) => name.trim().split(/\s+/).slice(-2).join(' ');
+
+export const semesterVi = (s: 'S1' | 'S2' | 'SUMMER') => (s === 'SUMMER' ? 'Học kỳ hè' : s === 'S2' ? 'Học kỳ 2' : 'Học kỳ 1');

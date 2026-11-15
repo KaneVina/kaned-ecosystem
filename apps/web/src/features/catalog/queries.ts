@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import type {
+  CurriculumDto,
   FacultyDto,
   MajorDto,
   Paginated,
@@ -9,12 +10,6 @@ import type {
 } from '@kaned/shared';
 import { http } from '@/lib/api';
 import { queryKeys } from '@/lib/queryClient';
-
-export interface CurriculumSubject extends SubjectSummaryDto {
-  termNo: number | null;
-  isRequired: boolean;
-  prerequisites: Array<{ requiresId: string; type: 'PREREQUISITE' | 'COREQUISITE' | 'PRIOR' }>;
-}
 
 export function useUniversities() {
   return useQuery({
@@ -44,9 +39,7 @@ export function useMajors(universityId?: string) {
 export function useCurriculum(majorId?: string) {
   return useQuery({
     queryKey: queryKeys.curriculum(majorId ?? ''),
-    queryFn: async () =>
-      (await http.get<{ major: MajorDto; subjects: CurriculumSubject[] }>(`/catalog/majors/${majorId}/curriculum`))
-        .data,
+    queryFn: async () => (await http.get<CurriculumDto>(`/catalog/majors/${majorId}/curriculum`)).data,
     enabled: Boolean(majorId),
     staleTime: 10 * 60_000,
   });
@@ -59,11 +52,12 @@ export function useSubjects(params: {
   year?: number;
   page?: number;
   pageSize?: number;
-}) {
+}, options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: queryKeys.subjects(params),
     queryFn: async () => (await http.get<Paginated<SubjectSummaryDto>>('/catalog/subjects', { params })).data,
     placeholderData: (previous) => previous,
+    enabled: options.enabled ?? true,
   });
 }
 

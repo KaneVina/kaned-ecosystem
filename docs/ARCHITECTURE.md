@@ -81,11 +81,17 @@ refresh trước khi router quyết định điều hướng, nên tải lại t
   trong `lib/queryClient.ts` để không bao giờ gõ sai chuỗi khoá.
 - **Bộ lọc nằm trong URL** (`useLibraryFilters`), nên một trang thư viện đã lọc có thể lưu lại, chia sẻ,
   và nút back của trình duyệt hoạt động đúng.
-- **Tailwind v4** với token khai báo trong `@theme` ở `styles/index.css`. Màu, bóng, bán kính đều là biến
-  CSS, nên đổi chủ đề là sửa một chỗ.
-- **Primitive trước, trang sau**: `components/ui/` là Button, Field, Card, Badge, Dropdown, Modal,
-  Skeleton, Toast… Mọi trang chỉ ghép primitive lại, nhờ vậy khoảng cách, bán kính và trạng thái focus
-  giống nhau ở mọi nơi mà không cần ai nhớ con số.
+- **CSS thuần, không framework**: `styles/kaned.css` là hệ thiết kế của bản prototype (biến màu, chữ,
+  bóng, bán kính, mọi component), `styles/app.css` thêm phần riêng của app (công cụ, Môn học & điều
+  kiện, GPA, đăng nhập). Đổi chủ đề là sửa biến ở đầu `kaned.css`.
+- **Primitive trước, trang sau**: `components/ui/` là Button, Field, Badge, Panel, Dropdown, Modal,
+  Skeleton, Toast… sinh ra đúng class của hệ thiết kế. Mọi trang chỉ ghép primitive lại, nhờ vậy
+  khoảng cách, bán kính và trạng thái focus giống nhau ở mọi nơi mà không cần ai nhớ con số.
+- **Trang giấy vẽ bằng code**: `components/paper/` dựng trang xem trước (đề thi, slide, ghi chép, bảng
+  tính…) từ thông tin tài liệu khi chưa có ảnh thumbnail, nên thư viện không bao giờ có ô trống.
+- **Môn học & điều kiện là một trang**: danh sách 9 kỳ có ô nhập điểm ngay trên từng dòng, bảng chi
+  tiết bên phải. Mỗi lần gõ, `evaluatePlan` chạy lại ở trình duyệt nên trạng thái học được / bị chặn
+  đổi tức thì; chỉ khi bấm “Lưu điểm” mới gọi API. Trang GPA dùng chung bản nháp điểm đó.
 - **Lưu dấu tài liệu cập nhật lạc quan**: bấm là đổi ngay trên cache, lỗi thì trả lại trạng thái cũ.
 
 ## Tải file

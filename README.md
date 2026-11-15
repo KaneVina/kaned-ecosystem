@@ -63,8 +63,8 @@ kaned/
 │  │  ├─ src/modules/      auth · catalog · documents · grades · uploads · users
 │  │  ├─ src/middleware/   auth, validate, error, rate limit
 │  │  └─ src/lib/          jwt, cookies, storage (Cloudinary), dto mappers
-│  └─ web/                 React 18 + Vite + Tailwind v4 + TanStack Query
-│     ├─ src/components/   ui/ (primitives) · layout/ · library/
+│  └─ web/                 React 18 + Vite + TanStack Query, CSS thuần
+│     ├─ src/components/   ui/ (primitives) · layout/ · library/ · paper/
 │     ├─ src/features/     auth · dashboard · library · gpa · subjects · profile
 │     └─ src/lib/          api client, query keys, formatting
 └─ packages/
