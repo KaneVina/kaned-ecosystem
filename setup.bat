@@ -17,12 +17,10 @@ if not exist "apps\api\.env" (
 )
 if not exist "apps\web\.env" copy "apps\web\.env.example" "apps\web\.env" >nul
 
-if not exist "node_modules" (
-  echo  [1/4] Cai dependencies ^(lan dau, mat vai phut^)...
-  call npm install || goto :fail
-) else (
-  echo  [1/4] node_modules da co - bo qua npm install
-)
+rem Always install: after a git pull the dependencies may have changed.
+rem When nothing changed this takes a few seconds.
+echo  [1/4] Cai / cap nhat dependencies...
+call npm install --no-audit --no-fund || goto :fail
 
 echo  [2/4] Build goi dung chung...
 call npm run build:shared || goto :fail
