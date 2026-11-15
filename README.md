@@ -10,6 +10,10 @@ Vercel mà không phải đổi code.
 
 ## Chạy trên máy
 
+**Cách nhanh (Windows):** điền `DATABASE_URL` vào `apps/api/.env` rồi double-click **`setup.bat`**.
+Nó cài dependencies, tạo bảng, nạp dữ liệu mẫu và khởi động cả API lẫn web. Những lần sau chỉ cần
+`start.bat`. Phần bên dưới là các bước thủ công tương đương.
+
 Cần **Node 20+** và một database PostgreSQL. Hai lựa chọn:
 
 - **Supabase / Neon (nhanh nhất, không cài gì)** — tạo project, copy connection string, dán vào
