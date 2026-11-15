@@ -1,0 +1,27 @@
+{
+  "name": "kaned",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Kaned Ecosystem — study workspace for Vietnamese university students",
+  "workspaces": ["packages/*", "apps/*"],
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "npm-run-all --parallel dev:api dev:web",
+    "dev:api": "npm run dev --workspace @kaned/api",
+    "dev:web": "npm run dev --workspace @kaned/web",
+    "build": "npm run build --workspace @kaned/shared && npm run build --workspace @kaned/api && npm run build --workspace @kaned/web",
+    "build:shared": "npm run build --workspace @kaned/shared",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "db:generate": "npm run db:generate --workspace @kaned/api",
+    "db:push": "npm run db:push --workspace @kaned/api",
+    "db:migrate": "npm run db:migrate --workspace @kaned/api",
+    "db:seed": "npm run db:seed --workspace @kaned/api",
+    "db:studio": "npm run db:studio --workspace @kaned/api",
+    "setup": "npm install && npm run build:shared && npm run db:generate"
+  },
+  "devDependencies": {
+    "npm-run-all": "^4.1.5",
+    "typescript": "^5.6.3"
+  }
+}
