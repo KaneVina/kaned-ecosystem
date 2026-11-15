@@ -10,7 +10,11 @@ Vercel mà không phải đổi code.
 
 ## Chạy trên máy
 
-Cần **Node 20+** và **PostgreSQL 14+** (hoặc một database hosted như Neon / Supabase).
+Cần **Node 20+** và một database PostgreSQL. Hai lựa chọn:
+
+- **Supabase / Neon (nhanh nhất, không cài gì)** — tạo project, copy connection string, dán vào
+  `DATABASE_URL` trong `apps/api/.env`. Bỏ qua bước `createdb` bên dưới vì database đã có sẵn.
+- **Postgres cài trên máy** — làm đủ các bước bên dưới.
 
 ```bash
 # 1. Cài phụ thuộc cho cả monorepo và build package dùng chung

@@ -26,13 +26,33 @@ function needsTls(url: string): boolean {
   }
 }
 
+/**
+ * Supabase and other PgBouncer poolers in transaction mode hand a different
+ * backend to every statement, so a prepared statement from one is unknown to
+ * the next. postgres-js prepares by default, which fails there with
+ * "prepared statement does not exist".
+ */
+function isTransactionPooler(url: string): boolean {
+  try {
+    const { hostname, port, searchParams } = new URL(url);
+    if (searchParams.get('pgbouncer') === 'true') return true;
+    return hostname.includes('pooler.supabase.com') && port === '6543';
+  } catch {
+    return false;
+  }
+}
+
+const pooled = isTransactionPooler(env.DATABASE_URL);
+
 const client =
   globalForDb.sql ??
   postgres(env.DATABASE_URL, {
-    max: env.isProd ? 10 : 5,
+    // A pooler already multiplexes, so a big local pool only wastes its slots.
+    max: pooled ? 1 : env.isProd ? 10 : 5,
     idle_timeout: 20,
     connect_timeout: 15,
     ssl: needsTls(env.DATABASE_URL) ? 'require' : false,
+    prepare: !pooled,
   });
 
 if (!env.isProd) globalForDb.sql = client;

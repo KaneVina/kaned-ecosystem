@@ -19,6 +19,9 @@ Chọn một trong hai:
 
 - **Render Postgres** — `render.yaml` đã khai báo sẵn `kaned-db`, Render tự nối `DATABASE_URL`.
 - **Neon** (https://neon.tech) — tạo project, copy connection string có `?sslmode=require`.
+- **Supabase** (https://supabase.com) — *Project Settings → Database → Connection string → URI*.
+  Dùng direct connection (5432) hay pooler (6543) đều được; với pooler app tự tắt prepared
+  statement vì PgBouncer ở chế độ transaction không giữ được chúng.
 
 TLS được bật tự động cho mọi host không phải máy local. Nếu cần ép, đặt `DATABASE_SSL=require` hoặc `disable`.
 
