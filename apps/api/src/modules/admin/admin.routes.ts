@@ -24,6 +24,10 @@ import {
   universityInputSchema,
   universityUpdateSchema,
   userRoleSchema,
+  userEventsQuerySchema,
+  userViewsQuerySchema,
+  type UserEventsQuery,
+  type UserViewsQuery,
   type ActivityQuery,
   type AdminDocumentQuery,
   type AdminUserQuery,
@@ -32,6 +36,7 @@ import { requireAuth, requireRole } from '../../middleware/auth.js';
 import { idempotentWrites } from '../../middleware/idempotency.js';
 import { parsedQuery, validateBody, validateQuery } from '../../middleware/validate.js';
 import * as institutions from './institutions.service.js';
+import * as monitoring from './monitoring.service.js';
 import * as subjects from './subjects.service.js';
 import * as docs from './documents.service.js';
 import * as people from './people.service.js';
@@ -197,4 +202,29 @@ adminRouter.get('/users', adminOnly, validateQuery(adminUserQuerySchema), async 
 );
 adminRouter.patch('/users/:id/role', adminOnly, validateBody(userRoleSchema), async (req, res) =>
   res.json(await people.setRole(actor(req), req.params.id, req.body.role)),
+);
+
+/* activity: who is online, what they use (admins only) */
+const sessionPage = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});
+adminRouter.get('/online', adminOnly, async (_req, res) => res.json(await monitoring.onlineUsers()));
+adminRouter.get('/users/:id/activity', adminOnly, async (req, res) => res.json(await monitoring.userDetail(req.params.id)));
+adminRouter.get('/users/:id/sessions', adminOnly, validateQuery(sessionPage), async (req, res) => {
+  const q = parsedQuery<z.infer<typeof sessionPage>>(res);
+  res.json(await monitoring.userSessions(req.params.id, q.page, q.pageSize));
+});
+adminRouter.get('/sessions/:id/views', adminOnly, async (req, res) => res.json(await monitoring.sessionViews(req.params.id)));
+adminRouter.get('/users/:id/views', adminOnly, validateQuery(userViewsQuerySchema), async (req, res) =>
+  res.json(await monitoring.userViews(req.params.id, parsedQuery<UserViewsQuery>(res))),
+);
+adminRouter.get('/users/:id/top-documents', adminOnly, async (req, res) =>
+  res.json(await monitoring.userTopDocuments(req.params.id)),
+);
+adminRouter.get('/users/:id/events', adminOnly, validateQuery(userEventsQuerySchema), async (req, res) =>
+  res.json(await monitoring.userEventList(req.params.id, parsedQuery<UserEventsQuery>(res))),
+);
+adminRouter.post('/users/:id/sign-out', adminOnly, async (req, res) =>
+  res.json(await monitoring.signOutEverywhere(actor(req), req.params.id)),
 );

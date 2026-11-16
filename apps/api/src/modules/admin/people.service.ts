@@ -2,6 +2,8 @@ import { and, count, desc, eq, ilike, or, sql, type SQL } from 'drizzle-orm';
 import {
   DOCUMENT_STATUSES,
   OAUTH_PROVIDERS,
+  ONLINE_WINDOW_SECONDS,
+  type ActivityFilter,
   ROLES,
   ROLE_LABELS,
   type ActivityDto,
@@ -33,6 +35,32 @@ import { notFound } from './util.js';
 
 /* ──────────────────────────────── users ───────────────────────────────── */
 
+export const TZ = 'Asia/Ho_Chi_Minh';
+
+export function isOnline(lastSeenAt: Date | null | undefined) {
+  return Boolean(lastSeenAt && Date.now() - lastSeenAt.getTime() < ONLINE_WINDOW_SECONDS * 1000);
+}
+
+/** Start of today in Vietnam, as a timestamptz. */
+export const startOfToday = sql.raw(`(date_trunc('day', now() at time zone '${TZ}') at time zone '${TZ}')`);
+
+function activityFilter(filter: ActivityFilter | undefined): SQL | undefined {
+  switch (filter) {
+    case 'online':
+      return sql`${users.lastSeenAt} > now() - make_interval(secs => ${ONLINE_WINDOW_SECONDS})`;
+    case 'today':
+      return sql`${users.lastSeenAt} >= ${startOfToday}`;
+    case 'week':
+      return sql`${users.lastSeenAt} > now() - interval '7 days'`;
+    case 'idle30':
+      return sql`${users.lastSeenAt} < now() - interval '30 days'`;
+    case 'never':
+      return sql`${users.lastSeenAt} is null`;
+    default:
+      return undefined;
+  }
+}
+
 export async function listUsers(query: AdminUserQuery): Promise<Paginated<AdminUserDto>> {
   const filters: SQL[] = [];
   if (query.role) filters.push(eq(users.role, query.role));
@@ -42,7 +70,10 @@ export async function listUsers(query: AdminUserQuery): Promise<Paginated<AdminU
     const match = or(ilike(users.name, q), ilike(users.email, q));
     if (match) filters.push(match);
   }
+  const filter = activityFilter(query.activity);
+  if (filter) filters.push(filter);
   const where = filters.length ? and(...filters) : undefined;
+  const byActivity = query.sort === 'active' || (query.sort !== 'recent' && Boolean(query.activity));
 
   const [[total], rows] = await Promise.all([
     db.select({ value: count() }).from(users).where(where),
@@ -52,7 +83,7 @@ export async function listUsers(query: AdminUserQuery): Promise<Paginated<AdminU
       extras: {
         uploadCount: sql<number>`(select count(*)::int from documents d where d.uploader_id = ${users.id})`.as('upload_count'),
       },
-      orderBy: [desc(users.createdAt)],
+      orderBy: byActivity ? [sql`${users.lastSeenAt} desc nulls last`, desc(users.createdAt)] : [desc(users.createdAt)],
       limit: query.pageSize,
       offset: (query.page - 1) * query.pageSize,
     }),
@@ -75,6 +106,8 @@ export async function listUsers(query: AdminUserQuery): Promise<Paginated<AdminU
         ...(u.passwordHash ? (['password'] as const) : []),
         ...u.identities.map((i) => i.provider as OAuthProviderId).filter((p) => OAUTH_PROVIDERS.includes(p)),
       ],
+      lastSeenAt: u.lastSeenAt?.toISOString() ?? null,
+      online: isOnline(u.lastSeenAt),
       createdAt: u.createdAt.toISOString(),
     })),
     page: query.page,

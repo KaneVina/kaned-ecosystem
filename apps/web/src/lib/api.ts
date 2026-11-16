@@ -1,7 +1,7 @@
 import axios, { AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
 import type { ApiErrorBody, AuthResponse } from '@kaned/shared';
 
-const BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '') ?? '';
+export const BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '') ?? '';
 
 /**
  * The access token lives in memory only. The refresh token is an httpOnly

@@ -23,6 +23,7 @@ import {
   Settings,
 } from 'lucide-react';
 import { useAuth } from '@/providers/AuthProvider';
+import { useActivityTracker } from '@/lib/activity';
 import { STAFF_ROLES } from '@kaned/shared';
 import { useToast } from '@/providers/ToastProvider';
 import { Wordmark } from '@/components/ui/Wordmark';
@@ -128,6 +129,7 @@ function ToolsMenu() {
 
 export function AppShell() {
   const { user, logout } = useAuth();
+  useActivityTracker();
   const toast = useToast();
   const navigate = useNavigate();
   const location = useLocation();

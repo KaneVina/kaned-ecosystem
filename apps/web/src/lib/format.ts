@@ -71,3 +71,46 @@ export function timeShort(iso: string): string {
 export const shortName = (name: string) => name.trim().split(/\s+/).slice(-2).join(' ');
 
 export const semesterVi = (s: 'S1' | 'S2' | 'SUMMER') => (s === 'SUMMER' ? 'Học kỳ hè' : s === 'S2' ? 'Học kỳ 2' : 'Học kỳ 1');
+
+const pad = (n: number) => String(n).padStart(2, '0');
+
+/** "14:05" */
+export function fmtClock(iso: string): string {
+  const d = new Date(iso);
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** "16/11/2026 14:05" */
+export function fmtDateTime(iso: string): string {
+  const d = new Date(iso);
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${fmtClock(iso)}`;
+}
+
+/** "vừa xong", "5 phút trước", "3 giờ trước", "hôm qua, 21:40", "12/11/2026" */
+export function fmtRelative(iso: string | null | undefined): string {
+  if (!iso) return 'chưa bao giờ';
+  const d = new Date(iso);
+  const s = Math.max(0, (Date.now() - d.getTime()) / 1000);
+  if (s < 60) return 'vừa xong';
+  if (s < 3600) return `${Math.floor(s / 60)} phút trước`;
+  const today = new Date();
+  const sameDay = d.toDateString() === today.toDateString();
+  if (sameDay || s < 6 * 3600) return `${Math.floor(s / 3600)} giờ trước`;
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) return `hôm qua, ${fmtClock(iso)}`;
+  if (s < 7 * 86400) return `${Math.floor(s / 86400)} ngày trước`;
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+}
+
+/** 45 → "45 giây", 754 → "12 phút", 4980 → "1 giờ 23 phút" */
+export function fmtDuration(seconds: number, opts: { short?: boolean } = {}): string {
+  const s = Math.max(0, Math.round(seconds));
+  if (s < 60) return opts.short ? `${s}s` : `${s} giây`;
+  const m = Math.round(s / 60);
+  if (m < 60) return opts.short ? `${m}p` : `${m} phút`;
+  const h = Math.floor(m / 60);
+  const rest = m % 60;
+  if (opts.short) return rest ? `${h}g${pad(rest)}` : `${h}g`;
+  return rest ? `${h} giờ ${rest} phút` : `${h} giờ`;
+}

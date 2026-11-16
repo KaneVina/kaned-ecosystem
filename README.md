@@ -165,6 +165,34 @@ Mỗi môn có cây thư mục riêng, lồng tối đa 3 cấp — ví dụ mô
 Sinh viên thấy tài liệu của môn được nhóm theo thư mục ở trang Môn học & điều kiện, thấy thư mục trong
 đường dẫn của trang tài liệu và có thể chọn thư mục khi tải tài liệu lên.
 
+### Theo dõi người dùng
+
+Chỉ **quản trị viên** thấy (kiểm duyệt viên không thấy):
+
+- **Người dùng** có cột *Hoạt động* (chấm xanh = đang online, hoặc "Hoạt động 5 phút trước") và các tab lọc
+  *Đang online · Hoạt động hôm nay · 7 ngày qua · Vắng hơn 30 ngày · Chưa từng hoạt động*
+- **Tổng quan** có khung *Đang online*: ai đang mở Kaned, đang xem trang nào, đã dùng bao lâu trong phiên
+- Bấm vào một người để mở **trang chi tiết tài khoản**: đang xem gì ngay lúc này, thời gian dùng hôm nay /
+  7 ngày / 30 ngày, biểu đồ thời gian dùng mỗi ngày, khung giờ hay dùng, thiết bị và IP gần nhất, và 4 tab:
+  - *Phiên truy cập* — mỗi lần vào: lúc bắt đầu, dùng bao lâu, thiết bị, IP; bấm để xem dòng thời gian
+    từng trang đã mở và xem bao lâu
+  - *Lịch sử xem* — mọi trang, tài liệu, môn học đã mở, lọc theo loại
+  - *Tài liệu xem nhiều* — xếp theo tổng thời gian đọc
+  - *Hoạt động* — đăng nhập (bằng gì, từ IP nào), đăng xuất, tìm kiếm, tải, đăng, lưu, đánh giá tài liệu,
+    đổi mật khẩu, liên kết tài khoản
+- Nút "⋯" → **Đăng xuất mọi thiết bị** thu hồi mọi phiên của tài khoản đó
+- Ctrl K tìm được người dùng theo tên / email
+
+Cách đếm: tab đang mở báo về mỗi 30 giây. Thời gian chỉ được tính khi tab **đang hiển thị** và người dùng
+**có thao tác** trong 5 phút gần nhất (15 phút khi đang đọc tài liệu, hoặc khi đang cuộn trong khung xem
+PDF / slide). "Đang online" = báo về trong 2 phút gần nhất. Server giới hạn thời gian mỗi lần báo theo thời
+gian thật đã trôi qua, nên không thể khai khống.
+
+**Quyền riêng tư.** Kaned không ghi nội dung người dùng gõ, không quay màn hình. Lịch sử được giữ
+`ACTIVITY_RETENTION_DAYS` ngày (mặc định 180) rồi tự xoá. Sinh viên được thông báo việc này trong
+*Cài đặt tài khoản*. Nếu đưa Kaned cho người dùng thật, hãy ghi rõ việc thu thập này trong chính sách
+quyền riêng tư của bạn.
+
 Muốn tài khoản Google của bạn thành quản trị viên: đăng nhập bằng `admin@kaned.vn`, vào **Người dùng**,
 đổi quyền tài khoản của bạn thành *Quản trị viên*.
 

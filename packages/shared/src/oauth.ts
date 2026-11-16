@@ -49,6 +49,8 @@ export interface AuthConfigDto {
   providers: Array<AuthProviderDto & { startUrl: string }>;
   /** True outside production, so the sign-in screen can say how to turn providers on. */
   showSetupHint: boolean;
+  /** How long activity history is kept, shown to people in their settings. */
+  activityRetentionDays: number;
 }
 
 export interface LinkedIdentityDto {

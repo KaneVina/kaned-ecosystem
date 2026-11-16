@@ -5,9 +5,10 @@ import { FileIcon } from '@/components/ui/FileBadge';
 import { useAuth } from '@/providers/AuthProvider';
 import { useToast } from '@/providers/ToastProvider';
 import { toApiError } from '@/lib/api';
-import { fmtInt, timeAgo } from '@/lib/format';
+import { fmtDuration, fmtInt, timeAgo } from '@/lib/format';
+import { Avatar } from '@/components/ui/Avatar';
 import { cn } from '@/lib/cn';
-import { useOverview, useUpdateDocumentAdmin } from './api';
+import { useOnlineUsers, useOverview, useUpdateDocumentAdmin } from './api';
 import { AdminHead, EmptyBlock, StatCard, Swatch } from './ui';
 import { useAdminCrumbs } from './AdminShell';
 
@@ -93,6 +94,7 @@ export function OverviewPage() {
   const { user } = useAuth();
   const toast = useToast();
   const { data } = useOverview();
+  const { data: online } = useOnlineUsers(user?.role === 'ADMIN');
   const update = useUpdateDocumentAdmin();
   const isAdmin = user?.role === 'ADMIN';
   useAdminCrumbs([{ label: 'Tổng quan' }]);
@@ -136,7 +138,7 @@ export function OverviewPage() {
         />
         <StatCard icon={Building2} label="Trường học" value={data?.counts.universities} sub={data && `${data.counts.majors} ngành · ${data.counts.terms} kỳ học`} to={isAdmin ? '/admin/universities' : undefined} />
         <StatCard icon={BookOpen} label="Môn học" value={data?.counts.subjects} sub="Trên tất cả các trường" to={isAdmin ? '/admin/subjects' : undefined} />
-        <StatCard icon={Users} label="Người dùng" value={data?.counts.users} sub={data && `${data.usersByRole.ADMIN} quản trị · ${data.usersByRole.MODERATOR} kiểm duyệt`} to={isAdmin ? '/admin/users' : undefined} />
+        <StatCard icon={Users} label="Người dùng" value={data?.counts.users} sub={data && (isAdmin && online ? `${online.length} đang online · ${data.usersByRole.ADMIN} quản trị` : `${data.usersByRole.ADMIN} quản trị · ${data.usersByRole.MODERATOR} kiểm duyệt`)} to={isAdmin ? '/admin/users' : undefined} />
       </div>
 
       <div className="ov-grid">
@@ -194,6 +196,48 @@ export function OverviewPage() {
         </div>
 
         <div className="ov-col">
+          {isAdmin && (
+            <section className="adm-panel">
+              <div className="adm-panel-head">
+                <div>
+                  <h2 className="with-dot">
+                    <span className="pres-dot" aria-hidden />
+                    Đang online
+                  </h2>
+                  <p>{online ? `${online.length} người` : '…'} · cập nhật mỗi 30 giây</p>
+                </div>
+                <span className="spacer" />
+                <Link to="/admin/users?activity=online" className="btn btn-ghost btn-sm">
+                  Xem tất cả
+                  <ArrowRight className="ic" />
+                </Link>
+              </div>
+              {online && online.length === 0 ? (
+                <EmptyBlock icon={Users} title="Chưa ai online" text="Người đang mở Kaned sẽ hiện ở đây, kèm trang họ đang xem." />
+              ) : (
+                <ul className="online-list">
+                  {online?.slice(0, 6).map((o) => (
+                    <li key={o.id}>
+                      <Link to={`/admin/users/${o.id}`} className="ol-row">
+                        <span className="ol-av">
+                          <Avatar name={o.name} src={o.avatarUrl} size="sm" />
+                          <i aria-hidden />
+                        </span>
+                        <span className="ol-main">
+                          <b>{o.name}</b>
+                          <span>{o.current ? `Đang xem: ${o.current.label}` : 'Đang mở Kaned'}</span>
+                        </span>
+                        <span className="ol-time" title="Thời gian dùng trong phiên này">
+                          {fmtDuration(o.sessionSeconds, { short: true })}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
+
           <section className="adm-panel">
             <div className="adm-panel-head">
               <div>

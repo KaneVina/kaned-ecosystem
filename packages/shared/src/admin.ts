@@ -18,6 +18,7 @@ import {
 } from './domain.js';
 import type { Requirement } from './planner.js';
 import type { SignInMethod } from './oauth.js';
+import { ACTIVITY_FILTERS } from './tracking.js';
 import type { DocumentSummaryDto, MajorDto, SubjectSummaryDto, UniversityDto } from './types.js';
 import { updateDocumentSchema } from './schemas.js';
 
@@ -280,6 +281,8 @@ export const adminUserQuerySchema = z.object({
   q: z.string().trim().max(120).optional(),
   role: z.enum(ROLES).optional(),
   universityId: z.string().uuid().optional(),
+  activity: z.enum(ACTIVITY_FILTERS).optional(),
+  sort: z.enum(['recent', 'active']).optional(),
   ...page,
 });
 export type AdminUserQuery = z.infer<typeof adminUserQuerySchema>;
@@ -368,6 +371,8 @@ export interface AdminUserDto {
   major: { id: string; name: string } | null;
   uploadCount: number;
   signInMethods: SignInMethod[];
+  lastSeenAt: string | null;
+  online: boolean;
   createdAt: string;
 }
 

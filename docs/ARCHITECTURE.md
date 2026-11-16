@@ -33,6 +33,9 @@ University ─┬─ Faculty → Major (termCount, passMark) → (majorSubjects:
                         └─ grades (của từng user)
 
 userIdentities  tài khoản Google / Microsoft / GitHub / Facebook gắn với user (mỗi nhà cung cấp tối đa một)
+activitySessions mỗi lần vào app của một tab: bắt đầu, lần báo cuối, thời gian dùng, thiết bị, IP
+pageViews       từng trang / tài liệu / môn đã mở trong một phiên, xem bao nhiêu giây
+userEvents      đăng nhập, tìm kiếm, tải, đăng, lưu, đánh giá… (users.lastSeenAt = lần báo cuối)
 adminActivity   nhật ký thao tác quản trị
 idempotencyKeys sổ ghi Idempotency-Key và kết quả đã trả
 appMeta         phiên bản dữ liệu mẫu đã nạp
@@ -102,6 +105,15 @@ Service không bao giờ trả thẳng row của database ra ngoài: mọi phả
 
 Access token không nằm trong `localStorage`, nên một script chèn được vào trang cũng không đọc được nó.
 Refresh token xoay vòng mỗi lần dùng: nếu một token cũ bị dùng lại, nó đã bị thu hồi.
+
+### Theo dõi hoạt động
+
+`lib/activity.ts` (web) mở một page view mỗi khi đường dẫn đổi (`POST /api/activity/views`, trả về một
+token mã hoá) và báo về mỗi 30 giây bằng `navigator.sendBeacon` (`POST /api/activity/ping`). Beacon không
+gửi được header, nên nó mang token thay cho access token; token chỉ ghi được vào đúng page view đó. Server
+cộng số giây nhưng không quá thời gian thật kể từ lần báo trước. Sự kiện (đăng nhập, tìm kiếm, tải…) được
+ghi ở phía server bằng `trackEvent()` ngay trong route tương ứng, không bao giờ làm hỏng request. Lịch sử
+cũ hơn `ACTIVITY_RETENTION_DAYS` bị xoá sau mỗi 6 giờ.
 
 ### Đăng nhập bằng tài khoản bên thứ ba
 

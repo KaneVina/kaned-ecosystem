@@ -9,6 +9,7 @@ import { env } from '../../env.js';
 import * as service from './auth.service.js';
 import * as oauth from './oauth/oauth.service.js';
 import { updateProfile } from '../users/users.service.js';
+import { trackEvent } from '../../lib/track.js';
 
 export const authRouter = Router();
 
@@ -20,12 +21,14 @@ authRouter.get('/config', (_req, res) => {
 authRouter.post('/register', authLimiter, validateBody(registerSchema), async (req, res) => {
   const session = await service.register(req.body, req.headers['user-agent']);
   setRefreshCookie(res, session.refreshToken, session.refreshExpiresAt);
+  void trackEvent(session.user.id, 'sign_up', { method: 'password' }, req);
   res.status(201).json({ user: session.user, accessToken: session.accessToken });
 });
 
 authRouter.post('/login', authLimiter, validateBody(loginSchema), async (req, res) => {
   const session = await service.login(req.body.email, req.body.password, req.headers['user-agent']);
   setRefreshCookie(res, session.refreshToken, session.refreshExpiresAt);
+  void trackEvent(session.user.id, 'sign_in', { method: 'password' }, req);
   res.json({ user: session.user, accessToken: session.accessToken });
 });
 
@@ -57,7 +60,9 @@ authRouter.get('/oauth/:provider/callback', oauthLimiter, async (req, res) => {
   if (result.signInUserId) {
     const session = await service.issueSession(result.signInUserId, req.headers['user-agent']);
     setRefreshCookie(res, session.refreshToken, session.refreshExpiresAt);
+    void trackEvent(result.signInUserId, result.created ? 'sign_up' : 'sign_in', { method: result.provider }, req);
   }
+  if (result.linkedUserId) void trackEvent(result.linkedUserId, 'provider_link', { provider: result.provider }, req);
   res.set('Cache-Control', 'no-store');
   res.redirect(302, result.redirect);
 });
@@ -72,7 +77,9 @@ authRouter.get('/security', requireAuth, async (req, res) => {
 });
 
 authRouter.delete('/identities/:provider', requireAuth, idempotent(), async (req, res) => {
-  res.json(await oauth.unlinkIdentity(req.user!.id, req.params.provider));
+  const security = await oauth.unlinkIdentity(req.user!.id, req.params.provider);
+  void trackEvent(req.user!.id, 'provider_unlink', { provider: req.params.provider }, req);
+  res.json(security);
 });
 
 authRouter.post(
@@ -85,6 +92,7 @@ authRouter.post(
     const { hadPassword } = await service.setPassword(req.user!.id, req.body);
     // A new password signs out every other device; this one stays signed in.
     if (hadPassword) await oauth.revokeOtherSessions(req.user!.id, req.cookies?.[REFRESH_COOKIE]);
+    void trackEvent(req.user!.id, 'password_change', { first: !hadPassword }, req);
     res.json(await oauth.accountSecurity(req.user!.id));
   },
 );
@@ -99,7 +107,8 @@ authRouter.post('/refresh', async (req, res) => {
 });
 
 authRouter.post('/logout', async (req, res) => {
-  await service.revokeSession(req.cookies?.[REFRESH_COOKIE]);
+  const userId = await service.revokeSession(req.cookies?.[REFRESH_COOKIE]);
+  void trackEvent(userId, 'sign_out', {}, req);
   clearRefreshCookie(res);
   res.status(204).end();
 });

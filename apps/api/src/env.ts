@@ -30,6 +30,8 @@ const schema = z.object({
   GITHUB_CLIENT_SECRET: z.string().optional().default(''),
   FACEBOOK_CLIENT_ID: z.string().optional().default(''),
   FACEBOOK_CLIENT_SECRET: z.string().optional().default(''),
+  /** Days of page views, visits and history kept for the admin activity screens. */
+  ACTIVITY_RETENTION_DAYS: z.coerce.number().int().min(7).max(3650).default(180),
   /** Tests only (NODE_ENV=test): send every provider to a local fake server. */
   OAUTH_TEST_SERVER: z.string().url().optional(),
   CLOUDINARY_CLOUD_NAME: z.string().optional().default(''),

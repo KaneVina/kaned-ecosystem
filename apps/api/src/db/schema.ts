@@ -265,11 +265,15 @@ export const users = pgTable(
     year: integer('year'),
     universityId: text('university_id').references(() => universities.id, { onDelete: 'set null' }),
     majorId: text('major_id').references(() => majors.id, { onDelete: 'set null' }),
+    /** Last heartbeat from an open app tab; "online" means within the last two minutes. */
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
+    lastSignInAt: timestamp('last_sign_in_at', { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (t) => ({
     universityIdx: index('users_university_idx').on(t.universityId),
+    lastSeenIdx: index('users_last_seen_idx').on(t.lastSeenAt),
   }),
 );
 
@@ -295,6 +299,87 @@ export const userIdentities = pgTable(
   (t) => ({
     providerAccount: uniqueIndex('user_identities_provider_account_idx').on(t.provider, t.providerUserId),
     onePerProvider: uniqueIndex('user_identities_user_provider_idx').on(t.userId, t.provider),
+  }),
+);
+
+/* ─────────────────────────────── activity ───────────────────────────── */
+
+/**
+ * One visit: a run of activity from one browser tab. It continues across
+ * page loads as long as the tab keeps checking in; 30 minutes of silence
+ * starts a new one.
+ */
+export const activitySessions = pgTable(
+  'activity_sessions',
+  {
+    id: id(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** Random id the tab keeps in sessionStorage. */
+    clientId: varchar('client_id', { length: 64 }).notNull(),
+    startedAt: timestamp('started_at', { withTimezone: true }).defaultNow().notNull(),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).defaultNow().notNull(),
+    /** Seconds the tab was visible and the person was not idle. */
+    activeSeconds: integer('active_seconds').notNull().default(0),
+    pageCount: integer('page_count').notNull().default(0),
+    ip: varchar('ip', { length: 64 }),
+    userAgent: varchar('user_agent', { length: 300 }),
+    browser: varchar('browser', { length: 40 }),
+    os: varchar('os', { length: 40 }),
+    device: varchar('device', { length: 20 }),
+  },
+  (t) => ({
+    userSeenIdx: index('activity_sessions_user_seen_idx').on(t.userId, t.lastSeenAt),
+    clientIdx: index('activity_sessions_client_idx').on(t.userId, t.clientId),
+  }),
+);
+
+/** One page, document or subject opened during a visit, with how long it was looked at. */
+export const pageViews = pgTable(
+  'page_views',
+  {
+    id: id(),
+    sessionId: text('session_id')
+      .notNull()
+      .references(() => activitySessions.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    path: varchar('path', { length: 300 }).notNull(),
+    kind: varchar('kind', { length: 20 }).notNull(),
+    /** Document id or subject code, when the page is about one. */
+    entityId: varchar('entity_id', { length: 120 }),
+    /** What the page was called when it was viewed (a title can change later). */
+    label: text('label'),
+    startedAt: timestamp('started_at', { withTimezone: true }).defaultNow().notNull(),
+    lastPingAt: timestamp('last_ping_at', { withTimezone: true }).defaultNow().notNull(),
+    endedAt: timestamp('ended_at', { withTimezone: true }),
+    seconds: integer('seconds').notNull().default(0),
+  },
+  (t) => ({
+    userStartedIdx: index('page_views_user_started_idx').on(t.userId, t.startedAt),
+    sessionIdx: index('page_views_session_idx').on(t.sessionId),
+    entityIdx: index('page_views_entity_idx').on(t.kind, t.entityId),
+  }),
+);
+
+/** Things a person did that are worth a line in their history: sign-ins, searches, downloads… */
+export const userEvents = pgTable(
+  'user_events',
+  {
+    id: id(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    type: varchar('type', { length: 30 }).notNull(),
+    data: jsonb('data').$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    ip: varchar('ip', { length: 64 }),
+    createdAt: createdAt(),
+  },
+  (t) => ({
+    userCreatedIdx: index('user_events_user_created_idx').on(t.userId, t.createdAt),
+    typeCreatedIdx: index('user_events_type_created_idx').on(t.type, t.createdAt),
   }),
 );
 
@@ -623,6 +708,23 @@ export const userRelations = relations(users, ({ one, many }) => ({
   grades: many(grades),
   collections: many(collections),
   identities: many(userIdentities),
+  activitySessions: many(activitySessions),
+  pageViews: many(pageViews),
+  events: many(userEvents),
+}));
+
+export const activitySessionRelations = relations(activitySessions, ({ one, many }) => ({
+  user: one(users, { fields: [activitySessions.userId], references: [users.id] }),
+  views: many(pageViews),
+}));
+
+export const pageViewRelations = relations(pageViews, ({ one }) => ({
+  session: one(activitySessions, { fields: [pageViews.sessionId], references: [activitySessions.id] }),
+  user: one(users, { fields: [pageViews.userId], references: [users.id] }),
+}));
+
+export const userEventRelations = relations(userEvents, ({ one }) => ({
+  user: one(users, { fields: [userEvents.userId], references: [users.id] }),
 }));
 
 export const userIdentityRelations = relations(userIdentities, ({ one }) => ({

@@ -10,6 +10,7 @@ import { optionalAuth, requireAuth } from '../../middleware/auth.js';
 import { idempotent } from '../../middleware/idempotency.js';
 import { parsedQuery, validateBody, validateQuery } from '../../middleware/validate.js';
 import * as service from './documents.service.js';
+import { trackEvent } from '../../lib/track.js';
 
 export const documentsRouter = Router();
 
@@ -17,7 +18,10 @@ export const documentsRouter = Router();
 const once = idempotent();
 
 documentsRouter.get('/', optionalAuth, validateQuery(documentQuerySchema), async (req, res) => {
-  res.json(await service.listDocuments(parsedQuery<DocumentQuery>(res), req.user?.id));
+  const query = parsedQuery<DocumentQuery>(res);
+  const result = await service.listDocuments(query, req.user?.id);
+  if (req.user && query.q && query.page === 1) void trackEvent(req.user.id, 'search', { q: query.q, results: result.total }, req);
+  res.json(result);
 });
 
 documentsRouter.get('/facets', validateQuery(documentQuerySchema), async (_req, res) => {
@@ -25,7 +29,9 @@ documentsRouter.get('/facets', validateQuery(documentQuerySchema), async (_req, 
 });
 
 documentsRouter.post('/', requireAuth, once, validateBody(createDocumentSchema), async (req, res) => {
-  res.status(201).json(await service.createDocument(req.user!.id, req.body));
+  const created = await service.createDocument(req.user!.id, req.body);
+  void trackEvent(req.user!.id, 'upload', { documentId: created.id, title: created.title }, req);
+  res.status(201).json(created);
 });
 
 documentsRouter.get('/saved/mine', requireAuth, async (req, res) => {
@@ -46,13 +52,19 @@ documentsRouter.delete('/:id', requireAuth, once, async (req, res) => {
 });
 
 documentsRouter.post('/:id/download', optionalAuth, once, async (req, res) => {
-  res.json(await service.registerDownload(req.params.id));
+  const result = await service.registerDownload(req.params.id);
+  void trackEvent(req.user?.id, 'download', { documentId: req.params.id, title: result.title }, req);
+  res.json(result);
 });
 
 documentsRouter.post('/:id/bookmark', requireAuth, once, async (req, res) => {
-  res.json(await service.toggleBookmark(req.params.id, req.user!.id));
+  const result = await service.toggleBookmark(req.params.id, req.user!.id);
+  void trackEvent(req.user!.id, 'bookmark', { documentId: req.params.id, saved: result.bookmarked }, req);
+  res.json(result);
 });
 
 documentsRouter.post('/:id/reviews', requireAuth, once, validateBody(reviewSchema), async (req, res) => {
-  res.status(201).json(await service.upsertReview(req.params.id, req.user!.id, req.body));
+  const review = await service.upsertReview(req.params.id, req.user!.id, req.body);
+  void trackEvent(req.user!.id, 'review', { documentId: req.params.id, score: req.body.score }, req);
+  res.status(201).json(review);
 });

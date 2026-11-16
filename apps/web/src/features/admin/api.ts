@@ -30,6 +30,14 @@ import type {
   SubjectInput,
   SubjectSummaryDto,
   UniversityInput,
+  ActivitySessionDto,
+  AdminUserDetailDto,
+  OnlineUserDto,
+  PageViewDto,
+  TopDocumentDto,
+  TrackedKind,
+  UserEventDto,
+  UserEventType,
 } from '@kaned/shared';
 import { http, withKey } from '@/lib/api';
 import { useIdempotencyKey } from '@/lib/useIdempotencyKey';
@@ -54,7 +62,45 @@ export const adminKeys = {
   candidates: (majorId: string, q: string) => ['admin', 'candidates', majorId, q] as const,
   documents: (p: object) => ['admin', 'documents', p] as const,
   users: (p: object) => ['admin', 'users', p] as const,
+  online: ['admin', 'online'] as const,
+  userActivity: (id: string) => ['admin', 'user-activity', id] as const,
+  userSessions: (id: string, page: number) => ['admin', 'user-sessions', id, page] as const,
+  sessionViews: (id: string) => ['admin', 'session-views', id] as const,
+  userViews: (id: string, p: object) => ['admin', 'user-views', id, p] as const,
+  userTopDocuments: (id: string) => ['admin', 'user-top-docs', id] as const,
+  userEvents: (id: string, p: object) => ['admin', 'user-events', id, p] as const,
 };
+
+/* activity: refreshed every 30 s, the same rhythm as the tabs' check-ins */
+const LIVE = 30_000;
+export const useOnlineUsers = (enabled = true) =>
+  useQuery({ queryKey: adminKeys.online, queryFn: () => get<OnlineUserDto[]>('/online'), enabled, refetchInterval: LIVE });
+export const useUserActivity = (id?: string) =>
+  useQuery({ queryKey: adminKeys.userActivity(id ?? ''), queryFn: () => get<AdminUserDetailDto>(`/users/${id}/activity`), enabled: Boolean(id), refetchInterval: LIVE });
+export const useUserSessions = (id: string, page: number) =>
+  useQuery({
+    queryKey: adminKeys.userSessions(id, page),
+    queryFn: () => get<Paginated<ActivitySessionDto>>(`/users/${id}/sessions`, { page, pageSize: 15 }),
+    placeholderData: keepPreviousData,
+    refetchInterval: LIVE,
+  });
+export const useSessionViews = (id: string | null) =>
+  useQuery({ queryKey: adminKeys.sessionViews(id ?? ''), queryFn: () => get<PageViewDto[]>(`/sessions/${id}/views`), enabled: Boolean(id) });
+export const useUserViews = (id: string, p: { kind?: TrackedKind; page: number }) =>
+  useQuery({
+    queryKey: adminKeys.userViews(id, p),
+    queryFn: () => get<Paginated<PageViewDto>>(`/users/${id}/views`, { ...p, pageSize: 25 }),
+    placeholderData: keepPreviousData,
+    refetchInterval: LIVE,
+  });
+export const useUserTopDocuments = (id: string) =>
+  useQuery({ queryKey: adminKeys.userTopDocuments(id), queryFn: () => get<TopDocumentDto[]>(`/users/${id}/top-documents`) });
+export const useUserEvents = (id: string, p: { type?: UserEventType; page: number }) =>
+  useQuery({
+    queryKey: adminKeys.userEvents(id, p),
+    queryFn: () => get<Paginated<UserEventDto>>(`/users/${id}/events`, { ...p, pageSize: 25 }),
+    placeholderData: keepPreviousData,
+  });
 
 export const useOverview = () => useQuery({ queryKey: adminKeys.overview, queryFn: () => get<AdminOverviewDto>('/overview') });
 
@@ -208,6 +254,8 @@ export const useDeleteDocumentAdmin = () => useWrite((id: string, key) => send<v
 export const useBulkDocuments = () =>
   useWrite((input: DocumentBulkInput, key) => send<{ affected: number }>('post', '/documents/bulk', key, input));
 
+export const useSignOutEverywhere = () =>
+  useWrite((id: string, key) => send<{ revoked: number }>('post', `/users/${id}/sign-out`, key));
 export const useSetRole = () =>
   useWrite(({ id, role }: { id: string; role: Role }, key) => send<{ id: string; role: Role }>('patch', `/users/${id}/role`, key, { role }));
 

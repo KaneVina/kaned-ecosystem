@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
-import { OAUTH_PROVIDER_LABELS, ROLES, ROLE_LABELS, type AdminUserDto, type Role } from '@kaned/shared';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ACTIVITY_FILTERS, ACTIVITY_FILTER_LABELS, OAUTH_PROVIDER_LABELS, ROLES, ROLE_LABELS, type ActivityFilter, type AdminUserDto, type Role } from '@kaned/shared';
 import { Avatar } from '@/components/ui/Avatar';
 import { useAuth } from '@/providers/AuthProvider';
 import { useToast } from '@/providers/ToastProvider';
 import { toApiError } from '@/lib/api';
 import { fmtDate, fmtInt } from '@/lib/format';
 import { cn } from '@/lib/cn';
-import { useSetRole, useUniversitiesAdmin, useUsersAdmin } from './api';
+import { useOnlineUsers, useSetRole, useUniversitiesAdmin, useUsersAdmin } from './api';
+import { Presence } from './presence';
 import { AdminHead, ConfirmDialog, EmptyBlock, EmptyRow, Pager, RoleBadge, SearchBox, Swatch, TableSkeleton, useDebounced, type ConfirmState } from './ui';
 import { SearchX } from 'lucide-react';
 import { useAdminCrumbs } from './AdminShell';
@@ -20,11 +22,23 @@ export function UsersPage() {
   const [universityId, setUniversityId] = useState('');
   const [page, setPage] = useState(1);
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
-  const { data, isLoading } = useUsersAdmin({ q: query || undefined, role: role || undefined, universityId: universityId || undefined, page, pageSize: 25 });
+  const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const activity = (ACTIVITY_FILTERS as readonly string[]).includes(params.get('activity') ?? '') ? (params.get('activity') as ActivityFilter) : undefined;
+  const setActivity = (a?: ActivityFilter) => setParams(a ? { activity: a } : {}, { replace: true });
+  const { data, isLoading } = useUsersAdmin({
+    q: query || undefined,
+    role: role || undefined,
+    universityId: universityId || undefined,
+    activity,
+    page,
+    pageSize: 25,
+  });
+  const { data: online } = useOnlineUsers();
   const { data: universities = [] } = useUniversitiesAdmin();
   const setUserRole = useSetRole();
   useAdminCrumbs([{ label: 'Người dùng' }]);
-  useEffect(() => setPage(1), [query, role, universityId]);
+  useEffect(() => setPage(1), [query, role, universityId, activity]);
 
   const change = (u: AdminUserDto, next: Role) => {
     if (next === u.role) return;
@@ -55,6 +69,15 @@ export function UsersPage() {
     <>
       <AdminHead title="Người dùng" count={data?.total} description="Quản trị viên sửa được mọi thứ; kiểm duyệt viên chỉ duyệt, sửa và gỡ tài liệu." />
       <section className="adm-panel">
+        <div className="adm-tabs" role="tablist" aria-label="Hoạt động">
+          {([undefined, ...ACTIVITY_FILTERS] as const).map((a) => (
+            <button key={a ?? 'all'} type="button" role="tab" className="adm-tab" aria-selected={activity === a} onClick={() => setActivity(a)}>
+              {a === 'online' && <span className="pres-dot" aria-hidden />}
+              {a ? ACTIVITY_FILTER_LABELS[a] : 'Tất cả'}
+              {a === 'online' && <span className="n">{online?.length ?? '–'}</span>}
+            </button>
+          ))}
+        </div>
         <div className="adm-toolbar">
           <SearchBox value={q} onChange={setQ} placeholder="Tìm theo tên hoặc email…" />
           <select className="select" value={role} onChange={(e) => setRole(e.target.value as Role | '')} aria-label="Quyền">
@@ -75,10 +98,11 @@ export function UsersPage() {
           </select>
         </div>
         <div className="adm-table-wrap">
-          <table className="adm-table">
+          <table className="adm-table is-clickable">
             <thead>
               <tr>
                 <th>Người dùng</th>
+                <th>Hoạt động</th>
                 <th>Trường · ngành</th>
                 <th className="num">Tài liệu</th>
                 <th>Tham gia</th>
@@ -86,15 +110,15 @@ export function UsersPage() {
               </tr>
             </thead>
             {isLoading ? (
-              <TableSkeleton cols={5} />
+              <TableSkeleton cols={6} />
             ) : !items.length ? (
-              <EmptyRow cols={5}>
+              <EmptyRow cols={6}>
                 <EmptyBlock icon={SearchX} title="Không có người dùng khớp" text="Thử bỏ bộ lọc hoặc tìm bằng từ khác." />
               </EmptyRow>
             ) : (
               <tbody>
                 {items.map((u) => (
-                  <tr key={u.id}>
+                  <tr key={u.id} onClick={() => navigate(`/admin/users/${u.id}`)}>
                     <td>
                       <div className="cell">
                         <Avatar name={u.name} src={u.avatarUrl} size="sm" />
@@ -114,6 +138,9 @@ export function UsersPage() {
                         </div>
                       </div>
                     </td>
+                    <td>
+                      <Presence online={u.online} lastSeenAt={u.lastSeenAt} compact />
+                    </td>
                     <td style={{ fontSize: 13.5 }}>
                       {u.university ? (
                         <span className="cell-dot">
@@ -128,7 +155,7 @@ export function UsersPage() {
                     </td>
                     <td className="num">{fmtInt(u.uploadCount)}</td>
                     <td className="w-date">{fmtDate(u.createdAt)}</td>
-                    <td>
+                    <td onClick={(e) => e.stopPropagation()}>
                       {u.id === me?.id ? (
                         <RoleBadge role={u.role} />
                       ) : (

@@ -153,13 +153,16 @@ export async function refreshSession(token: string | undefined, userAgent?: stri
   return issueSession(record.userId, userAgent);
 }
 
-export async function revokeSession(token: string | undefined) {
-  if (!token) return;
-  await db
+/** Signs one device out; returns whose session it was, if it was live. */
+export async function revokeSession(token: string | undefined): Promise<string | null> {
+  if (!token) return null;
+  const rows = await db
     .update(refreshTokens)
     .set({ revokedAt: new Date() })
     .where(and(eq(refreshTokens.tokenHash, hashRefreshToken(token)), isNull(refreshTokens.revokedAt)))
-    .catch(() => undefined);
+    .returning({ userId: refreshTokens.userId })
+    .catch(() => []);
+  return rows[0]?.userId ?? null;
 }
 
 export async function currentUser(userId: string): Promise<CurrentUserDto> {

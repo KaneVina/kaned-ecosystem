@@ -94,6 +94,7 @@ export function authConfig(): AuthConfigDto {
   return {
     providers: configuredProviders().map((p) => ({ ...p, startUrl: startUrl(p.id) })),
     showSetupHint: !env.isProd,
+    activityRetentionDays: env.ACTIVITY_RETENTION_DAYS,
   };
 }
 
@@ -147,8 +148,13 @@ export function linkTicketUrl(userId: string, providerId: string, next?: unknown
 
 export interface CallbackResult {
   redirect: string;
+  provider?: OAuthProviderId;
   /** Present when the person is now signed in and needs a session. */
   signInUserId?: string;
+  /** The sign-in made a new account. */
+  created?: boolean;
+  /** The account a provider was just linked to. */
+  linkedUserId?: string;
 }
 
 function sameState(a: string, b: string) {
@@ -198,12 +204,18 @@ export async function completeFlow(
   try {
     if (flow.intent === 'link') {
       await linkIdentity(flow.userId ?? '', flow.provider, profile);
-      return { redirect: webReturn({ linked: flow.provider, provider: flow.provider, intent: 'link', next }) };
+      return {
+        redirect: webReturn({ linked: flow.provider, provider: flow.provider, intent: 'link', next }),
+        provider: flow.provider,
+        linkedUserId: flow.userId,
+      };
     }
     const { userId, created } = await signIn(flow.provider, profile);
     return {
       redirect: webReturn({ provider: flow.provider, intent: 'login', next, new: created ? '1' : undefined }),
+      provider: flow.provider,
       signInUserId: userId,
+      created,
     };
   } catch (error) {
     if (error instanceof FlowError) return fail(error.code, error.hint);

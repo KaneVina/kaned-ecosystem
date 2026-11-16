@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { BookOpen, Building2, CornerDownLeft, FilePlus2, FileText, Route as RouteIcon, Search, type LucideIcon } from 'lucide-react';
-import type { AdminDocumentDto, AdminSubjectDto, Paginated } from '@kaned/shared';
+import { BookOpen, Building2, CornerDownLeft, FilePlus2, FileText, Route as RouteIcon, Search, UserRound, type LucideIcon } from 'lucide-react';
+import type { AdminDocumentDto, AdminSubjectDto, AdminUserDto, Paginated } from '@kaned/shared';
 import { http } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { useMajorsAdmin, useUniversitiesAdmin } from './api';
@@ -42,6 +42,11 @@ export function CommandPalette({ open, onClose, nav, isAdmin }: { open: boolean;
     queryKey: ['admin', 'palette', 'docs', query],
     queryFn: async () => (await http.get<Paginated<AdminDocumentDto>>('/admin/documents', { params: { q: query, pageSize: 5 } })).data.items,
     enabled: open && query.length >= 2,
+  });
+  const people = useQuery({
+    queryKey: ['admin', 'palette', 'users', query],
+    queryFn: async () => (await http.get<Paginated<AdminUserDto>>('/admin/users', { params: { q: query, pageSize: 5 } })).data.items,
+    enabled: open && isAdmin && query.length >= 2,
   });
   const subjects = useQuery({
     queryKey: ['admin', 'palette', 'subjects', query],
@@ -86,6 +91,9 @@ export function CommandPalette({ open, onClose, nav, isAdmin }: { open: boolean;
       for (const m of majors.filter((m) => match(`${m.code} ${m.nameVi} ${m.name}`)).slice(0, 4)) {
         out.push({ key: `m${m.id}`, group: 'Chương trình đào tạo', label: `${m.code} · ${m.nameVi}`, hint: `${m.termCount} kỳ`, icon: RouteIcon, run: go(`/admin/curriculum/${m.id}`) });
       }
+      for (const p of people.data ?? []) {
+        out.push({ key: `p${p.id}`, group: 'Người dùng', label: p.name, hint: p.online ? 'Đang online' : p.email, icon: UserRound, run: go(`/admin/users/${p.id}`) });
+      }
       for (const s of subjects.data ?? []) {
         out.push({ key: `s${s.id}`, group: 'Môn học', label: `${s.code} · ${s.nameVi}`, hint: s.university?.code, icon: BookOpen, run: go(`/admin/subjects/${s.id}`) });
       }
@@ -97,7 +105,7 @@ export function CommandPalette({ open, onClose, nav, isAdmin }: { open: boolean;
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, nav, isAdmin, universities, majors, subjects.data, docs.data]);
+  }, [q, nav, isAdmin, universities, majors, subjects.data, docs.data, people.data]);
 
   useEffect(() => setActive(0), [q]);
   useEffect(() => {

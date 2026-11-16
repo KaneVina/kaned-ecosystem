@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { KeyRound, Link2, Mail, ShieldCheck } from 'lucide-react';
+import { Activity, KeyRound, Link2, Mail, ShieldCheck } from 'lucide-react';
 import {
   OAUTH_PROVIDER_LABELS,
   OAUTH_PROVIDERS,
@@ -21,7 +21,7 @@ import { useAuth } from '@/providers/AuthProvider';
 import { useToast } from '@/providers/ToastProvider';
 import { ProviderMark } from '@/features/auth/ProviderButtons';
 import { OAuthProblemAlert } from '@/features/auth/OAuthProblemAlert';
-import { useLinkProvider, type OAuthProblem } from '@/features/auth/oauth';
+import { useAuthConfig, useLinkProvider, type OAuthProblem } from '@/features/auth/oauth';
 
 const SECURITY_KEY = ['auth', 'security'] as const;
 
@@ -278,6 +278,7 @@ export function SettingsPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const { data: security, isLoading } = useSecurity();
+  const { data: config } = useAuthConfig();
   const problem = (location.state as { oauthProblem?: OAuthProblem } | null)?.oauthProblem ?? null;
 
   if (!user) return null;
@@ -313,6 +314,13 @@ export function SettingsPage() {
             />
           </>
         )}
+        <Panel>
+          <PanelHead
+            icon={<Activity className="ic" />}
+            title="Dữ liệu hoạt động"
+            description={`Để hỗ trợ bạn và cải thiện Kaned, hệ thống ghi lại trang, tài liệu và môn học bạn mở cùng thời gian xem, các lượt tìm kiếm, tải, lưu và đăng nhập, kèm trình duyệt, thiết bị và địa chỉ IP. Quản trị viên xem được các thông tin này. Kaned không ghi nội dung bạn gõ hay màn hình của bạn. Dữ liệu được giữ tối đa ${config?.activityRetentionDays ?? 180} ngày.`}
+          />
+        </Panel>
       </div>
     </>
   );
