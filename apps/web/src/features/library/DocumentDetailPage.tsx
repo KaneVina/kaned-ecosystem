@@ -23,6 +23,7 @@ import { ErrorState, Skeleton } from '@/components/ui/Feedback';
 import { SectionHead } from '@/components/ui/Panel';
 import { Viewer } from '@/components/paper/Paper';
 import { LinkViewer } from '@/components/library/LinkViewer';
+import { FileViewer, fileEmbedUrl } from '@/components/library/FileViewer';
 import { profileFor, subjectTone } from '@/components/paper/profiles';
 import { DocCard } from '@/components/library/DocCard';
 import { QuickPreview } from '@/components/library/QuickPreview';
@@ -194,6 +195,8 @@ export function DocumentDetailPage() {
           <div className="dp-main">
             {isLink ? (
               <LinkViewer doc={data} onOpen={startDownload} />
+            ) : fileEmbedUrl(data) ? (
+              <FileViewer doc={data} embedUrl={fileEmbedUrl(data)!} onDownload={startDownload} />
             ) : (
               <Viewer doc={data} onExpand={() => setFullscreen(true)} onDownload={startDownload} downloading={dlState === 'progress'} />
             )}

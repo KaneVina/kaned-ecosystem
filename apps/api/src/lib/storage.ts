@@ -102,6 +102,8 @@ export const storage = {
   /** Cloudinary can render page 1 of a PDF as a JPEG — used for the card thumbnail. */
   thumbnailFor(publicId: string): string | null {
     if (!env.cloudinaryEnabled || !publicId) return null;
+    // Word / PowerPoint / Excel files are stored raw; Cloudinary can only draw PDFs and images.
+    if (/\.(docx?|pptx?|xlsx?|zip|rar)$/i.test(publicId)) return null;
     return cloudinary.url(publicId, {
       resource_type: 'image',
       format: 'jpg',

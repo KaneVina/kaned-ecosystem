@@ -49,6 +49,7 @@ export const DocPage = memo(function DocPage({ doc, index }: { doc: PaperDoc; in
 export function DocThumb({ doc }: { doc: DocumentSummaryDto }) {
   const tone = subjectTone(doc.subject.code);
   const paper = useMemo(() => toPaperDoc(doc), [doc]);
+  const [broken, setBroken] = useState(false);
   return (
     <div
       className={cn('thumb', `thumb--${thumbKind(visualFormat(doc))}`)}
@@ -56,8 +57,8 @@ export function DocThumb({ doc }: { doc: DocumentSummaryDto }) {
     >
       <span className="thumb-tab">{doc.subject.code}</span>
       <div className="thumb-page">
-        {doc.thumbnailUrl ? (
-          <img src={doc.thumbnailUrl} alt="" loading="lazy" className="thumb-img" />
+        {doc.thumbnailUrl && !broken ? (
+          <img src={doc.thumbnailUrl} alt="" loading="lazy" className="thumb-img" onError={() => setBroken(true)} />
         ) : (
           <DocPage doc={paper} index={0} />
         )}
