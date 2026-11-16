@@ -48,7 +48,7 @@ const client =
   globalForDb.sql ??
   postgres(env.DATABASE_URL, {
     // A pooler already multiplexes, so a big local pool only wastes its slots.
-    max: pooled ? 1 : env.isProd ? 10 : 5,
+    max: pooled || process.env.VERCEL ? 1 : env.isProd ? 10 : 5,
     idle_timeout: 20,
     connect_timeout: 15,
     ssl: needsTls(env.DATABASE_URL) ? 'require' : false,
