@@ -46,6 +46,10 @@ npm run dev
 - Web: http://localhost:5173
 - API: http://localhost:4000 (health check: `/health`)
 
+`npm run dev` (và `start.bat`, `setup.bat`) tự tắt server Kaned cũ còn chạy ngầm từ lần trước, nên không còn
+lỗi `EADDRINUSE :::4000` hay web nhảy sang cổng 5174, 5175… Chương trình khác đang dùng cổng 4000 / 5173 thì
+không bị tắt — terminal sẽ báo tên và PID để bạn tự tắt.
+
 **Đăng nhập demo**
 
 | Tài khoản | Mật khẩu | Vào |

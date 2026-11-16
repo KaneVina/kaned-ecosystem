@@ -6,6 +6,7 @@
   "workspaces": ["packages/*", "apps/*"],
   "engines": { "node": ">=20" },
   "scripts": {
+    "predev": "node scripts/free-ports.mjs",
     "dev": "npm-run-all --parallel dev:api dev:web",
     "dev:api": "npm run dev --workspace @kaned/api",
     "dev:web": "npm run dev --workspace @kaned/web",

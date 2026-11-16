@@ -14,6 +14,9 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // Fail loudly instead of drifting to 5174, 5175... (`npm run dev` frees
+    // ports held by an old Kaned dev server first; see scripts/free-ports.mjs).
+    strictPort: true,
     proxy: {
       '/api': {
         target: process.env.VITE_DEV_API ?? 'http://localhost:4000',
