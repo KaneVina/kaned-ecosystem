@@ -24,9 +24,9 @@ const INITIALS: Record<OAuthProviderId, string> = { google: 'G', microsoft: 'M',
 /** The provider's logo when one has been added, otherwise a plain monogram. */
 export function ProviderMark({ provider, size = 22 }: { provider: OAuthProviderId; size?: number }) {
   const src = brandFile(provider);
-  if (src) return <img className="pv-logo" src={src} alt="" width={size} height={size} />;
+  if (src) return <img className="sso-logo" src={src} alt="" width={size} height={size} />;
   return (
-    <span className="pv-mono" style={{ width: size, height: size, fontSize: size * (INITIALS[provider].length > 1 ? 0.4 : 0.5) }} aria-hidden>
+    <span className="sso-mono" style={{ width: size, height: size, fontSize: size * (INITIALS[provider].length > 1 ? 0.4 : 0.5) }} aria-hidden>
       {INITIALS[provider]}
     </span>
   );
@@ -54,9 +54,9 @@ export function ProviderButtons({ next, divider = 'hoặc tiếp tục với' }:
     return (
       <>
         <div className="auth-or">{divider}</div>
-        <div className="pv-grid" aria-busy>
-          <span className="pv-btn pv-skel" />
-          <span className="pv-btn pv-skel" />
+        <div className="sso-grid" aria-busy>
+          <span className="sso-btn sso-skel" />
+          <span className="sso-btn sso-skel" />
         </div>
       </>
     );
@@ -79,11 +79,11 @@ export function ProviderButtons({ next, divider = 'hoặc tiếp tục với' }:
   return (
     <>
       <div className="auth-or">{divider}</div>
-      <div className={cn('pv-grid', single && 'pv-grid-one', providers.length === 3 && 'pv-grid-three')}>
+      <div className={cn('sso-grid', single && 'sso-grid-one', providers.length === 3 && 'sso-grid-three')}>
         {providers.map((p) => (
           <a
             key={p.id}
-            className={cn('pv-btn', leaving === p.id && 'is-leaving')}
+            className={cn('sso-btn', leaving === p.id && 'is-leaving')}
             href={oauthStartHref(p.startUrl, next)}
             aria-disabled={Boolean(leaving) || undefined}
             onClick={(e) => {
@@ -93,7 +93,7 @@ export function ProviderButtons({ next, divider = 'hoặc tiếp tục với' }:
           >
             <ProviderMark provider={p.id} />
             <span>{single ? `Tiếp tục với ${p.label}` : p.label}</span>
-            {leaving === p.id && <span className="pv-spin" aria-label={`Đang chuyển tới ${p.label}`} />}
+            {leaving === p.id && <span className="sso-spin" aria-label={`Đang chuyển tới ${p.label}`} />}
           </a>
         ))}
       </div>

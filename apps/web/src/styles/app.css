@@ -420,20 +420,20 @@
 .auth-canvas .wm-e { color: rgba(255,255,255,.55); }
 .auth-canvas .brand:hover .wm-k i { color: #CDC5FF; }
 /* Sign in with an outside account */
-.pv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.pv-grid-one { grid-template-columns: 1fr; }
-.pv-grid-three .pv-btn:first-child { grid-column: 1 / -1; }
-.pv-btn { position: relative; display: flex; align-items: center; justify-content: center; gap: 10px; height: 48px; padding: 0 14px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--paper); color: var(--ink); font-size: 14.5px; font-weight: 600; text-decoration: none; transition: border-color .15s, background .15s, box-shadow .15s, transform .15s; }
-.pv-btn:hover { border-color: var(--line-2); background: var(--paper-2); }
-.pv-btn:active { transform: translateY(1px); }
-.pv-btn:focus-visible { outline: none; box-shadow: var(--ring); }
-.pv-btn[aria-disabled] { pointer-events: none; }
-.pv-btn.is-leaving { border-color: var(--violet-200); background: var(--violet-50); }
-.pv-btn[aria-disabled]:not(.is-leaving) { opacity: .55; }
-.pv-skel { pointer-events: none; background: linear-gradient(90deg, var(--paper-2), var(--line), var(--paper-2)); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; border-color: transparent; }
-.pv-mono { display: inline-grid; place-items: center; flex: none; border-radius: 7px; background: var(--paper-2); border: 1px solid var(--line); color: var(--ink-2); font-weight: 700; letter-spacing: -.02em; line-height: 1; }
-.pv-logo { flex: none; object-fit: contain; }
-.pv-spin { position: absolute; right: 14px; width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--violet-200); border-top-color: var(--violet); animation: spin .7s linear infinite; }
+.sso-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.sso-grid-one { grid-template-columns: 1fr; }
+.sso-grid-three .sso-btn:first-child { grid-column: 1 / -1; }
+.sso-btn { position: relative; display: flex; align-items: center; justify-content: center; gap: 10px; height: 48px; padding: 0 14px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--paper); color: var(--ink); font-size: 14.5px; font-weight: 600; text-decoration: none; transition: border-color .15s, background .15s, box-shadow .15s, transform .15s; }
+.sso-btn:hover { border-color: var(--line-2); background: var(--paper-2); }
+.sso-btn:active { transform: translateY(1px); }
+.sso-btn:focus-visible { outline: none; box-shadow: var(--ring); }
+.sso-btn[aria-disabled] { pointer-events: none; }
+.sso-btn.is-leaving { border-color: var(--violet-200); background: var(--violet-50); }
+.sso-btn[aria-disabled]:not(.is-leaving) { opacity: .55; }
+.sso-skel { pointer-events: none; background: linear-gradient(90deg, var(--paper-2), var(--line), var(--paper-2)); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; border-color: transparent; }
+.sso-mono { display: inline-grid; place-items: center; flex: none; border-radius: 7px; background: var(--paper-2); border: 1px solid var(--line); color: var(--ink-2); font-weight: 700; letter-spacing: -.02em; line-height: 1; }
+.sso-logo { flex: none; object-fit: contain; }
+.sso-spin { position: absolute; right: 14px; width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--violet-200); border-top-color: var(--violet); animation: spin .7s linear infinite; }
 
 .auth-alert { position: relative; display: flex; gap: 11px; align-items: flex-start; margin-bottom: 18px; padding: 13px 40px 13px 14px; border-radius: 12px; background: var(--red-50); border: 1px solid rgba(200, 60, 50, .22); color: var(--ink-2); font-size: 13.5px; line-height: 1.5; animation: tipIn .2s ease-out both; }
 .auth-alert > .ic { margin-top: 2px; color: var(--red); flex: none; }
@@ -465,7 +465,7 @@
 .st-empty code { font-size: 12px; padding: 1px 5px; border-radius: 5px; background: var(--paper-2); border: 1px solid var(--line); }
 .st-linked .auth-alert { margin: 0 0 16px; }
 @media (max-width: 640px) {
-  .pv-grid { grid-template-columns: 1fr; }
+  .sso-grid { grid-template-columns: 1fr; }
   .st-page .form-grid { grid-template-columns: 1fr; }
   .st-page .panel-head { flex-wrap: wrap; }
 }
