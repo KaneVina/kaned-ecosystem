@@ -9,7 +9,7 @@ import type {
   ReviewInput,
   UploadSignatureDto,
 } from '@kaned/shared';
-import { http } from '@/lib/api';
+import { withKey, http } from '@/lib/api';
 import { queryKeys } from '@/lib/queryClient';
 
 export type LibraryFilters = Partial<DocumentQuery>;
@@ -132,8 +132,8 @@ export function useCreateReview(documentId: string) {
 export function useCreateDocument() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async (input: CreateDocumentInput) => {
-      const { data } = await http.post<DocumentSummaryDto>('/documents', input);
+    mutationFn: async ({ input, idempotencyKey }: { input: CreateDocumentInput; idempotencyKey?: string }) => {
+      const { data } = await http.post<DocumentSummaryDto>('/documents', input, idempotencyKey ? withKey(idempotencyKey) : undefined);
       return data;
     },
     onSuccess: () => {

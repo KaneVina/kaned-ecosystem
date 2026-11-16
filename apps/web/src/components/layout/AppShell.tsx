@@ -16,11 +16,13 @@ import {
   LogOut,
   Menu as MenuIcon,
   Search,
+  ShieldCheck,
   User,
   X,
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '@/providers/AuthProvider';
+import { STAFF_ROLES } from '@kaned/shared';
 import { useToast } from '@/providers/ToastProvider';
 import { Wordmark } from '@/components/ui/Wordmark';
 import { Avatar } from '@/components/ui/Avatar';
@@ -237,6 +239,14 @@ export function AppShell() {
               <MenuLink to="/app/tools/gpa" icon={<Calculator className="ic ic-sm" />}>
                 Bảng điểm của bạn
               </MenuLink>
+              {STAFF_ROLES.includes(user.role) && (
+                <>
+                  <MenuSeparator />
+                  <MenuLink to="/admin" icon={<ShieldCheck className="ic ic-sm" />}>
+                    Trang quản trị
+                  </MenuLink>
+                </>
+              )}
               <MenuSeparator />
               <MenuButton onClick={signOut} icon={<LogOut className="ic ic-sm" />}>
                 Đăng xuất
@@ -301,6 +311,12 @@ export function AppShell() {
               Đã lưu
               <span className="menu-count">{saved?.length ?? 0}</span>
             </Link>
+            {STAFF_ROLES.includes(user.role) && (
+              <Link to="/admin">
+                <ShieldCheck className="ic" />
+                Trang quản trị
+              </Link>
+            )}
           </nav>
           <Link className="btn btn-primary btn-block" to="/app/upload">
             <CloudUpload className="ic ic-sm" />

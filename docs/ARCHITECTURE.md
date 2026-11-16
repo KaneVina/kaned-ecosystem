@@ -24,12 +24,20 @@ nghĩa bảng vừa là kiểu dữ liệu, và `db.query.*` cho API quan hệ g
 ## Dữ liệu
 
 ```
-University → Faculty → Major → (majorSubjects) → Subject
-                                      │
-                                      ├── subjectPrerequisites  (đồ thị, có loại cạnh)
-                                      ├── documents → reviews / bookmarks / tags
-                                      └── grades (của từng user)
+University ─┬─ Faculty → Major (termCount, passMark) → (majorSubjects: termNo, requirements) → Subject
+            ├─ AcademicTerm (Fall 2026, HK1 2026–2027…)
+            └─ Subject ─┬─ subjectPrerequisites  (chỉ mục phẳng dựng lại từ requirements)
+                        ├─ documents (tệp hoặc liên kết, gắn AcademicTerm) → reviews / bookmarks / tags
+                        └─ grades (của từng user)
+
+adminActivity   nhật ký thao tác quản trị
+idempotencyKeys sổ ghi Idempotency-Key và kết quả đã trả
+appMeta         phiên bản dữ liệu mẫu đã nạp
 ```
+
+Mỗi trường tự đặt tên kỳ học (`academic_terms`), nhưng mỗi kỳ ánh xạ về cặp chuẩn (niên khoá, học kỳ 1 / 2 /
+hè) mà thư viện lọc chung, nên trường mới không làm vỡ bộ lọc. Tài liệu dạng liên kết dùng định dạng `LINK`:
+`file_url` là địa chỉ, không có `file_public_id` và dung lượng là 0.
 
 `majorSubjects` là chương trình học: nó giữ `termNo`, tức môn đó thuộc kỳ mấy của ngành nào — cùng một môn
 có thể nằm ở kỳ 3 của ngành này và kỳ 5 của ngành khác. `subjectPrerequisites` là đồ thị có hướng, mỗi cạnh
@@ -42,6 +50,22 @@ mang một loại:
 | `PRIOR` | Phải đã học, điểm thế nào không quan trọng |
 
 Thêm một module mới chỉ là thêm bảng trỏ vào `users` và `subjects`; phần còn lại không phải sửa.
+
+## Idempotency-Key
+
+`middleware/idempotency.ts` theo bản nháp IETF *Idempotency-Key* và cách Stripe làm. Khoá thuộc về một
+người gọi (user, hoặc IP nếu chưa đăng nhập) và sống 24 giờ:
+
+1. Yêu cầu đầu tiên giữ chỗ cho khoá bằng `INSERT … ON CONFLICT DO NOTHING` — hai yêu cầu đồng thời thì
+   chỉ một cái chạy, cái kia nhận 409 kèm `Retry-After`.
+2. Phản hồi 2xx được ghi vào sổ **trước khi** gửi về, nên lần thử lại ngay sau đó thấy kết quả.
+3. Cùng khoá, cùng nội dung (băm SHA-256 của method + path + body) → phát lại phản hồi đã lưu.
+   Cùng khoá, nội dung khác → 422.
+4. Phản hồi 4xx / 5xx giải phóng khoá, để người dùng sửa lỗi rồi gửi lại bằng chính khoá đó.
+5. Khoá kẹt ở trạng thái "đang xử lý" quá 60 giây (server chết giữa chừng) được nhường cho lần thử sau.
+
+Phía web, interceptor của axios gắn khoá cho mọi POST / PUT / PATCH / DELETE; các biểu mẫu dùng
+`useIdempotencyKey`, giữ một khoá cho tới khi lưu thành công và đổi khoá khi nội dung đổi.
 
 ## Đường đi của một request
 
@@ -112,6 +136,16 @@ API trả `mode: "local"` và nhận tệp qua multer — front end không cần
 - Cookie đổi sang `SameSite=None; Secure` khi production, vì web và API khác domain.
 - Pool database giữ trong `globalThis` để tsx reload lúc dev không làm cạn connection.
 - `VITE_API_URL` rỗng khi dev (Vite proxy `/api`), trỏ Render khi production.
+
+## Trang quản trị
+
+`/api/admin/*` nằm sau `requireAuth` + `requireRole('ADMIN', 'MODERATOR')` + Idempotency-Key cho mọi lệnh
+ghi; các route học vụ và người dùng thêm `requireRole('ADMIN')`. Mỗi thao tác ghi một dòng vào
+`admin_activity`. Phía web, khu quản trị là một chunk riêng (`React.lazy`) nên sinh viên không phải tải nó.
+
+Sửa điều kiện trong chương trình xong, API dựng lại `subject_prerequisites` cho các môn liên quan từ các
+luật `subject` ở cấp trên cùng của mọi chương trình chứa môn đó (lấy mức chặt hơn nếu hai chương trình
+khác nhau). Đổi mã môn thì mọi luật trong cùng trường nhắc tới mã cũ được viết lại sang mã mới.
 
 ## Thêm một module mới
 

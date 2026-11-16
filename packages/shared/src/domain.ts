@@ -26,14 +26,27 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, { en: string; vi: string
   REPORT: { en: 'Project reports', vi: 'Báo cáo đồ án', icon: 'scroll-text' },
 };
 
-export const FILE_FORMATS = ['PDF', 'DOCX', 'PPTX', 'XLSX'] as const;
+/** LINK is a document that lives elsewhere (Google Slides, Canva, YouTube…). */
+export const FILE_FORMATS = ['PDF', 'DOCX', 'PPTX', 'XLSX', 'LINK'] as const;
 export type FileFormat = (typeof FILE_FORMATS)[number];
+
+/** Formats that are uploaded as files. */
+export const UPLOAD_FORMATS = ['PDF', 'DOCX', 'PPTX', 'XLSX'] as const;
+
+export const FILE_FORMAT_LABELS: Record<FileFormat, string> = {
+  PDF: 'PDF',
+  DOCX: 'Word',
+  PPTX: 'PowerPoint',
+  XLSX: 'Excel',
+  LINK: 'Liên kết',
+};
 
 export const FILE_FORMAT_COLORS: Record<FileFormat, string> = {
   PDF: '#CF3F35',
   DOCX: '#2D63CF',
   PPTX: '#CF5F22',
   XLSX: '#1C7F4F',
+  LINK: '#4433B4',
 };
 
 export const MIME_TO_FORMAT: Record<string, FileFormat> = {
@@ -83,8 +96,40 @@ export const PREREQ_TYPE_LABELS: Record<PrereqType, { en: string; vi: string; hi
 export const DOCUMENT_STATUSES = ['PENDING', 'PUBLISHED', 'REJECTED', 'REMOVED'] as const;
 export type DocumentStatus = (typeof DOCUMENT_STATUSES)[number];
 
+export const DOCUMENT_STATUS_LABELS: Record<DocumentStatus, { vi: string; hint: string }> = {
+  PENDING: { vi: 'Chờ duyệt', hint: 'Chưa hiện trong thư viện.' },
+  PUBLISHED: { vi: 'Đã đăng', hint: 'Mọi người tìm thấy trong thư viện.' },
+  REJECTED: { vi: 'Bị từ chối', hint: 'Không đạt yêu cầu, người đăng vẫn thấy.' },
+  REMOVED: { vi: 'Đã gỡ', hint: 'Ẩn khỏi thư viện, có thể khôi phục.' },
+};
+
 export const ROLES = ['STUDENT', 'MODERATOR', 'ADMIN'] as const;
 export type Role = (typeof ROLES)[number];
+
+export const ROLE_LABELS: Record<Role, { vi: string; hint: string }> = {
+  STUDENT: { vi: 'Sinh viên', hint: 'Dùng thư viện và công cụ học tập.' },
+  MODERATOR: { vi: 'Kiểm duyệt viên', hint: 'Duyệt, sửa và gỡ tài liệu.' },
+  ADMIN: { vi: 'Quản trị viên', hint: 'Toàn quyền: trường, môn, chương trình, người dùng.' },
+};
+
+/** Roles that may open the admin area. */
+export const STAFF_ROLES: readonly Role[] = ['MODERATOR', 'ADMIN'];
+
+export const REGIONS = ['north', 'central', 'south'] as const;
+export type Region = (typeof REGIONS)[number];
+export const REGION_LABELS: Record<Region, string> = {
+  north: 'Miền Bắc',
+  central: 'Miền Trung',
+  south: 'Miền Nam',
+};
+
+export const UNIVERSITY_KINDS = ['Public', 'Private', 'International'] as const;
+export type UniversityKind = (typeof UNIVERSITY_KINDS)[number];
+export const UNIVERSITY_KIND_LABELS: Record<UniversityKind, string> = {
+  Public: 'Công lập',
+  Private: 'Tư thục',
+  International: 'Quốc tế',
+};
 
 export const DOCUMENT_SORTS = ['relevance', 'downloads', 'views', 'recent', 'rating'] as const;
 export type DocumentSort = (typeof DOCUMENT_SORTS)[number];

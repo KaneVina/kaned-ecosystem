@@ -54,6 +54,8 @@ export interface MajorDto {
   totalCredits?: number;
   /** Score a subject needs to count as passed in this programme. */
   passMark?: number;
+  /** Terms in the programme, Kỳ 1…N. */
+  termCount?: number;
   subjectCount?: number;
 }
 
@@ -156,6 +158,10 @@ export interface DocumentSummaryDto {
   university: Pick<UniversityDto, 'id' | 'code' | 'name' | 'nameVi' | 'color'>;
   uploader: UserSummaryDto;
   tags: string[];
+  /** The address, for LINK documents only; files stay behind the download endpoint. */
+  linkUrl: string | null;
+  /** The university's own name for the term, e.g. "Spring 2026". */
+  term: { id: string; code: string; name: string } | null;
   isBookmarked?: boolean;
 }
 

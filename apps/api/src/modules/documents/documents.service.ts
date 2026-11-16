@@ -10,6 +10,7 @@ import type {
 } from '@kaned/shared';
 import { db } from '../../db/index.js';
 import {
+  academicTerms,
   bookmarks,
   documentTags,
   documents,
@@ -21,6 +22,7 @@ import {
 import { ApiError } from '../../lib/errors.js';
 import { storage } from '../../lib/storage.js';
 import { foldVietnamese, slugify } from '../../lib/slug.js';
+import { isWebUrl } from '@kaned/shared';
 import { documentWith, toDocumentSummary, toReview, userWith } from '../../lib/dto.js';
 
 function buildFilters(query: DocumentQuery): SQL[] {
@@ -232,11 +234,44 @@ async function tagIdsFor(names: string[]): Promise<string[]> {
   return ids;
 }
 
-export async function createDocument(uploaderId: string, input: CreateDocumentInput) {
+/**
+ * A file needs the storage id and size from the upload; a link needs an
+ * http(s) address and has neither.
+ */
+function assertSource(input: Pick<CreateDocumentInput, 'format' | 'fileUrl' | 'filePublicId' | 'fileBytes'>) {
+  if (input.format === 'LINK') {
+    if (!isWebUrl(input.fileUrl)) {
+      throw ApiError.badRequest('Liên kết phải bắt đầu bằng http:// hoặc https://', { fileUrl: 'Liên kết không hợp lệ.' });
+    }
+    return;
+  }
+  if (!input.filePublicId || input.fileBytes < 1) {
+    throw ApiError.badRequest('Tệp chưa tải lên xong.', { fileUrl: 'Tải tệp lên trước khi đăng.' });
+  }
+}
+
+/** The university's term, if one was picked, decides semester and school year. */
+async function termFields(academicTermId: string | null | undefined, universityId: string) {
+  if (!academicTermId) return {};
+  const term = await db.query.academicTerms.findFirst({ where: eq(academicTerms.id, academicTermId) });
+  if (!term || term.universityId !== universityId) {
+    throw ApiError.badRequest('Kỳ học không thuộc trường của môn này.', { academicTermId: 'Chọn lại kỳ học.' });
+  }
+  return { academicTermId: term.id, semester: term.semester, schoolYear: term.schoolYear };
+}
+
+export async function createDocument(
+  uploaderId: string,
+  input: CreateDocumentInput,
+  options: { status?: DocumentSummaryDto['status'] } = {},
+) {
   const subject = await db.query.subjects.findFirst({ where: eq(subjects.id, input.subjectId) });
   if (!subject) {
     throw ApiError.badRequest('That subject does not exist.', { subjectId: 'Unknown subject.' });
   }
+  assertSource(input);
+  const term = await termFields(input.academicTermId, subject.universityId);
+  const isLink = input.format === 'LINK';
 
   const [created] = await db
     .insert(documents)
@@ -247,13 +282,15 @@ export async function createDocument(uploaderId: string, input: CreateDocumentIn
       format: input.format,
       language: input.language,
       fileUrl: input.fileUrl,
-      filePublicId: input.filePublicId,
-      fileBytes: input.fileBytes,
+      filePublicId: isLink ? '' : input.filePublicId,
+      fileBytes: isLink ? 0 : input.fileBytes,
       pages: input.pages ?? null,
-      thumbnailUrl: input.thumbnailUrl ?? storage.thumbnailFor(input.filePublicId),
+      thumbnailUrl: input.thumbnailUrl ?? (isLink ? null : storage.thumbnailFor(input.filePublicId)),
       year: input.year,
       semester: input.semester,
       schoolYear: input.schoolYear ?? null,
+      ...term,
+      status: options.status ?? 'PUBLISHED',
       universityId: subject.universityId,
       subjectId: input.subjectId,
       uploaderId,
@@ -290,7 +327,13 @@ export async function updateDocument(
   role: string,
   input: UpdateDocumentInput,
 ) {
-  await assertCanEdit(id, userId, role);
+  const doc = await assertCanEdit(id, userId, role);
+  const term =
+    input.academicTermId !== undefined
+      ? input.academicTermId
+        ? await termFields(input.academicTermId, input.universityId ?? doc.universityId)
+        : { academicTermId: null }
+      : {};
 
   await db
     .update(documents)
@@ -304,6 +347,7 @@ export async function updateDocument(
       language: input.language,
       subjectId: input.subjectId,
       universityId: input.universityId,
+      ...term,
     })
     .where(eq(documents.id, id));
 
@@ -325,7 +369,7 @@ export async function updateDocument(
 export async function deleteDocument(id: string, userId: string, role: string) {
   const doc = await assertCanEdit(id, userId, role);
   await db.delete(documents).where(eq(documents.id, id));
-  await storage.destroy(doc.filePublicId);
+  if (doc.format !== 'LINK' && doc.filePublicId) await storage.destroy(doc.filePublicId);
 }
 
 /** Counts the download and hands back the file URL. */

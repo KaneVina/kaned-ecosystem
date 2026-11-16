@@ -46,10 +46,18 @@ npm run dev
 - Web: http://localhost:5173
 - API: http://localhost:4000 (health check: `/health`)
 
-**Đăng nhập demo:** `ngoc.tb@fpt.edu.vn` / `kaned2026`
+**Đăng nhập demo**
 
-Tài khoản này đã có điểm của 10 môn, trong đó một môn trượt (`NWC203`, 3.5) để công cụ kế hoạch học tập có
-thứ gì đó thật sự bị chặn mà hiển thị.
+| Tài khoản | Mật khẩu | Vào |
+| --- | --- | --- |
+| `ngoc.tb@fpt.edu.vn` (sinh viên FPTU, kỳ 5) | `kaned2026` | `/app` |
+| `admin@kaned.vn` (quản trị viên) | `kaned2026` | `/admin` |
+
+Tài khoản sinh viên đã có điểm 4 kỳ đầu, trong đó DBI202 4.5 (chưa qua nhưng đủ ≥ 4 cho PRJ301) và JPD113
+3.8 (chặn JPD123), để trang Môn học & điều kiện có thứ thật sự bị chặn mà hiển thị.
+
+Dữ liệu mẫu chỉ nạp **một lần cho mỗi phiên bản**: chạy lại `setup.bat` hay `npm run db:seed` không ghi đè
+những gì bạn đã sửa trong trang quản trị. Muốn nạp lại từ đầu: `npm run db:seed -w @kaned/api -- --force`.
 
 ---
 
@@ -113,12 +121,49 @@ Sau khi đăng nhập, `/app` là không gian học tập:
 - **Công cụ** (menu dropdown trên thanh trên):
   - *Tính GPA* — nhập điểm hệ 10, xem điểm chữ và hệ 4 ngay trên bảng, lưu lại để công cụ khác dùng,
     xuất CSV, và tính xem kỳ tới cần trung bình bao nhiêu để chạm GPA mục tiêu
-  - *Thông tin môn học* — tra theo mã môn hoặc tên, xem tín chỉ, nội dung, chuẩn đầu ra, cách đánh giá,
-    điều kiện tiên quyết và những môn mà nó mở ra
-  - *Kế hoạch học tập* — đọc điểm đã lưu, đối chiếu chương trình học và chỉ ra môn học được, môn bị chặn
-    (kèm lý do: chưa học / chưa qua / đang học / điểm chưa đủ), cùng gợi ý một kỳ trong giới hạn 18 tín chỉ
+- **Môn học & điều kiện** (`/app/subjects`) — chương trình 9 kỳ với ô nhập điểm trên từng môn và bảng chi tiết
+  bên cạnh: nội dung, chuẩn đầu ra, điều kiện tiên quyết, môn mà nó mở ra, tài liệu. Gõ điểm là trạng thái
+  học được / bị chặn đổi ngay, kèm gợi ý một kỳ trong giới hạn 18 tín chỉ
 
 ---
+
+## Trang quản trị (`/admin`)
+
+Dành cho tài khoản có quyền **Quản trị viên** hoặc **Kiểm duyệt viên** (kiểm duyệt viên chỉ thấy Tổng quan,
+Tài liệu và Nhật ký). Mục "Trang quản trị" hiện trong menu ảnh đại diện.
+
+- **Tổng quan** — số liệu, tài liệu mới theo tuần, hàng chờ duyệt, trường nhiều tài liệu, thay đổi gần đây
+- **Tài liệu** — lọc theo trạng thái / trường / loại / định dạng, duyệt – từ chối – gỡ – xoá từng cái hoặc
+  hàng loạt, sửa thông tin, và **đăng tài liệu mới bằng tệp hoặc bằng liên kết**
+- **Trường học** — thêm / sửa / xoá trường; trong mỗi trường quản lý **khoa, ngành** (số kỳ, điểm qua môn,
+  tổng tín chỉ) và **kỳ học** của trường (Fall 2026, HK1 2026–2027… có ngày bắt đầu / kết thúc)
+- **Môn học** — danh mục môn của từng trường, đề cương; đổi mã môn tự cập nhật điều kiện ở các môn khác
+- **Chương trình đào tạo** — bảng các kỳ của một ngành: kéo thả môn giữa các kỳ, thêm / bớt kỳ, bấm vào môn
+  để đặt điều kiện (môn tiên quyết, điểm tối thiểu, "đạt N trong nhóm", giới hạn nợ môn, điểm TB nhóm).
+  Đây đúng là dữ liệu mà trang Môn học & điều kiện của sinh viên dùng.
+- **Người dùng** — tìm, lọc, cấp / thu hồi quyền (không tự đổi quyền mình, không bỏ được admin cuối cùng)
+- **Nhật ký thay đổi** — ai đã làm gì, khi nào
+
+Muốn tài khoản Google của bạn thành quản trị viên: đăng nhập bằng `admin@kaned.vn`, vào **Người dùng**,
+đổi quyền tài khoản của bạn thành *Quản trị viên*.
+
+## Tài liệu dạng liên kết
+
+Ngoài tệp PDF / Word / PowerPoint / Excel, tài liệu có thể là một **liên kết**: Google Slides, Docs, Sheets,
+Drive, YouTube, Canva, Figma, Notion, OneDrive hay bất kỳ trang web nào. Google Slides / Docs / Drive,
+YouTube, Canva và Figma được nhúng xem ngay trên trang tài liệu; các trang khác mở ở tab mới. Sinh viên
+dán liên kết ở bước 1 của trang Tải lên, admin dán trong ô "Liên kết" khi đăng tài liệu.
+
+## Idempotency-Key
+
+Mọi thao tác ghi quan trọng — đăng / sửa / xoá tài liệu, lưu, đánh giá, đếm lượt tải, lưu điểm, sửa hồ sơ,
+tải tệp lên và **toàn bộ thao tác trong trang quản trị** — bắt buộc có header `Idempotency-Key`. Gửi lại
+cùng khoá với cùng nội dung thì server trả lại đúng kết quả lần đầu (kèm `Idempotent-Replayed: true`) thay
+vì làm lần hai; cùng khoá mà nội dung khác thì bị từ chối (422); khoá đang được xử lý thì trả 409 và web tự
+chờ rồi hỏi lại. Web app tự gắn khoá, và với các biểu mẫu thì giữ nguyên khoá cho tới khi lưu thành công,
+nên bấm đúp hay mạng chập chờn cũng không tạo bản trùng. Các endpoint cấp phiên đăng nhập (`/auth/login`,
+`/register`, `/google`, `/refresh`, `/logout`) không dùng khoá vì kết quả của chúng là token, không được lưu
+lại để phát lại.
 
 ## Lưu file
 

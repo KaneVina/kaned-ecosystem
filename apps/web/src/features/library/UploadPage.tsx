@@ -12,6 +12,7 @@ import {
   FileText,
   FileUp,
   FolderOpen,
+  Link2,
   ListChecks,
   Plus,
   ScrollText,
@@ -27,14 +28,18 @@ import {
   SEMESTERS,
   SEMESTER_LABELS,
   STUDY_YEARS,
+  type CreateDocumentInput,
   type DocumentSummaryDto,
+  detectLinkProvider,
+  isWebUrl,
   type FileFormat,
 } from "@kaned/shared";
 import { PageHead } from "@/components/ui/Panel";
 import { FileIcon } from "@/components/ui/FileBadge";
 import { DocCard } from "@/components/library/DocCard";
 import { useCreateDocument, uploadToCloudinary } from "./queries";
-import { useSubjects, useUniversities } from "@/features/catalog/queries";
+import { useIdempotencyKey } from "@/lib/useIdempotencyKey";
+import { useSubjects, useTerms, useUniversities } from "@/features/catalog/queries";
 import { useAuth } from "@/providers/AuthProvider";
 import { useToast } from "@/providers/ToastProvider";
 import { toApiError } from "@/lib/api";
@@ -53,6 +58,10 @@ const EXT_TO_FORMAT: Record<string, FileFormat> = {
 const uploadSchema = createDocumentSchema
   .omit({ fileUrl: true, filePublicId: true, fileBytes: true, format: true })
   .extend({
+    academicTermId: z
+      .string()
+      .optional()
+      .transform((v) => (v ? v : null)),
     rights: z
       .boolean()
       .refine((v) => v, {
@@ -74,6 +83,14 @@ export function UploadPage() {
   const [progress, setProgress] = useState<number | null>(null);
   const [tagDraft, setTagDraft] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [source, setSource] = useState<"file" | "link">("file");
+  const [link, setLink] = useState("");
+  const linkOk = isWebUrl(link.trim());
+  const provider = linkOk ? detectLinkProvider(link.trim()) : null;
+  // A finished upload is kept, so trying again after a failed save does not upload twice.
+  const uploaded = useRef<{ file: File; url: string; publicId: string; bytes: number; pages?: number } | null>(null);
+  const idempotency = useIdempotencyKey();
+  const hasSource = source === "file" ? Boolean(file) : linkOk;
 
   const createDocument = useCreateDocument();
   const { data: universities = [] } = useUniversities();
@@ -89,6 +106,7 @@ export function UploadPage() {
       year: user?.year ?? 2,
       semester: undefined as never,
       schoolYear: "2025–2026",
+      academicTermId: "",
       tags: [],
       language: "Vietnamese",
       rights: false,
@@ -113,6 +131,17 @@ export function UploadPage() {
       form.setValue("subjectId", form.getValues("subjectId"));
   }, [subjects.length, form]);
   const university = universities.find((u) => u.id === v.universityId);
+  const { data: terms = [] } = useTerms(v.universityId || undefined);
+  useEffect(() => {
+    if (terms.length) form.setValue("academicTermId", form.getValues("academicTermId"));
+  }, [terms.length, form]);
+  /** Picking one of the school's terms fills in semester and school year. */
+  const pickTerm = (termId: string) => {
+    const term = terms.find((t) => t.id === termId);
+    if (!term) return;
+    form.setValue("semester", term.semester, { shouldValidate: submitted });
+    form.setValue("schoolYear", term.schoolYear);
+  };
 
   const accept = (f: File) => {
     const ext = (f.name.split(".").pop() ?? "").toLowerCase();
@@ -163,7 +192,7 @@ export function UploadPage() {
     : [];
 
   const checklist: Array<[string, boolean]> = [
-    ["Tệp tài liệu", Boolean(file)],
+    [source === "file" ? "Tệp tài liệu" : "Liên kết", hasSource],
     ["Tiêu đề", (v.title ?? "").trim().length >= 10],
     ["Mô tả", (v.description ?? "").trim().length >= 30],
     ["Loại tài liệu", Boolean(v.type)],
@@ -182,8 +211,10 @@ export function UploadPage() {
           title: v.title || "Tiêu đề tài liệu của bạn",
           description: v.description,
           type: v.type ?? "NOTES",
-          format: file?.format ?? "PDF",
-          fileBytes: file?.file.size ?? 1_200_000,
+          format: source === "link" ? "LINK" : (file?.format ?? "PDF"),
+          fileBytes: source === "link" ? 0 : (file?.file.size ?? 1_200_000),
+          linkUrl: source === "link" && linkOk ? link.trim() : null,
+          term: null,
           pages: 12,
           thumbnailUrl: null,
           year: Number(v.year) || 1,
@@ -218,22 +249,27 @@ export function UploadPage() {
   const onSubmit = form.handleSubmit(
     async (values) => {
       setSubmitted(true);
-      if (!file) {
-        setFileError("Chọn một tệp để tải lên.");
+      if (!hasSource) {
+        setFileError(source === "file" ? "Chọn một tệp để tải lên." : "Dán một liên kết bắt đầu bằng https://");
         return;
       }
       try {
-        setProgress(0);
-        const uploaded = await uploadToCloudinary(file.file, setProgress);
         const { rights: _rights, ...rest } = values;
-        const created = await createDocument.mutateAsync({
-          ...rest,
-          format: file.format,
-          fileUrl: uploaded.url,
-          filePublicId: uploaded.publicId,
-          fileBytes: uploaded.bytes,
-          pages: uploaded.pages,
-        });
+        let sourceFields: Pick<CreateDocumentInput, "format" | "fileUrl" | "filePublicId" | "fileBytes" | "pages">;
+        if (source === "link") {
+          sourceFields = { format: "LINK", fileUrl: link.trim(), filePublicId: "", fileBytes: 0 };
+        } else {
+          if (uploaded.current?.file !== file!.file) {
+            setProgress(0);
+            const result = await uploadToCloudinary(file!.file, setProgress);
+            uploaded.current = { file: file!.file, url: result.url, publicId: result.publicId, bytes: result.bytes, pages: result.pages };
+          }
+          const u = uploaded.current!;
+          sourceFields = { format: file!.format, fileUrl: u.url, filePublicId: u.publicId, fileBytes: u.bytes, pages: u.pages };
+        }
+        const input: CreateDocumentInput = { ...rest, ...sourceFields };
+        const created = await createDocument.mutateAsync({ input, idempotencyKey: idempotency.keyFor(input) });
+        idempotency.done();
         toast.success(
           "Đã đăng tài liệu",
           "Cảm ơn bạn — lớp sau sẽ tìm thấy nó trong thư viện.",
@@ -251,7 +287,7 @@ export function UploadPage() {
     },
     () => {
       setSubmitted(true);
-      if (!file) setFileError("Chọn một tệp để tải lên.");
+      if (!hasSource) setFileError(source === "file" ? "Chọn một tệp để tải lên." : "Dán một liên kết bắt đầu bằng https://");
       document
         .querySelector(".field.invalid")
         ?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -287,15 +323,54 @@ export function UploadPage() {
             <div className="up-sec-head">
               <span className="up-step">1</span>
               <div>
-                <h2 className="t-h3">Chọn tệp</h2>
+                <h2 className="t-h3">Tệp hoặc liên kết</h2>
                 <p>
-                  PDF, Word (DOCX), PowerPoint (PPTX) hoặc Excel (XLSX), tối đa{" "}
-                  {fmtBytes(MAX_UPLOAD_BYTES)}.
+                  {source === "file"
+                    ? `PDF, Word (DOCX), PowerPoint (PPTX) hoặc Excel (XLSX), tối đa ${fmtBytes(MAX_UPLOAD_BYTES)}.`
+                    : "Google Slides, Docs, Drive, Canva, YouTube, Notion… hoặc bất kỳ trang nào."}
                 </p>
+              </div>
+              <div className="seg up-source" role="group" aria-label="Nguồn tài liệu">
+                <button type="button" aria-pressed={source === "file"} onClick={() => (setSource("file"), setFileError(""))}>
+                  <CloudUpload className="ic ic-sm" />
+                  Tải tệp lên
+                </button>
+                <button type="button" aria-pressed={source === "link"} onClick={() => (setSource("link"), setFileError(""))}>
+                  <Link2 className="ic ic-sm" />
+                  Dán liên kết
+                </button>
               </div>
             </div>
             <div className={cn("field", fileError && "invalid")}>
-              {!file ? (
+              {source === "link" ? (
+                <div className="up-link">
+                  <div className="input-group">
+                    <Link2 className="ic ic-sm" />
+                    <input
+                      className="input"
+                      type="url"
+                      inputMode="url"
+                      placeholder="https://docs.google.com/presentation/d/…"
+                      value={link}
+                      onChange={(e) => {
+                        setLink(e.target.value);
+                        if (fileError) setFileError("");
+                      }}
+                      aria-label="Liên kết tài liệu"
+                    />
+                  </div>
+                  {provider && (
+                    <div className="up-link-ok">
+                      <CircleCheck className="ic ic-sm" />
+                      <span>
+                        <b>{provider.label}</b> · {provider.host}
+                        {provider.embedUrl ? " — sẽ xem được ngay trên Kaned" : " — mở ở tab mới khi bấm xem"}
+                      </span>
+                    </div>
+                  )}
+                  <p className="hint">Nhớ bật chia sẻ “Bất kỳ ai có đường liên kết đều xem được”, nếu không người khác sẽ không mở được.</p>
+                </div>
+              ) : !file ? (
                 <div
                   className={cn("dropzone", dragging && "drag")}
                   tabIndex={0}
@@ -638,6 +713,26 @@ export function UploadPage() {
                   <span>Chọn học kỳ.</span>
                 </span>
               </fieldset>
+              {terms.length > 0 && (
+                <div className="field">
+                  <label className="label" htmlFor="up-term">
+                    Kỳ học của trường <span className="opt">(điền sẵn học kỳ và niên khoá)</span>
+                  </label>
+                  <select
+                    className="select"
+                    id="up-term"
+                    {...form.register("academicTermId", { onChange: (e) => pickTerm(e.target.value) })}
+                  >
+                    <option value="">Không chọn</option>
+                    {terms.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                        {t.state === "current" ? " — đang diễn ra" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="field">
                 <label className="label" htmlFor="up-ay">
                   Niên khoá

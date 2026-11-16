@@ -7,6 +7,7 @@ import {
   CalendarDays,
   ChevronRight,
   Download,
+  ExternalLink,
   Eye,
   Flag,
   GraduationCap,
@@ -21,6 +22,7 @@ import { Stars } from '@/components/ui/Stars';
 import { ErrorState, Skeleton } from '@/components/ui/Feedback';
 import { SectionHead } from '@/components/ui/Panel';
 import { Viewer } from '@/components/paper/Paper';
+import { LinkViewer } from '@/components/library/LinkViewer';
 import { profileFor, subjectTone } from '@/components/paper/profiles';
 import { DocCard } from '@/components/library/DocCard';
 import { QuickPreview } from '@/components/library/QuickPreview';
@@ -99,6 +101,7 @@ export function DocumentDetailPage() {
   const pages = data.pages ?? 3;
   const toc = profile.topics.slice(0, 5);
   const label = data.format === 'PPTX' ? 'Slide' : data.format === 'XLSX' ? 'Trang tính' : 'Số trang';
+  const isLink = data.format === 'LINK';
 
   const startDownload = () => {
     setDlState('progress');
@@ -106,7 +109,7 @@ export function DocumentDetailPage() {
       onSuccess: ({ fileUrl }) => {
         setDlState('done');
         window.open(fileUrl, '_blank', 'noopener');
-        toast.success('Đang tải xuống', data.title);
+        toast.success(isLink ? 'Đã mở liên kết' : 'Đang tải xuống', data.title);
         setTimeout(() => setDlState('idle'), 1800);
       },
       onError: (e) => {
@@ -156,7 +159,7 @@ export function DocumentDetailPage() {
               <Link className="badge badge-gray" to={`/app/library?type=${data.type}`}>
                 {DOCUMENT_TYPE_LABELS[data.type].vi}
               </Link>
-              <FileBadge format={data.format} bytes={data.fileBytes} />
+              <FileBadge format={data.format} bytes={data.fileBytes} linkUrl={data.linkUrl} />
             </div>
             <h1 className="t-h1 dp-title">{data.title}</h1>
             <div className="dp-meta">
@@ -183,7 +186,11 @@ export function DocumentDetailPage() {
 
         <div className="dp-layout">
           <div className="dp-main">
-            <Viewer doc={data} onExpand={() => setFullscreen(true)} onDownload={startDownload} downloading={dlState === 'progress'} />
+            {isLink ? (
+              <LinkViewer doc={data} onOpen={startDownload} />
+            ) : (
+              <Viewer doc={data} onExpand={() => setFullscreen(true)} onDownload={startDownload} downloading={dlState === 'progress'} />
+            )}
 
             <section className="panel panel-pad dp-about">
               <h2 className="t-h3">Về tài liệu này</h2>
@@ -373,9 +380,9 @@ export function DocumentDetailPage() {
               >
                 <span className="dl-fill" />
                 <span className="dl-label">
-                  <Download className="ic ic-sm" />
-                  {dlState === 'done' ? 'Đã tải' : `Tải ${data.format}`}
-                  <small>{(data.fileBytes / 1024 / 1024).toFixed(1)} MB</small>
+                  {isLink ? <ExternalLink className="ic ic-sm" /> : <Download className="ic ic-sm" />}
+                  {isLink ? (dlState === 'done' ? 'Đã mở' : 'Mở liên kết') : dlState === 'done' ? 'Đã tải' : `Tải ${data.format}`}
+                  {!isLink && <small>{(data.fileBytes / 1024 / 1024).toFixed(1)} MB</small>}
                 </span>
               </button>
               <div className="dp-act-row">
@@ -404,13 +411,21 @@ export function DocumentDetailPage() {
                 <div>
                   <dt>Định dạng</dt>
                   <dd>
-                    <FileBadge format={data.format} bytes={data.fileBytes} />
+                    <FileBadge format={data.format} bytes={data.fileBytes} linkUrl={data.linkUrl} />
                   </dd>
                 </div>
-                <div>
-                  <dt>{label}</dt>
-                  <dd>{pages}</dd>
-                </div>
+                {!isLink && (
+                  <div>
+                    <dt>{label}</dt>
+                    <dd>{pages}</dd>
+                  </div>
+                )}
+                {data.term && (
+                  <div>
+                    <dt>Kỳ học</dt>
+                    <dd>{data.term.name}</dd>
+                  </div>
+                )}
                 <div>
                   <dt>Ngôn ngữ</dt>
                   <dd>{data.language === 'Vietnamese' ? 'Tiếng Việt' : data.language}</dd>
@@ -522,8 +537,8 @@ export function DocumentDetailPage() {
         <button type="button" className="btn btn-primary dl-btn" style={{ flex: 1 }} onClick={startDownload}>
           <span className="dl-fill" />
           <span className="dl-label">
-            <Download className="ic ic-sm" />
-            Tải xuống
+            {isLink ? <ExternalLink className="ic ic-sm" /> : <Download className="ic ic-sm" />}
+            {isLink ? 'Mở liên kết' : 'Tải xuống'}
           </span>
         </button>
       </div>

@@ -37,7 +37,8 @@ echo   Xong. Dang khoi dong API va web...
 echo.
 echo   Web : http://localhost:5173
 echo   API : http://localhost:4000/health
-echo   Dang nhap: ngoc.tb@fpt.edu.vn / kaned2026
+echo   Sinh vien : ngoc.tb@fpt.edu.vn / kaned2026
+echo   Quan tri  : admin@kaned.vn / kaned2026  (vao /admin)
 echo  ===============================================
 echo.
 call npm run dev

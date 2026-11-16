@@ -1,11 +1,23 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronUp, Download, Lock, Maximize2, ZoomIn, ZoomOut } from 'lucide-react';
-import type { DocumentSummaryDto } from '@kaned/shared';
+import { detectLinkProvider, type FileFormat, type DocumentSummaryDto } from '@kaned/shared';
 import { FileBadge } from '@/components/ui/FileBadge';
 import { fmtBytes } from '@/lib/format';
 import { cn } from '@/lib/cn';
 import { renderPage, thumbKind, type PaperDoc } from './render';
 import { subjectTone } from './profiles';
+
+/**
+ * What a link looks like on paper: a slide deck draws as slides, a sheet as a
+ * spreadsheet, anything else as a document page.
+ */
+export function visualFormat(doc: Pick<DocumentSummaryDto, 'format' | 'type' | 'linkUrl'>): FileFormat {
+  if (doc.format !== 'LINK') return doc.format;
+  const provider = doc.linkUrl ? detectLinkProvider(doc.linkUrl).id : 'web';
+  if (provider === 'google-sheets') return 'XLSX';
+  if (['google-slides', 'canva', 'figma', 'youtube'].includes(provider) || doc.type === 'SLIDES') return 'PPTX';
+  return 'PDF';
+}
 
 /** The fields the page renderer needs, taken from an API document. */
 export function toPaperDoc(doc: DocumentSummaryDto): PaperDoc {
@@ -13,7 +25,7 @@ export function toPaperDoc(doc: DocumentSummaryDto): PaperDoc {
     id: doc.id,
     title: doc.title,
     type: doc.type,
-    format: doc.format,
+    format: visualFormat(doc),
     semester: doc.semester,
     schoolYear: doc.schoolYear,
     pages: doc.pages,
@@ -39,7 +51,7 @@ export function DocThumb({ doc }: { doc: DocumentSummaryDto }) {
   const paper = useMemo(() => toPaperDoc(doc), [doc]);
   return (
     <div
-      className={cn('thumb', `thumb--${thumbKind(doc.format)}`)}
+      className={cn('thumb', `thumb--${thumbKind(visualFormat(doc))}`)}
       style={{ ['--tc' as string]: tone.c, ['--tt' as string]: tone.t }}
     >
       <span className="thumb-tab">{doc.subject.code}</span>
@@ -51,7 +63,7 @@ export function DocThumb({ doc }: { doc: DocumentSummaryDto }) {
         )}
       </div>
       <span className="thumb-ft">
-        <FileBadge format={doc.format} bytes={doc.fileBytes} />
+        <FileBadge format={doc.format} bytes={doc.fileBytes} linkUrl={doc.linkUrl} />
       </span>
     </div>
   );
@@ -83,7 +95,7 @@ export function Viewer({
   const paper = useMemo(() => toPaperDoc(doc), [doc]);
   const total = doc.pages ?? 3;
   const shown = previewCount(paper);
-  const slides = doc.format === 'PPTX';
+  const slides = visualFormat(doc) === 'PPTX';
   const [current, setCurrent] = useState(0);
   const [zoom, setZoom] = useState(1);
   const scroller = useRef<HTMLDivElement>(null);

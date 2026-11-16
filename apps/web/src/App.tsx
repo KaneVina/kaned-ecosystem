@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { Wordmark } from '@/components/ui/Wordmark';
@@ -14,6 +14,19 @@ import { SubjectsWorkspace } from '@/features/subjects/SubjectsWorkspace';
 import { GpaPage } from '@/features/gpa/GpaPage';
 import { ProfilePage } from '@/features/profile/ProfilePage';
 import { useAuth } from '@/providers/AuthProvider';
+import { STAFF_ROLES } from '@kaned/shared';
+
+// The admin area is its own chunk: students never download it.
+const admin = () => import('@/features/admin');
+const AdminShell = lazy(() => admin().then((m) => ({ default: m.AdminShell })));
+const OverviewPage = lazy(() => admin().then((m) => ({ default: m.OverviewPage })));
+const AdminDocumentsPage = lazy(() => admin().then((m) => ({ default: m.DocumentsPage })));
+const UniversitiesPage = lazy(() => admin().then((m) => ({ default: m.UniversitiesPage })));
+const UniversityDetailPage = lazy(() => admin().then((m) => ({ default: m.UniversityDetailPage })));
+const AdminSubjectsPage = lazy(() => admin().then((m) => ({ default: m.SubjectsPage })));
+const CurriculumPage = lazy(() => admin().then((m) => ({ default: m.CurriculumPage })));
+const UsersPage = lazy(() => admin().then((m) => ({ default: m.UsersPage })));
+const ActivityPage = lazy(() => admin().then((m) => ({ default: m.ActivityPage })));
 
 /** Shown while the refresh cookie is exchanged for a session. */
 function Booting() {
@@ -32,6 +45,14 @@ function RequireAuth({ children }: { children: ReactNode }) {
   const location = useLocation();
   if (initialising) return <Booting />;
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
+  return <>{children}</>;
+}
+
+/** Moderators and admins only; some pages narrow it to admins. */
+function RequireStaff({ adminOnly, children }: { adminOnly?: boolean; children: ReactNode }) {
+  const { user } = useAuth();
+  if (!user || !STAFF_ROLES.includes(user.role)) return <Navigate to="/app" replace />;
+  if (adminOnly && user.role !== 'ADMIN') return <Navigate to="/admin" replace />;
   return <>{children}</>;
 }
 
@@ -66,6 +87,30 @@ export default function App() {
         <Route path="tools/subjects" element={<Navigate to="/app/subjects" replace />} />
         <Route path="tools/planner" element={<Navigate to="/app/subjects" replace />} />
 
+        <Route path="*" element={<NotFoundPage inShell />} />
+      </Route>
+
+      <Route
+        path="/admin"
+        element={
+          <RequireAuth>
+            <RequireStaff>
+              <Suspense fallback={<Booting />}>
+                <AdminShell />
+              </Suspense>
+            </RequireStaff>
+          </RequireAuth>
+        }
+      >
+        <Route index element={<OverviewPage />} />
+        <Route path="documents" element={<AdminDocumentsPage />} />
+        <Route path="universities" element={<RequireStaff adminOnly><UniversitiesPage /></RequireStaff>} />
+        <Route path="universities/:id" element={<RequireStaff adminOnly><UniversityDetailPage /></RequireStaff>} />
+        <Route path="subjects" element={<RequireStaff adminOnly><AdminSubjectsPage /></RequireStaff>} />
+        <Route path="curriculum" element={<RequireStaff adminOnly><CurriculumPage /></RequireStaff>} />
+        <Route path="curriculum/:majorId" element={<RequireStaff adminOnly><CurriculumPage /></RequireStaff>} />
+        <Route path="users" element={<RequireStaff adminOnly><UsersPage /></RequireStaff>} />
+        <Route path="activity" element={<ActivityPage />} />
         <Route path="*" element={<NotFoundPage inShell />} />
       </Route>
 

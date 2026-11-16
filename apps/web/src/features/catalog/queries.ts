@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import type {
+  AcademicTermDto,
   CurriculumDto,
   FacultyDto,
   MajorDto,
@@ -66,5 +67,15 @@ export function useSubject(idOrCode?: string) {
     queryKey: queryKeys.subject(idOrCode ?? ''),
     queryFn: async () => (await http.get<SubjectDetailDto>(`/catalog/subjects/${idOrCode}`)).data,
     enabled: Boolean(idOrCode),
+  });
+}
+
+/** A university's own terms ("Fall 2025", "HK1 2025–2026"), newest first. */
+export function useTerms(universityId?: string) {
+  return useQuery({
+    queryKey: ['catalog', 'terms', universityId ?? ''],
+    queryFn: async () => (await http.get<AcademicTermDto[]>(`/catalog/universities/${universityId}/terms`)).data,
+    enabled: Boolean(universityId),
+    staleTime: 10 * 60_000,
   });
 }

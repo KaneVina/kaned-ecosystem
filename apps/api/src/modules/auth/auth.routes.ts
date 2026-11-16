@@ -6,6 +6,7 @@ import {
   updateProfileSchema,
 } from '@kaned/shared';
 import { validateBody } from '../../middleware/validate.js';
+import { idempotent } from '../../middleware/idempotency.js';
 import { requireAuth } from '../../middleware/auth.js';
 import { authLimiter } from '../../middleware/rateLimit.js';
 import { clearRefreshCookie, REFRESH_COOKIE, setRefreshCookie } from '../../lib/cookies.js';
@@ -58,6 +59,6 @@ authRouter.get('/me', requireAuth, async (req, res) => {
   res.json(await service.currentUser(req.user!.id));
 });
 
-authRouter.patch('/me', requireAuth, validateBody(updateProfileSchema), async (req, res) => {
+authRouter.patch('/me', requireAuth, idempotent(), validateBody(updateProfileSchema), async (req, res) => {
   res.json(await updateProfile(req.user!.id, req.body));
 });

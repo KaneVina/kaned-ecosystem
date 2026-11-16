@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { MAX_UPLOAD_BYTES, uploadSignatureSchema } from '@kaned/shared';
+import { idempotentWrites } from '../../middleware/idempotency.js';
 import { requireAuth } from '../../middleware/auth.js';
 import { validateBody } from '../../middleware/validate.js';
 import { storage } from '../../lib/storage.js';
@@ -14,7 +15,7 @@ const upload = multer({
   limits: { fileSize: MAX_UPLOAD_BYTES },
 });
 
-uploadsRouter.use(requireAuth);
+uploadsRouter.use(requireAuth, idempotentWrites());
 
 /**
  * Preferred path: the browser asks for a signature and sends the file straight

@@ -1,0 +1,9 @@
+export { AdminShell } from './AdminShell';
+export { OverviewPage } from './OverviewPage';
+export { DocumentsPage } from './DocumentsPage';
+export { UniversitiesPage } from './UniversitiesPage';
+export { UniversityDetailPage } from './UniversityDetailPage';
+export { SubjectsPage } from './SubjectsPage';
+export { CurriculumPage } from './CurriculumPage';
+export { UsersPage } from './UsersPage';
+export { ActivityPage } from './ActivityPage';

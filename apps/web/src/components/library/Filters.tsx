@@ -4,6 +4,7 @@ import {
   DOCUMENT_TYPES,
   DOCUMENT_TYPE_LABELS,
   FILE_FORMATS,
+  FILE_FORMAT_LABELS,
   SEMESTERS,
   SEMESTER_LABELS,
   STUDY_YEARS,
@@ -191,7 +192,7 @@ export function Filters({
                   onClick={() => set({ format: toggle(filters.format, f) })}
                 >
                   <i className={`fdot fdot-${f.toLowerCase()}`} />
-                  {f}
+                  {f === 'LINK' ? FILE_FORMAT_LABELS.LINK : f}
                   <span className="count">{n(facets?.format, f)}</span>
                 </button>
               ))}

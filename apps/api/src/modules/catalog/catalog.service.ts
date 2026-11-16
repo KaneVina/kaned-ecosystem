@@ -168,7 +168,8 @@ async function documentCountsFor(subjectIds: string[]) {
 /** Everything the "subject information" tool shows on one screen. */
 export async function getSubject(idOrCode: string): Promise<SubjectDetailDto> {
   const subject = await db.query.subjects.findFirst({
-    where: or(eq(subjects.id, idOrCode), eq(subjects.code, idOrCode.toUpperCase())),
+    // Codes keep their case (SWE201c) but people type them any way.
+    where: or(eq(subjects.id, idOrCode), sql`lower(${subjects.code}) = lower(${idOrCode})`),
     with: {
       university: true,
       prerequisites: { with: { requires: { with: subjectWith } } },

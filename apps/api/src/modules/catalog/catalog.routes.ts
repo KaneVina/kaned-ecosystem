@@ -2,11 +2,17 @@ import { Router } from 'express';
 import { subjectQuerySchema, type SubjectQuery } from '@kaned/shared';
 import { parsedQuery, validateQuery } from '../../middleware/validate.js';
 import * as service from './catalog.service.js';
+import { listTerms } from '../admin/institutions.service.js';
 
 export const catalogRouter = Router();
 
 catalogRouter.get('/universities', async (_req, res) => {
   res.json(await service.listUniversities());
+});
+
+/** A university's own terms ("Fall 2025", "HK1 2025–2026"), newest first. */
+catalogRouter.get('/universities/:id/terms', async (req, res) => {
+  res.json(await listTerms(req.params.id));
 });
 
 catalogRouter.get('/faculties', async (req, res) => {

@@ -53,6 +53,8 @@ const client =
     connect_timeout: 15,
     ssl: needsTls(env.DATABASE_URL) ? 'require' : false,
     prepare: !pooled,
+    // "already exists, skipping" notices from re-run migrations are not news.
+    onnotice: () => {},
   });
 
 if (!env.isProd) globalForDb.sql = client;

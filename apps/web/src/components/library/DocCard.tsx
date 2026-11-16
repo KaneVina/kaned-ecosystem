@@ -118,7 +118,7 @@ export function DocRow({ doc, onToggleBookmark, onPreview, onDownload }: CardPro
             Năm {doc.year}, {semesterVi(doc.semester)}
           </span>
           <span>
-            <FileBadge format={doc.format} bytes={doc.fileBytes} />
+            <FileBadge format={doc.format} bytes={doc.fileBytes} linkUrl={doc.linkUrl} />
           </span>
           <span className="row-user">
             <Avatar name={doc.uploader.name} src={doc.uploader.avatarUrl} size="xs" />

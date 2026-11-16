@@ -26,6 +26,7 @@ export const documentWith = {
   subject: { with: subjectWith },
   uploader: { with: userWith },
   tags: { with: { tag: true } },
+  term: true,
 } as const;
 
 /* ------------------------------------------------------------- row shapes */
@@ -83,6 +84,8 @@ interface DocumentLike {
   university: UniversityLike & Record<string, unknown>;
   uploader: UserLike;
   tags: Array<{ tag: { name: string } }>;
+  fileUrl: string;
+  term?: { id: string; code: string; name: string } | null;
 }
 
 /* --------------------------------------------------------------- mappers */
@@ -178,6 +181,8 @@ export function toDocumentSummary(
     university: brief(row.university),
     uploader: toUserSummary(row.uploader),
     tags: row.tags.map((t) => t.tag.name),
+    linkUrl: row.format === 'LINK' ? row.fileUrl : null,
+    term: row.term ? { id: row.term.id, code: row.term.code, name: row.term.name } : null,
     isBookmarked: opts.isBookmarked,
   };
 }
@@ -217,6 +222,7 @@ export function toMajor(
     facultyId: string;
     totalCredits: number;
     passMark?: number;
+    termCount?: number;
     faculty?: { id: string; name: string; nameVi: string; universityId: string } | null;
   },
   subjectCount?: number,
@@ -229,6 +235,7 @@ export function toMajor(
     facultyId: row.facultyId,
     totalCredits: row.totalCredits,
     passMark: row.passMark,
+    termCount: row.termCount,
     faculty: row.faculty ?? undefined,
     subjectCount,
   };

@@ -17,6 +17,8 @@ import {
   type CurriculumEntry,
 } from './curricula/fptu-se.js';
 import {
+  academicTerms,
+  appMeta,
   documentTags,
   documents,
   faculties,
@@ -168,7 +170,7 @@ const slugify = (input: string) =>
 async function seedCurriculum(
   universityId: string,
   faculty: { code: string; name: string; nameVi: string },
-  major: { code: string; name: string; nameVi: string; totalCredits: number; passMark: number },
+  major: { code: string; name: string; nameVi: string; totalCredits: number; passMark: number; termCount: number },
   list: CurriculumEntry[],
   renames: Record<string, string> = {},
 ) {
@@ -191,6 +193,7 @@ async function seedCurriculum(
         nameVi: major.nameVi,
         totalCredits: major.totalCredits,
         passMark: major.passMark,
+        termCount: major.termCount,
       },
     })
     .returning({ id: majors.id });
@@ -303,7 +306,75 @@ function reportUnknownCodes(label: string, list: CurriculumEntry[]) {
   }
 }
 
+/**
+ * Bump when the demo content changes. The content is loaded once per version,
+ * so running setup again does not undo what admins changed in the dashboard.
+ */
+const SEED_VERSION = '3';
+const FORCE = process.argv.includes('--force');
+
+const ADMIN = { email: 'admin@kaned.vn', name: 'Kaned' };
+
+/** Each school names its terms its own way; dates are the published calendars, rounded. */
+function termsFor(code: string) {
+  if (code === 'FPTU') {
+    return [
+      { code: 'FA25', name: 'Fall 2025', schoolYear: '2025–2026', semester: 'S1', startsOn: '2025-09-08', endsOn: '2025-12-27' },
+      { code: 'SP26', name: 'Spring 2026', schoolYear: '2025–2026', semester: 'S2', startsOn: '2026-01-05', endsOn: '2026-04-25' },
+      { code: 'SU26', name: 'Summer 2026', schoolYear: '2025–2026', semester: 'SUMMER', startsOn: '2026-05-04', endsOn: '2026-08-22' },
+      { code: 'FA26', name: 'Fall 2026', schoolYear: '2026–2027', semester: 'S1', startsOn: '2026-09-07', endsOn: '2026-12-26' },
+      { code: 'SP27', name: 'Spring 2027', schoolYear: '2026–2027', semester: 'S2', startsOn: '2027-01-04', endsOn: '2027-04-24' },
+    ] as const;
+  }
+  return [
+    { code: 'HK251', name: 'Học kỳ 1, 2025–2026', schoolYear: '2025–2026', semester: 'S1', startsOn: '2025-09-01', endsOn: '2026-01-10' },
+    { code: 'HK252', name: 'Học kỳ 2, 2025–2026', schoolYear: '2025–2026', semester: 'S2', startsOn: '2026-02-02', endsOn: '2026-06-13' },
+    { code: 'HK253', name: 'Học kỳ hè 2026', schoolYear: '2025–2026', semester: 'SUMMER', startsOn: '2026-06-22', endsOn: '2026-08-08' },
+    { code: 'HK261', name: 'Học kỳ 1, 2026–2027', schoolYear: '2026–2027', semester: 'S1', startsOn: '2026-08-31', endsOn: '2027-01-09' },
+  ] as const;
+}
+
+async function ensureBasics(universityIds: Record<string, string>) {
+  console.log('→ academic terms');
+  for (const [code, universityId] of Object.entries(universityIds)) {
+    for (const term of termsFor(code)) {
+      await db.insert(academicTerms).values({ ...term, universityId }).onConflictDoNothing();
+    }
+  }
+  // File older documents under the matching term of their university.
+  await db.execute(sql`
+    update ${documents} d set academic_term_id = t.id
+    from ${academicTerms} t
+    where d.academic_term_id is null
+      and t.university_id = d.university_id
+      and t.school_year = d.school_year
+      and t.semester = d.semester`);
+
+  console.log('→ admin account');
+  const passwordHash = await bcrypt.hash('kaned2026', 12);
+  // Created once; an admin who changes the role or password later keeps it.
+  await db
+    .insert(users)
+    .values({ email: ADMIN.email, name: ADMIN.name, passwordHash, role: 'ADMIN' })
+    .onConflictDoNothing({ target: users.email });
+}
+
 async function main() {
+  const existing = await db.query.appMeta.findFirst({ where: eq(appMeta.key, 'seed_version') });
+  if (existing?.value === SEED_VERSION && !FORCE) {
+    const rows = await db.select({ id: universities.id, code: universities.code }).from(universities);
+    await ensureBasics(Object.fromEntries(rows.map((r) => [r.code, r.id])));
+    console.log(`
+Demo content version ${SEED_VERSION} is already loaded, so it was left alone —
+changes made in the admin dashboard are kept. To reload it anyway:
+  npm run db:seed -- --force
+
+  Student: ngoc.tb@fpt.edu.vn / kaned2026
+  Admin:   ${ADMIN.email} / kaned2026
+`);
+    return;
+  }
+
   console.log('→ universities');
   const universityIds: Record<string, string> = {};
   for (const u of UNIVERSITIES) {
@@ -325,6 +396,7 @@ async function main() {
       nameVi: 'Kỹ thuật phần mềm',
       totalCredits: FPTU_SE.filter((s) => !s.choiceGroup).reduce((n, s) => n + s.credits, 0) + 10,
       passMark: FPTU_SE_PASS_MARK,
+      termCount: Math.max(...FPTU_SE.map((s) => s.termNo)),
     },
     FPTU_SE,
     FPTU_SE_RENAMES,
@@ -335,7 +407,7 @@ async function main() {
   const cs = await seedCurriculum(
     universityIds.HCMUT,
     { code: 'CSE', name: 'Computer Science and Engineering', nameVi: 'Khoa học và Kỹ thuật Máy tính' },
-    { code: 'CS', name: 'Computer Science', nameVi: 'Khoa học máy tính', totalCredits: 142, passMark: 4 },
+    { code: 'CS', name: 'Computer Science', nameVi: 'Khoa học máy tính', totalCredits: 142, passMark: 4, termCount: 8 },
     CS_CURRICULUM,
   );
 
@@ -449,6 +521,12 @@ async function main() {
     await db.insert(grades).values({ userId: demoUser, subjectId, score10: score, termNo, inProgress });
   }
 
+  await ensureBasics(universityIds);
+  await db
+    .insert(appMeta)
+    .values({ key: 'seed_version', value: SEED_VERSION })
+    .onConflictDoUpdate({ target: appMeta.key, set: { value: SEED_VERSION } });
+
   const [[u], [s], [p], [d], [usr]] = await Promise.all([
     db.select({ n: sql<number>`count(*)::int` }).from(universities),
     db.select({ n: sql<number>`count(*)::int` }).from(subjects),
@@ -465,7 +543,8 @@ Seed complete.
   documents     ${d.n}
   users         ${usr.n}
 
-  Demo sign-in:  ngoc.tb@fpt.edu.vn / kaned2026
+  Student: ngoc.tb@fpt.edu.vn / kaned2026
+  Admin:   ${ADMIN.email} / kaned2026  →  /admin
 `);
 }
 

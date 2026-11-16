@@ -1,12 +1,13 @@
 import { Router } from 'express';
 import { plannerQuerySchema, saveGradesSchema, type PlannerQuery } from '@kaned/shared';
+import { idempotentWrites } from '../../middleware/idempotency.js';
 import { requireAuth } from '../../middleware/auth.js';
 import { parsedQuery, validateBody, validateQuery } from '../../middleware/validate.js';
 import * as service from './grades.service.js';
 
 export const gradesRouter = Router();
 
-gradesRouter.use(requireAuth);
+gradesRouter.use(requireAuth, idempotentWrites());
 
 gradesRouter.get('/', async (req, res) => {
   res.json(await service.listGrades(req.user!.id));

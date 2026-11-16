@@ -27,8 +27,29 @@ export const http: AxiosInstance = axios.create({
   timeout: 20_000,
 });
 
+/** A fresh Idempotency-Key. crypto.randomUUID needs a secure context, so there is a fallback. */
+export function newIdempotencyKey(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Pass a key you keep across retries of the same action (see useIdempotencyKey). */
+export const withKey = (key: string) => ({ headers: { 'Idempotency-Key': key } });
+
+const WRITE_METHODS = new Set(['post', 'put', 'patch', 'delete']);
+// Session endpoints hand out tokens and are not replayed; everything else that writes is.
+const SESSION_PATHS = ['/auth/login', '/auth/register', '/auth/google', '/auth/refresh', '/auth/logout'];
+
 http.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`;
+  const method = (config.method ?? 'get').toLowerCase();
+  const url = config.url ?? '';
+  if (WRITE_METHODS.has(method) && !SESSION_PATHS.some((p) => url.startsWith(p)) && !config.headers['Idempotency-Key']) {
+    // One key per request object: the 401 → refresh → retry path reuses it.
+    config.headers['Idempotency-Key'] = newIdempotencyKey();
+  }
   return config;
 });
 
@@ -61,6 +82,17 @@ http.interceptors.response.use(
     const path = original?.url ?? '';
 
     const isAuthCall = path.includes('/auth/refresh') || path.includes('/auth/login');
+
+    // The same Idempotency-Key is still being processed (a double click, or a
+    // retry that overtook the first try). Wait as told and ask again: the
+    // server then replays the first result instead of acting twice.
+    const retries = (original as { _idemRetries?: number })._idemRetries ?? 0;
+    if (status === 409 && error.response?.data?.error?.code === 'IDEMPOTENCY_KEY_IN_PROGRESS' && original && retries < 5) {
+      (original as { _idemRetries?: number })._idemRetries = retries + 1;
+      const after = Number(error.response.headers?.['retry-after']) || 1;
+      await new Promise((r) => setTimeout(r, Math.min(after, 5) * 1000));
+      return http(original);
+    }
 
     if (status === 401 && original && !original._retried && !isAuthCall) {
       original._retried = true;

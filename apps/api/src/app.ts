@@ -25,6 +25,8 @@ export function createApp() {
         callback(new Error(`Origin ${origin} is not allowed by CORS`));
       },
       credentials: true,
+      allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key'],
+      exposedHeaders: ['Idempotent-Replayed', 'Retry-After'],
     }),
   );
   app.use(compression());

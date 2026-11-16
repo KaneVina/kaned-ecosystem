@@ -11,6 +11,7 @@ import { relations, sql } from 'drizzle-orm';
 import type { Requirement } from '@kaned/shared';
 import {
   boolean,
+  date,
   doublePrecision,
   index,
   integer,
@@ -38,7 +39,8 @@ export const documentTypeEnum = pgEnum('document_type', [
   'BOOK',
   'REPORT',
 ]);
-export const fileFormatEnum = pgEnum('file_format', ['PDF', 'DOCX', 'PPTX', 'XLSX']);
+/** LINK: the document is a URL (Google Slides, Canva, YouTube…) instead of an uploaded file. */
+export const fileFormatEnum = pgEnum('file_format', ['PDF', 'DOCX', 'PPTX', 'XLSX', 'LINK']);
 export const documentStatusEnum = pgEnum('document_status', [
   'PENDING',
   'PUBLISHED',
@@ -104,6 +106,8 @@ export const majors = pgTable(
     totalCredits: integer('total_credits').notNull().default(145),
     /** Score a subject needs to count as passed. FPT University uses 5.0. */
     passMark: real('pass_mark').notNull().default(5),
+    /** Terms in the programme (Kỳ 1…N). A term can exist before it has subjects. */
+    termCount: integer('term_count').notNull().default(8),
     facultyId: text('faculty_id')
       .notNull()
       .references(() => faculties.id, { onDelete: 'cascade' }),
@@ -111,6 +115,31 @@ export const majors = pgTable(
   },
   (t) => ({
     uniqueCode: uniqueIndex('majors_faculty_code_idx').on(t.facultyId, t.code),
+  }),
+);
+
+/**
+ * A school's own calendar terms: "Fall 2025", "HK1 2025–2026", "Học kỳ hè 2026".
+ * Each maps onto the shared (schoolYear, semester) pair the library filters on,
+ * so universities can name and date their terms however they like.
+ */
+export const academicTerms = pgTable(
+  'academic_terms',
+  {
+    id: id(),
+    universityId: text('university_id')
+      .notNull()
+      .references(() => universities.id, { onDelete: 'cascade' }),
+    code: varchar('code', { length: 16 }).notNull(),
+    name: text('name').notNull(),
+    schoolYear: varchar('school_year', { length: 20 }).notNull(),
+    semester: semesterEnum('semester').notNull(),
+    startsOn: date('starts_on'),
+    endsOn: date('ends_on'),
+    createdAt: createdAt(),
+  },
+  (t) => ({
+    uniqueCode: uniqueIndex('academic_terms_university_code_idx').on(t.universityId, t.code),
   }),
 );
 
@@ -261,6 +290,7 @@ export const documents = pgTable(
     year: integer('year').notNull(),
     semester: semesterEnum('semester').notNull(),
     schoolYear: varchar('school_year', { length: 20 }),
+    academicTermId: text('academic_term_id').references(() => academicTerms.id, { onDelete: 'set null' }),
 
     universityId: text('university_id')
       .notNull()
@@ -403,10 +433,68 @@ export const grades = pgTable(
   }),
 );
 
+/* ─────────────────────────────── admin ──────────────────────────────── */
+
+/** What admins changed and when — the dashboard's activity feed. */
+export const adminActivity = pgTable(
+  'admin_activity',
+  {
+    id: id(),
+    actorId: text('actor_id').references(() => users.id, { onDelete: 'set null' }),
+    /** create | update | delete | publish | reject | remove | role */
+    action: varchar('action', { length: 24 }).notNull(),
+    /** university | faculty | major | term | subject | curriculum | document | user */
+    entity: varchar('entity', { length: 24 }).notNull(),
+    entityId: text('entity_id'),
+    summary: text('summary').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => ({
+    createdIdx: index('admin_activity_created_idx').on(t.createdAt),
+  }),
+);
+
+/**
+ * Idempotency-Key ledger. A state-changing request carries a client-chosen
+ * key; the first request with that key runs and its response is kept here, and
+ * any repeat (a double click, a retry after a dropped connection) gets the
+ * same response back instead of running twice. Keys are per caller and expire.
+ */
+export const idempotencyKeys = pgTable(
+  'idempotency_keys',
+  {
+    /** The caller: a user id, or "ip:<address>" for anonymous calls. */
+    scope: varchar('scope', { length: 80 }).notNull(),
+    key: varchar('key', { length: 255 }).notNull(),
+    method: varchar('method', { length: 8 }).notNull(),
+    path: text('path').notNull(),
+    /** sha256 of method, path and body: the same key must mean the same request. */
+    requestHash: varchar('request_hash', { length: 64 }).notNull(),
+    /** processing while the first request runs, then done. */
+    state: varchar('state', { length: 12 }).notNull().default('processing'),
+    responseStatus: integer('response_status'),
+    responseBody: jsonb('response_body'),
+    createdAt: createdAt(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.scope, t.key] }),
+    expiresIdx: index('idempotency_keys_expires_idx').on(t.expiresAt),
+  }),
+);
+
+/** Small key/value store for the app itself, e.g. which seed version ran. */
+export const appMeta = pgTable('app_meta', {
+  key: varchar('key', { length: 64 }).primaryKey(),
+  value: text('value').notNull(),
+  updatedAt: updatedAt(),
+});
+
 /* ─────────────────────────────── relations ──────────────────────────── */
 
 export const universityRelations = relations(universities, ({ many }) => ({
   faculties: many(faculties),
+  terms: many(academicTerms),
   subjects: many(subjects),
   documents: many(documents),
   users: many(users),
@@ -438,6 +526,18 @@ export const subjectRelations = relations(subjects, ({ one, many }) => ({
   grades: many(grades),
   prerequisites: many(subjectPrerequisites, { relationName: 'subjectRequires' }),
   unlocks: many(subjectPrerequisites, { relationName: 'subjectUnlocks' }),
+}));
+
+export const academicTermRelations = relations(academicTerms, ({ one, many }) => ({
+  university: one(universities, {
+    fields: [academicTerms.universityId],
+    references: [universities.id],
+  }),
+  documents: many(documents),
+}));
+
+export const adminActivityRelations = relations(adminActivity, ({ one }) => ({
+  actor: one(users, { fields: [adminActivity.actorId], references: [users.id] }),
 }));
 
 export const majorSubjectRelations = relations(majorSubjects, ({ one }) => ({
@@ -475,6 +575,7 @@ export const documentRelations = relations(documents, ({ one, many }) => ({
   }),
   subject: one(subjects, { fields: [documents.subjectId], references: [subjects.id] }),
   uploader: one(users, { fields: [documents.uploaderId], references: [users.id] }),
+  term: one(academicTerms, { fields: [documents.academicTermId], references: [academicTerms.id] }),
   tags: many(documentTags),
   reviews: many(reviews),
   bookmarks: many(bookmarks),
@@ -525,3 +626,5 @@ export type SubjectRow = typeof subjects.$inferSelect;
 export type UniversityRow = typeof universities.$inferSelect;
 export type MajorRow = typeof majors.$inferSelect;
 export type GradeRow = typeof grades.$inferSelect;
+export type AcademicTermRow = typeof academicTerms.$inferSelect;
+export type FacultyRow = typeof faculties.$inferSelect;

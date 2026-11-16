@@ -106,10 +106,13 @@ export const createDocumentSchema = z.object({
   schoolYear: z.string().trim().max(20).optional(),
   tags: z.array(z.string().trim().min(1).max(40)).max(8).default([]),
   language: z.string().trim().max(30).default('Vietnamese'),
-  // Returned by Cloudinary after a direct browser upload.
-  fileUrl: z.string().url('The upload did not return a file URL.'),
-  filePublicId: z.string().min(1),
-  fileBytes: z.coerce.number().int().min(1).max(MAX_UPLOAD_BYTES),
+  /** Which of the university's own terms this is from; fills semester and school year. */
+  academicTermId: z.string().uuid().nullish(),
+  // A file returned by Cloudinary after a direct browser upload, or, with
+  // format LINK, the address of a document hosted elsewhere (no public id, 0 bytes).
+  fileUrl: z.string().trim().url('Dán một liên kết hợp lệ, bắt đầu bằng https://').max(2000),
+  filePublicId: z.string().max(300).default(''),
+  fileBytes: z.coerce.number().int().min(0).max(MAX_UPLOAD_BYTES).default(0),
   pages: z.coerce.number().int().min(1).max(5000).optional(),
   thumbnailUrl: z.string().url().optional().nullable(),
 });

@@ -15,6 +15,13 @@
       "when": 1794756874575,
       "tag": "0001_curriculum_rules",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794803930869,
+      "tag": "0002_admin_terms_links_idempotency",
+      "breakpoints": true
     }
   ]
 }

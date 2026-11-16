@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { adminRouter } from './modules/admin/admin.routes.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { catalogRouter } from './modules/catalog/catalog.routes.js';
 import { documentsRouter } from './modules/documents/documents.routes.js';
@@ -12,6 +13,7 @@ import { usersRouter } from './modules/users/users.routes.js';
  */
 export const api = Router();
 
+api.use('/admin', adminRouter);
 api.use('/auth', authRouter);
 api.use('/catalog', catalogRouter);
 api.use('/documents', documentsRouter);
