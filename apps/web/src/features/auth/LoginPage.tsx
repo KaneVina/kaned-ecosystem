@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Eye, EyeOff, Lightbulb } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { loginSchema, type LoginInput } from '@kaned/shared';
 import { AuthLayout, FloatField } from './AuthLayout';
 import { ProviderButtons } from './ProviderButtons';
@@ -92,21 +92,6 @@ export function LoginPage() {
           </button>
         </div>
 
-        <div className="demo-hint">
-          <Lightbulb className="ic ic-sm" />
-          <span>
-            Tài khoản demo: <b>ngoc.tb@fpt.edu.vn</b> / <b>kaned2026</b>
-          </span>
-          <button
-            type="button"
-            onClick={() => {
-              form.setValue('email', 'ngoc.tb@fpt.edu.vn', { shouldValidate: true });
-              form.setValue('password', 'kaned2026', { shouldValidate: true });
-            }}
-          >
-            Điền sẵn
-          </button>
-        </div>
 
         <ProviderButtons next={redirectTo} />
 
