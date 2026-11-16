@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "installCommand": "npm install --no-audit --no-fund",
+  "installCommand": "npm install --include=dev --no-audit --no-fund",
   "buildCommand": "npm run build --workspace @kaned/shared && npm run build --workspace @kaned/api && npm run build --workspace @kaned/web",
   "outputDirectory": "apps/web/dist",
   "functions": { "api/index.js": { "maxDuration": 30 } },
