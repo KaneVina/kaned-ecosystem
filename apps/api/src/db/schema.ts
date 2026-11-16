@@ -10,6 +10,7 @@
 import { relations, sql } from 'drizzle-orm';
 import type { Requirement } from '@kaned/shared';
 import {
+  type AnyPgColumn,
   boolean,
   date,
   doublePrecision,
@@ -177,6 +178,29 @@ export const subjects = pgTable(
   }),
 );
 
+/**
+ * Folders inside a subject, so a subject's documents can be grouped:
+ * "Đề thi" → "Giữa kỳ", "Cuối kỳ". Folders nest (parentId) up to a few levels
+ * and keep the order admins give them (position).
+ */
+export const subjectFolders = pgTable(
+  'subject_folders',
+  {
+    id: id(),
+    subjectId: text('subject_id')
+      .notNull()
+      .references(() => subjects.id, { onDelete: 'cascade' }),
+    parentId: text('parent_id').references((): AnyPgColumn => subjectFolders.id, { onDelete: 'cascade' }),
+    name: varchar('name', { length: 80 }).notNull(),
+    position: integer('position').notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => ({
+    subjectIdx: index('subject_folders_subject_idx').on(t.subjectId),
+    parentIdx: index('subject_folders_parent_idx').on(t.parentId),
+  }),
+);
+
 /** Which subjects a major takes, and in which term. */
 export const majorSubjects = pgTable(
   'major_subjects',
@@ -291,6 +315,8 @@ export const documents = pgTable(
     semester: semesterEnum('semester').notNull(),
     schoolYear: varchar('school_year', { length: 20 }),
     academicTermId: text('academic_term_id').references(() => academicTerms.id, { onDelete: 'set null' }),
+    /** Optional folder inside the subject; deleting a folder moves its documents up (service) or out. */
+    folderId: text('folder_id').references(() => subjectFolders.id, { onDelete: 'set null' }),
 
     universityId: text('university_id')
       .notNull()
@@ -317,6 +343,7 @@ export const documents = pgTable(
     typeIdx: index('documents_type_idx').on(t.type),
     downloadsIdx: index('documents_downloads_idx').on(t.downloads),
     statusCreatedIdx: index('documents_status_created_idx').on(t.status, t.createdAt),
+    folderIdx: index('documents_folder_idx').on(t.folderId),
   }),
 );
 
@@ -528,6 +555,11 @@ export const subjectRelations = relations(subjects, ({ one, many }) => ({
   unlocks: many(subjectPrerequisites, { relationName: 'subjectUnlocks' }),
 }));
 
+export const subjectFolderRelations = relations(subjectFolders, ({ one, many }) => ({
+  subject: one(subjects, { fields: [subjectFolders.subjectId], references: [subjects.id] }),
+  documents: many(documents),
+}));
+
 export const academicTermRelations = relations(academicTerms, ({ one, many }) => ({
   university: one(universities, {
     fields: [academicTerms.universityId],
@@ -576,6 +608,7 @@ export const documentRelations = relations(documents, ({ one, many }) => ({
   subject: one(subjects, { fields: [documents.subjectId], references: [subjects.id] }),
   uploader: one(users, { fields: [documents.uploaderId], references: [users.id] }),
   term: one(academicTerms, { fields: [documents.academicTermId], references: [academicTerms.id] }),
+  folder: one(subjectFolders, { fields: [documents.folderId], references: [subjectFolders.id] }),
   tags: many(documentTags),
   reviews: many(reviews),
   bookmarks: many(bookmarks),
@@ -628,3 +661,4 @@ export type MajorRow = typeof majors.$inferSelect;
 export type GradeRow = typeof grades.$inferSelect;
 export type AcademicTermRow = typeof academicTerms.$inferSelect;
 export type FacultyRow = typeof faculties.$inferSelect;
+export type SubjectFolderRow = typeof subjectFolders.$inferSelect;

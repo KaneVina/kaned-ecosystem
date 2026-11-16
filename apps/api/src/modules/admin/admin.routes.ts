@@ -13,6 +13,9 @@ import {
   documentBulkSchema,
   DOCUMENT_STATUSES,
   facultyInputSchema,
+  folderInputSchema,
+  folderUpdateSchema,
+  moveDocumentsSchema,
   facultyUpdateSchema,
   majorInputSchema,
   majorUpdateSchema,
@@ -32,6 +35,7 @@ import * as institutions from './institutions.service.js';
 import * as subjects from './subjects.service.js';
 import * as docs from './documents.service.js';
 import * as people from './people.service.js';
+import * as folders from './folders.service.js';
 import { getCurriculum } from '../catalog/catalog.service.js';
 
 /**
@@ -149,6 +153,22 @@ adminRouter.delete('/subjects/:id', adminOnly, async (req, res) => {
   await subjects.deleteSubject(actor(req), req.params.id);
   res.status(204).end();
 });
+
+/* folders inside a subject — moderators too, they organise documents */
+adminRouter.get('/subjects/:id/folders', async (req, res) => res.json(await folders.listFolders(req.params.id)));
+adminRouter.post('/folders', validateBody(folderInputSchema), async (req, res) =>
+  res.status(201).json(await folders.createFolder(actor(req), req.body)),
+);
+adminRouter.patch('/folders/:id', validateBody(folderUpdateSchema), async (req, res) =>
+  res.json(await folders.updateFolder(actor(req), req.params.id, req.body)),
+);
+adminRouter.delete('/folders/:id', async (req, res) => {
+  await folders.deleteFolder(actor(req), req.params.id);
+  res.status(204).end();
+});
+adminRouter.post('/documents/move', validateBody(moveDocumentsSchema), async (req, res) =>
+  res.json(await folders.moveDocuments(actor(req), req.body)),
+);
 
 /* documents — moderators too */
 adminRouter.get('/documents', validateQuery(adminDocumentQuerySchema), async (_req, res) =>

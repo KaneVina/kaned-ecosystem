@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, ilike, inArray, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, count, desc, eq, ilike, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
 import {
   DOCUMENT_STATUSES,
   isWebUrl,
@@ -34,6 +34,8 @@ function filtersFor(query: Omit<AdminDocumentQuery, 'status' | 'page' | 'pageSiz
   if (query.subjectId) filters.push(eq(documents.subjectId, query.subjectId));
   if (query.type) filters.push(eq(documents.type, query.type));
   if (query.format) filters.push(eq(documents.format, query.format));
+  if (query.folderId === 'none') filters.push(isNull(documents.folderId));
+  else if (query.folderId) filters.push(eq(documents.folderId, query.folderId));
   if (query.q) {
     const q = `%${query.q.trim()}%`;
     const folded = `%${foldVietnamese(query.q)}%`;

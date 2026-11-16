@@ -162,6 +162,8 @@ export interface DocumentSummaryDto {
   linkUrl: string | null;
   /** The university's own name for the term, e.g. "Spring 2026". */
   term: { id: string; code: string; name: string } | null;
+  /** Folder inside the subject, e.g. "Đề thi". */
+  folder: { id: string; name: string } | null;
   isBookmarked?: boolean;
 }
 
@@ -219,4 +221,15 @@ export interface UploadSignatureDto {
   /** When Cloudinary is not configured the API answers with a local fallback. */
   mode: 'cloudinary' | 'local';
   uploadUrl: string;
+}
+
+/** A folder inside a subject. The list is flat; parentId builds the tree. */
+export interface FolderDto {
+  id: string;
+  subjectId: string;
+  parentId: string | null;
+  name: string;
+  position: number;
+  /** Published documents directly inside this folder. */
+  documentCount: number;
 }

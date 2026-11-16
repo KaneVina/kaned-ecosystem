@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { ROLES, ROLE_LABELS, type AdminUserDto, type Role } from '@kaned/shared';
 import { Avatar } from '@/components/ui/Avatar';
-import { EmptyState } from '@/components/ui/Feedback';
 import { useAuth } from '@/providers/AuthProvider';
 import { useToast } from '@/providers/ToastProvider';
 import { toApiError } from '@/lib/api';
 import { fmtDate, fmtInt } from '@/lib/format';
 import { cn } from '@/lib/cn';
 import { useSetRole, useUniversitiesAdmin, useUsersAdmin } from './api';
-import { AdminHead, ConfirmDialog, EmptyRow, Pager, RoleBadge, SearchBox, TableSkeleton, useDebounced, type ConfirmState } from './ui';
+import { AdminHead, ConfirmDialog, EmptyBlock, EmptyRow, Pager, RoleBadge, SearchBox, Swatch, TableSkeleton, useDebounced, type ConfirmState } from './ui';
+import { SearchX } from 'lucide-react';
 import { useAdminCrumbs } from './AdminShell';
 
 export function UsersPage() {
@@ -53,18 +53,7 @@ export function UsersPage() {
 
   return (
     <>
-      <AdminHead
-        title="Người dùng"
-        description={
-          <>
-            {ROLES.map((r) => (
-              <span key={r} style={{ marginRight: 14 }}>
-                <b style={{ color: 'var(--ink)' }}>{ROLE_LABELS[r].vi}</b>: {ROLE_LABELS[r].hint.toLowerCase()}
-              </span>
-            ))}
-          </>
-        }
-      />
+      <AdminHead title="Người dùng" count={data?.total} description="Quản trị viên sửa được mọi thứ; kiểm duyệt viên chỉ duyệt, sửa và gỡ tài liệu." />
       <section className="adm-panel">
         <div className="adm-toolbar">
           <SearchBox value={q} onChange={setQ} placeholder="Tìm theo tên hoặc email…" />
@@ -86,7 +75,7 @@ export function UsersPage() {
           </select>
         </div>
         <div className="adm-table-wrap">
-          <table className={cn('adm-table', !isLoading && 'rows-in')}>
+          <table className="adm-table">
             <thead>
               <tr>
                 <th>Người dùng</th>
@@ -100,7 +89,7 @@ export function UsersPage() {
               <TableSkeleton cols={5} />
             ) : !items.length ? (
               <EmptyRow cols={5}>
-                <EmptyState title="Không có người dùng khớp" description="Thử bỏ bộ lọc hoặc tìm bằng từ khác." />
+                <EmptyBlock icon={SearchX} title="Không có người dùng khớp" text="Thử bỏ bộ lọc hoặc tìm bằng từ khác." />
               </EmptyRow>
             ) : (
               <tbody>
@@ -111,7 +100,7 @@ export function UsersPage() {
                         <Avatar name={u.name} src={u.avatarUrl} size="sm" />
                         <div>
                           <span className="cell-title">
-                            {u.name} {u.id === me?.id && <span className="badge badge-gray" style={{ height: 20, marginLeft: 4 }}>Bạn</span>}
+                            {u.name} {u.id === me?.id && <span className="chip-x" style={{ marginLeft: 6 }}>Bạn</span>}
                           </span>
                           <span className="cell-sub">
                             {u.email}
@@ -122,8 +111,8 @@ export function UsersPage() {
                     </td>
                     <td style={{ fontSize: 13.5 }}>
                       {u.university ? (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          <span className="adm-swatch" style={{ background: u.university.color }} />
+                        <span className="cell-dot">
+                          <Swatch color={u.university.color} />
                           {u.university.code}
                           {u.major ? <span className="muted">· {u.major.name}</span> : null}
                           {u.year ? <span className="muted">· năm {u.year}</span> : null}
@@ -133,7 +122,7 @@ export function UsersPage() {
                       )}
                     </td>
                     <td className="num">{fmtInt(u.uploadCount)}</td>
-                    <td style={{ fontSize: 13.5, color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>{fmtDate(u.createdAt)}</td>
+                    <td className="w-date">{fmtDate(u.createdAt)}</td>
                     <td>
                       {u.id === me?.id ? (
                         <RoleBadge role={u.role} />
@@ -159,7 +148,7 @@ export function UsersPage() {
             )}
           </table>
         </div>
-        {data && <Pager page={page} totalPages={data.totalPages} total={data.total} unit="người dùng" onPage={setPage} />}
+        {data && data.total > 0 && <Pager page={page} totalPages={data.totalPages} total={data.total} unit="người dùng" onPage={setPage} />}
       </section>
       <ConfirmDialog state={confirm} onClose={() => setConfirm(null)} />
     </>

@@ -27,7 +27,8 @@ import { useToast } from '@/providers/ToastProvider';
 import { toApiError } from '@/lib/api';
 import { fmtBytes } from '@/lib/format';
 import { cn } from '@/lib/cn';
-import { useCreateDocumentAdmin, useUpdateDocumentAdmin } from './api';
+import { useCreateDocumentAdmin, useFoldersAdmin, useUpdateDocumentAdmin } from './api';
+import { buildFolderTree, flattenTree } from '@/lib/folders';
 import { Sheet } from './ui';
 
 const EXT: Record<string, FileFormat> = { pdf: 'PDF', docx: 'DOCX', pptx: 'PPTX', xlsx: 'XLSX' };
@@ -41,6 +42,7 @@ interface Draft {
   universityId: string;
   subjectId: string;
   academicTermId: string;
+  folderId: string;
   year: string;
   semester: Semester | '';
   schoolYear: string;
@@ -57,6 +59,7 @@ const blank = (): Draft => ({
   universityId: '',
   subjectId: '',
   academicTermId: '',
+  folderId: '',
   year: '1',
   semester: '',
   schoolYear: '2026–2027',
@@ -73,6 +76,7 @@ const fromDoc = (d: AdminDocumentDto): Draft => ({
   universityId: d.university.id,
   subjectId: d.subject.id,
   academicTermId: d.term?.id ?? '',
+  folderId: d.folder?.id ?? '',
   year: String(d.year),
   semester: d.semester,
   schoolYear: d.schoolYear ?? '',
@@ -80,7 +84,13 @@ const fromDoc = (d: AdminDocumentDto): Draft => ({
   status: d.status,
 });
 
-export function DocumentEditor({ doc, open, onClose }: { doc: AdminDocumentDto | null; open: boolean; onClose: () => void }) {
+export interface DocumentDefaults {
+  universityId?: string;
+  subjectId?: string;
+  folderId?: string | null;
+}
+
+export function DocumentEditor({ doc, open, onClose, defaults }: { doc: AdminDocumentDto | null; open: boolean; onClose: () => void; defaults?: DocumentDefaults }) {
   const toast = useToast();
   const editing = Boolean(doc);
   const [draft, setDraft] = useState<Draft>(blank);
@@ -96,14 +106,17 @@ export function DocumentEditor({ doc, open, onClose }: { doc: AdminDocumentDto |
   const { data: universities = [] } = useUniversities();
   const { data: subjectPage } = useSubjects({ universityId: draft.universityId || undefined, pageSize: 200 }, { enabled: Boolean(draft.universityId) });
   const { data: terms = [] } = useTerms(draft.universityId || undefined);
+  const { data: folders = [] } = useFoldersAdmin(draft.subjectId || undefined);
+  const folderOptions = useMemo(() => flattenTree(buildFolderTree(folders)), [folders]);
 
   useEffect(() => {
     if (!open) return;
-    setDraft(doc ? fromDoc(doc) : blank());
+    setDraft(doc ? fromDoc(doc) : { ...blank(), universityId: defaults?.universityId ?? '', subjectId: defaults?.subjectId ?? '', folderId: defaults?.folderId ?? '' });
     setErrors({});
     setFile(null);
     setProgress(null);
     uploaded.current = null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, doc]);
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => {
@@ -138,6 +151,7 @@ export function DocumentEditor({ doc, open, onClose }: { doc: AdminDocumentDto |
       universityId: draft.universityId,
       subjectId: draft.subjectId,
       academicTermId: draft.academicTermId || null,
+      folderId: draft.folderId || null,
       year: draft.year,
       semester: draft.semester || undefined,
       schoolYear: draft.schoolYear || undefined,
@@ -226,7 +240,7 @@ export function DocumentEditor({ doc, open, onClose }: { doc: AdminDocumentDto |
       }
     >
       <section className="sheet-section">
-        <div className="row" style={{ justifyContent: 'space-between', gap: 12 }}>
+        <div className="sheet-section-head">
           <h3>Nguồn</h3>
           {!editing && (
             <div className="seg" role="group" aria-label="Nguồn tài liệu">
@@ -354,7 +368,7 @@ export function DocumentEditor({ doc, open, onClose }: { doc: AdminDocumentDto |
               id="ad-uni"
               className="select"
               value={draft.universityId}
-              onChange={(e) => setDraft((d) => ({ ...d, universityId: e.target.value, subjectId: '', academicTermId: '' }))}
+              onChange={(e) => setDraft((d) => ({ ...d, universityId: e.target.value, subjectId: '', academicTermId: '', folderId: '' }))}
             >
               <option value="">Chọn trường</option>
               {universities.map((u) => (
@@ -365,11 +379,22 @@ export function DocumentEditor({ doc, open, onClose }: { doc: AdminDocumentDto |
             </select>
           </Field>
           <Field label="Môn học" htmlFor="ad-subj" required error={errors.subjectId}>
-            <select id="ad-subj" className="select" value={draft.subjectId} disabled={!draft.universityId} onChange={(e) => set('subjectId', e.target.value)}>
+            <select id="ad-subj" className="select" value={draft.subjectId} disabled={!draft.universityId} onChange={(e) => setDraft((d) => ({ ...d, subjectId: e.target.value, folderId: '' }))}>
               <option value="">{draft.universityId ? 'Chọn môn' : 'Chọn trường trước'}</option>
               {subjects.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.code} — {s.nameVi}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Thư mục" htmlFor="ad-folder" optional error={errors.folderId} hint={draft.subjectId && !folders.length ? 'Môn chưa có thư mục. Tạo ở trang chi tiết môn.' : undefined}>
+            <select id="ad-folder" className="select" value={draft.folderId} disabled={!folders.length} onChange={(e) => set('folderId', e.target.value)}>
+              <option value="">Không thuộc thư mục nào</option>
+              {folderOptions.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {'\u2003'.repeat(f.depth)}
+                  {f.name}
                 </option>
               ))}
             </select>
@@ -412,15 +437,15 @@ export function DocumentEditor({ doc, open, onClose }: { doc: AdminDocumentDto |
 
       <section className="sheet-section">
         <h3>Trạng thái</h3>
-        <div className="pill-radios">
+        <div className="radio-row" role="radiogroup" aria-label="Trạng thái">
           {statuses.map((s) => (
-            <label key={s} className="pill-radio" title={DOCUMENT_STATUS_LABELS[s].hint}>
+            <label key={s} className="radio-tile">
               <input type="radio" name="ad-status" checked={draft.status === s} onChange={() => set('status', s)} />
-              <span>{DOCUMENT_STATUS_LABELS[s].vi}</span>
+              <b>{DOCUMENT_STATUS_LABELS[s].vi}</b>
+              <span>{DOCUMENT_STATUS_LABELS[s].hint}</span>
             </label>
           ))}
         </div>
-        <p className="hint">{DOCUMENT_STATUS_LABELS[draft.status].hint}</p>
       </section>
     </Sheet>
   );

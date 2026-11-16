@@ -39,7 +39,8 @@ import { FileIcon } from "@/components/ui/FileBadge";
 import { DocCard } from "@/components/library/DocCard";
 import { useCreateDocument, uploadToCloudinary } from "./queries";
 import { useIdempotencyKey } from "@/lib/useIdempotencyKey";
-import { useSubjects, useTerms, useUniversities } from "@/features/catalog/queries";
+import { useFolders, useSubjects, useTerms, useUniversities } from "@/features/catalog/queries";
+import { buildFolderTree, flattenTree } from "@/lib/folders";
 import { useAuth } from "@/providers/AuthProvider";
 import { useToast } from "@/providers/ToastProvider";
 import { toApiError } from "@/lib/api";
@@ -59,6 +60,10 @@ const uploadSchema = createDocumentSchema
   .omit({ fileUrl: true, filePublicId: true, fileBytes: true, format: true })
   .extend({
     academicTermId: z
+      .string()
+      .optional()
+      .transform((v) => (v ? v : null)),
+    folderId: z
       .string()
       .optional()
       .transform((v) => (v ? v : null)),
@@ -107,6 +112,7 @@ export function UploadPage() {
       semester: undefined as never,
       schoolYear: "2025–2026",
       academicTermId: "",
+      folderId: "",
       tags: [],
       language: "Vietnamese",
       rights: false,
@@ -132,6 +138,8 @@ export function UploadPage() {
   }, [subjects.length, form]);
   const university = universities.find((u) => u.id === v.universityId);
   const { data: terms = [] } = useTerms(v.universityId || undefined);
+  const { data: folders = [] } = useFolders(v.subjectId || undefined);
+  const folderOptions = flattenTree(buildFolderTree(folders));
   useEffect(() => {
     if (terms.length) form.setValue("academicTermId", form.getValues("academicTermId"));
   }, [terms.length, form]);
@@ -215,6 +223,7 @@ export function UploadPage() {
           fileBytes: source === "link" ? 0 : (file?.file.size ?? 1_200_000),
           linkUrl: source === "link" && linkOk ? link.trim() : null,
           term: null,
+          folder: null,
           pages: 12,
           thumbnailUrl: null,
           year: Number(v.year) || 1,
@@ -659,7 +668,7 @@ export function UploadPage() {
                   className="select"
                   id="up-subject"
                   disabled={!v.universityId}
-                  {...form.register("subjectId")}
+                  {...form.register("subjectId", { onChange: () => form.setValue("folderId", "") })}
                 >
                   <option value="">
                     {v.universityId ? "Chọn môn học" : "Chọn trường trước"}
@@ -713,6 +722,22 @@ export function UploadPage() {
                   <span>Chọn học kỳ.</span>
                 </span>
               </fieldset>
+              {folderOptions.length > 0 && (
+                <div className="field">
+                  <label className="label" htmlFor="up-folder">
+                    Thư mục trong môn <span className="opt">(không bắt buộc)</span>
+                  </label>
+                  <select className="select" id="up-folder" {...form.register("folderId")}>
+                    <option value="">Không chọn</option>
+                    {folderOptions.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {"\u2003".repeat(f.depth)}
+                        {f.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               {terms.length > 0 && (
                 <div className="field">
                   <label className="label" htmlFor="up-term">

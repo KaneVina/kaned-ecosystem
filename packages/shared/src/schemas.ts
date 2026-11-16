@@ -88,6 +88,7 @@ export const documentQuerySchema = z.object({
   minRating: z.coerce.number().min(0).max(5).optional(),
   uploaderId: z.string().optional(),
   bookmarkedBy: z.string().optional(),
+  folderId: z.string().optional(),
   sort: z.enum(DOCUMENT_SORTS).default('downloads'),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(48).default(12),
@@ -108,6 +109,8 @@ export const createDocumentSchema = z.object({
   language: z.string().trim().max(30).default('Vietnamese'),
   /** Which of the university's own terms this is from; fills semester and school year. */
   academicTermId: z.string().uuid().nullish(),
+  /** Folder inside the subject, e.g. "Đề thi". */
+  folderId: z.string().uuid().nullish(),
   // A file returned by Cloudinary after a direct browser upload, or, with
   // format LINK, the address of a document hosted elsewhere (no public id, 0 bytes).
   fileUrl: z.string().trim().url('Dán một liên kết hợp lệ, bắt đầu bằng https://').max(2000),

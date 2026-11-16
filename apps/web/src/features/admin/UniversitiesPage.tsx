@@ -1,26 +1,20 @@
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { Building2, Pencil, Plus, Trash2 } from 'lucide-react';
-import { UNIVERSITY_KIND_LABELS, type AdminUniversityDto, type UniversityKind } from '@kaned/shared';
-import { EmptyState } from '@/components/ui/Feedback';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Building2, ExternalLink, Pencil, Plus, Route as RouteIcon, SearchX, Trash2 } from 'lucide-react';
+import { REGION_LABELS, UNIVERSITY_KIND_LABELS, type AdminUniversityDto, type Region, type UniversityKind } from '@kaned/shared';
 import { useToast } from '@/providers/ToastProvider';
 import { toApiError } from '@/lib/api';
 import { fmtInt } from '@/lib/format';
 import { useDeleteUniversity, useUniversitiesAdmin } from './api';
-import { AdminHead, ConfirmDialog, SearchBox, type ConfirmState } from './ui';
+import { ActionMenu, AdminHead, ConfirmDialog, EmptyBlock, EmptyRow, SearchBox, TableSkeleton, UniMark, type ConfirmState } from './ui';
 import { UniversityForm } from './forms';
 import { useAdminCrumbs } from './AdminShell';
 
-export function UniMark({ u, size }: { u: Pick<AdminUniversityDto, 'code' | 'color'>; size?: number }) {
-  return (
-    <span className="adm-uni-mark" style={{ background: u.color, ...(size ? { width: size, height: size } : {}) }} aria-hidden>
-      {u.code.length > 5 ? u.code.slice(0, 4) : u.code}
-    </span>
-  );
-}
+export { UniMark };
 
 export function UniversitiesPage() {
   const toast = useToast();
+  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const { data, isLoading } = useUniversitiesAdmin();
   const remove = useDeleteUniversity();
@@ -67,75 +61,102 @@ export function UniversitiesPage() {
     <>
       <AdminHead
         title="Trường học"
-        description="Mỗi trường có khoa, ngành, kỳ học và môn học riêng. Thêm trường mới là sinh viên trường đó dùng được ngay thư viện và công cụ môn học."
+        count={data?.length}
         actions={
-          <>
-            <SearchBox value={q} onChange={setQ} placeholder="Tìm trường…" />
-            <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}>
-              <Plus className="ic ic-sm" />
-              Thêm trường
-            </button>
-          </>
+          <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}>
+            <Plus className="ic" />
+            Thêm trường
+          </button>
         }
       />
 
-      {isLoading ? (
-        <div className="uni-admin-grid">
-          {Array.from({ length: 4 }, (_, i) => (
-            <div key={i} className="skel" style={{ height: 168, borderRadius: 14 }} />
-          ))}
+      <section className="adm-panel">
+        <div className="adm-toolbar">
+          <SearchBox value={q} onChange={setQ} placeholder="Tìm theo mã, tên, thành phố…" />
         </div>
-      ) : !list.length && q ? (
-        <EmptyState title="Không có trường khớp" description={`Không tìm thấy “${q}”.`} />
-      ) : (
-        <div className="uni-admin-grid">
-          {list.map((u, i) => (
-            <Link key={u.id} to={`/admin/universities/${u.id}`} className="ua-card" style={{ ['--uc' as string]: u.color, animationDelay: `${i * 40}ms` }}>
-              <div className="ua-top">
-                <UniMark u={u} />
-                <div>
-                  <b>{u.nameVi}</b>
-                  <span>
-                    {u.code} · {u.city} · {UNIVERSITY_KIND_LABELS[u.kind as UniversityKind] ?? u.kind}
-                  </span>
-                </div>
-              </div>
-              <dl className="ua-stats">
-                <div>
-                  <dt>Ngành</dt>
-                  <dd>{u.majorCount}</dd>
-                </div>
-                <div>
-                  <dt>Môn</dt>
-                  <dd>{fmtInt(u.subjectCount)}</dd>
-                </div>
-                <div>
-                  <dt>Kỳ học</dt>
-                  <dd>{u.termCount}</dd>
-                </div>
-                <div>
-                  <dt>Tài liệu</dt>
-                  <dd>{fmtInt(u.documentCount)}</dd>
-                </div>
-              </dl>
-              <div className="row-acts" onClick={(e) => e.preventDefault()}>
-                <button type="button" className="icon-btn" aria-label={`Sửa ${u.code}`} onClick={() => setEditing(u)}>
-                  <Pencil className="ic ic-sm" />
-                </button>
-                <button type="button" className="icon-btn is-danger" aria-label={`Xoá ${u.code}`} onClick={() => askDelete(u)}>
-                  <Trash2 className="ic ic-sm" />
-                </button>
-              </div>
-            </Link>
-          ))}
-          {!q && (
-            <button type="button" className="ua-add" onClick={() => setCreating(true)}>
-              <Building2 className="ic ic-lg" />
-              Thêm trường
-            </button>
-          )}
+        <div className="adm-table-wrap">
+          <table className="adm-table is-clickable">
+            <thead>
+              <tr>
+                <th>Trường</th>
+                <th>Khu vực</th>
+                <th className="num">Khoa</th>
+                <th className="num">Ngành</th>
+                <th className="num">Môn</th>
+                <th className="num">Kỳ học</th>
+                <th className="num">Sinh viên</th>
+                <th className="num">Tài liệu</th>
+                <th className="w-menu" aria-label="Thao tác" />
+              </tr>
+            </thead>
+            {isLoading ? (
+              <TableSkeleton cols={9} rows={4} />
+            ) : !list.length ? (
+              <EmptyRow cols={9}>
+                {q ? (
+                  <EmptyBlock icon={SearchX} title="Không có trường khớp" text={`Không tìm thấy “${q}”.`} />
+                ) : (
+                  <EmptyBlock
+                    icon={Building2}
+                    title="Chưa có trường nào"
+                    text="Thêm trường đầu tiên, rồi thêm khoa, ngành và kỳ học cho trường."
+                    action={
+                      <button type="button" className="btn btn-primary btn-sm" onClick={() => setCreating(true)}>
+                        <Plus className="ic" />
+                        Thêm trường
+                      </button>
+                    }
+                  />
+                )}
+              </EmptyRow>
+            ) : (
+              <tbody>
+                {list.map((u) => (
+                  <tr key={u.id} onClick={() => navigate(`/admin/universities/${u.id}`)}>
+                    <td style={{ maxWidth: 0, width: '40%' }}>
+                      <div className="cell">
+                        <UniMark u={u} />
+                        <div>
+                          <span className="cell-title">{u.nameVi}</span>
+                          <span className="cell-sub">
+                            <b>{u.code}</b> · {u.name}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <span className="cell-title" style={{ fontWeight: 500 }}>
+                        {u.city}
+                      </span>
+                      <span className="cell-sub">
+                        {REGION_LABELS[u.region as Region] ?? u.region} · {UNIVERSITY_KIND_LABELS[u.kind as UniversityKind] ?? u.kind}
+                      </span>
+                    </td>
+                    <td className="num">{u.facultyCount}</td>
+                    <td className="num">{u.majorCount}</td>
+                    <td className="num">{fmtInt(u.subjectCount)}</td>
+                    <td className="num">{u.termCount}</td>
+                    <td className="num">{fmtInt(u.userCount)}</td>
+                    <td className="num">{fmtInt(u.documentCount)}</td>
+                    <td className="w-menu" onClick={(e) => e.stopPropagation()}>
+                      <ActionMenu
+                        label={`Thao tác cho ${u.code}`}
+                        items={[
+                          { label: 'Mở trường', icon: ExternalLink, onSelect: () => navigate(`/admin/universities/${u.id}`) },
+                          { label: 'Sửa thông tin', icon: Pencil, onSelect: () => setEditing(u) },
+                          { label: 'Môn học của trường', icon: RouteIcon, onSelect: () => navigate(`/admin/subjects?universityId=${u.id}`) },
+                          'separator',
+                          { label: 'Xoá trường', icon: Trash2, danger: true, onSelect: () => askDelete(u) },
+                        ]}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            )}
+          </table>
         </div>
-      )}
+      </section>
 
       <UniversityForm open={creating || Boolean(editing)} university={editing} onClose={() => (setCreating(false), setEditing(null))} />
       <ConfirmDialog state={confirm} onClose={() => setConfirm(null)} />

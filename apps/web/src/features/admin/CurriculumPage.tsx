@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type DragEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowRight, BookPlus, CalendarMinus, CalendarPlus, GripVertical, Pencil, Plus, Route as RouteIcon, Trash2 } from 'lucide-react';
+import { ArrowRight, BookPlus, CalendarMinus, CalendarPlus, GripVertical, Pencil, Plus, Route as RouteIcon, SearchX, Trash2 } from 'lucide-react';
 import {
   describeRequirement,
   requirementCodes,
@@ -8,7 +8,6 @@ import {
   type CurriculumSubjectDto,
   type Requirement,
 } from '@kaned/shared';
-import { EmptyState } from '@/components/ui/Feedback';
 import { Field } from '@/components/ui/Field';
 import { useToast } from '@/providers/ToastProvider';
 import { toApiError } from '@/lib/api';
@@ -24,7 +23,7 @@ import {
   useUniversitiesAdmin,
   useUpdateCurriculum,
 } from './api';
-import { AdminHead, ConfirmDialog, SearchBox, Sheet, useDebounced, type ConfirmState } from './ui';
+import { AdminHead, ConfirmDialog, EmptyBlock, SearchBox, Sheet, Swatch, useDebounced, type ConfirmState } from './ui';
 import { MajorForm } from './forms';
 import { SubjectForm } from './SubjectsPage';
 import { RequirementList, type CodeOption } from './RequirementEditor';
@@ -124,7 +123,7 @@ function EntrySheet({
                 })
               }
             >
-              <Trash2 className="ic ic-sm" />
+              <Trash2 className="ic" />
               Bỏ khỏi chương trình
             </button>
             <span className="spacer" />
@@ -220,7 +219,7 @@ function AddSheet({ majorId, universityId, term, termCount, onClose }: { majorId
         footer={
           <>
             <button type="button" className="btn btn-ghost" onClick={() => setNewSubject(true)}>
-              <BookPlus className="ic ic-sm" />
+              <BookPlus className="ic" />
               Tạo môn mới
             </button>
             <span className="spacer" />
@@ -251,10 +250,7 @@ function AddSheet({ majorId, universityId, term, termCount, onClose }: { majorId
           </div>
           <div className="cand-list" aria-busy={isFetching}>
             {candidates.length === 0 && !isFetching ? (
-              <EmptyState
-                title={query ? 'Không có môn khớp' : 'Mọi môn của trường đã có trong chương trình'}
-                description="Tạo môn mới, nó sẽ hiện ngay trong danh sách này."
-              />
+              <EmptyBlock icon={SearchX} title={query ? 'Không có môn khớp' : 'Mọi môn của trường đã có trong chương trình'} text="Tạo môn mới, nó sẽ hiện ngay trong danh sách này." />
             ) : (
               candidates.map((s) => {
                 const on = picked.includes(s.id);
@@ -266,7 +262,7 @@ function AddSheet({ majorId, universityId, term, termCount, onClose }: { majorId
                       </span>
                       <span className="cell-sub">{s.credits} tín chỉ</span>
                     </div>
-                    {on && <span className="badge badge-violet">Đã chọn</span>}
+                    {on && <span className="st st-admin">Đã chọn</span>}
                   </button>
                 );
               })
@@ -307,18 +303,16 @@ function MajorPicker() {
 
   return (
     <>
-      <AdminHead
-        title="Chương trình đào tạo"
-        description="Chọn một ngành để xếp môn theo kỳ và đặt điều kiện tiên quyết. Đây là dữ liệu trang Môn học & điều kiện của sinh viên dùng để tính môn nào học được."
-      />
+      <AdminHead title="Chương trình đào tạo" description="Chọn một ngành để xếp môn theo kỳ và đặt điều kiện tiên quyết. Trang Môn học & điều kiện của sinh viên tính từ dữ liệu này." />
       {isLoading ? (
         <div className="skel" style={{ height: 200, borderRadius: 14 }} />
       ) : !byUni.length ? (
-        <EmptyState
+        <EmptyBlock
+          icon={RouteIcon}
           title="Chưa có ngành nào"
-          description="Thêm trường, khoa và ngành trước, rồi quay lại đây để xếp chương trình."
+          text="Thêm trường, khoa và ngành trước, rồi quay lại đây để xếp chương trình."
           action={
-            <Link to="/admin/universities" className="btn btn-primary">
+            <Link to="/admin/universities" className="btn btn-primary btn-sm">
               Mở Trường học
             </Link>
           }
@@ -327,7 +321,7 @@ function MajorPicker() {
         byUni.map(({ u, majors: list }) => (
           <section key={u.id} className="adm-panel">
             <div className="adm-panel-head">
-              <span className="adm-swatch" style={{ background: u.color }} />
+              <Swatch color={u.color} />
               <h2>{u.nameVi}</h2>
             </div>
             <div className="major-rows" style={{ padding: 14 }}>
@@ -350,7 +344,7 @@ function MajorPicker() {
                       <b>{m.plannedCredits}</b>/{m.totalCredits} TC
                     </span>
                   </div>
-                  <ArrowRight className="ic ic-sm" style={{ color: 'var(--ink-3)' }} />
+                  <ArrowRight className="ic" style={{ color: 'var(--ink-3)' }} />
                 </Link>
               ))}
             </div>
@@ -440,7 +434,7 @@ function Board({ majorId }: { majorId: string }) {
     );
   };
 
-  if (isError) return <EmptyState title="Không tìm thấy ngành" description="Ngành này có thể đã bị xoá." action={<Link to="/admin/curriculum" className="btn btn-secondary">Chọn ngành khác</Link>} />;
+  if (isError) return <EmptyBlock icon={RouteIcon} title="Không tìm thấy ngành" text="Ngành này có thể đã bị xoá." action={<Link to="/admin/curriculum" className="btn btn-secondary btn-sm">Chọn ngành khác</Link>} />;
 
   return (
     <>
@@ -464,7 +458,7 @@ function Board({ majorId }: { majorId: string }) {
         }
         actions={
           <>
-            <select className="select" style={{ width: 'auto', height: 36, fontSize: 13.5 }} value={majorId} onChange={(e) => navigate(`/admin/curriculum/${e.target.value}`)} aria-label="Đổi ngành">
+            <select className="select" style={{ width: 'auto', height: 32, fontSize: 13 }} value={majorId} onChange={(e) => navigate(`/admin/curriculum/${e.target.value}`)} aria-label="Đổi ngành">
               {allMajors.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.code} — {m.nameVi}
@@ -472,31 +466,31 @@ function Board({ majorId }: { majorId: string }) {
               ))}
             </select>
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => setMajorForm(true)} disabled={!major}>
-              <Pencil className="ic ic-sm" />
+              <Pencil className="ic" />
               Sửa ngành
             </button>
             <button type="button" className="btn btn-primary btn-sm" onClick={() => setAdding(null)}>
-              <Plus className="ic ic-sm" />
+              <Plus className="ic" />
               Thêm môn
             </button>
           </>
         }
       />
 
-      <div className="cb-pick">
+      <div className="cb-bar">
         <span className="cb-hint">
-          <GripVertical className="ic ic-xs" />
+          <GripVertical className="ic" />
           Kéo thẻ môn sang kỳ khác để đổi kỳ. Bấm vào thẻ để sửa điều kiện.
         </span>
         <span className="cb-legend">
           <span>
-            <span className="cb-req">PRO192 qua</span> môn tiên quyết
+            <span className="cb-req">PRO192 qua</span> Môn tiên quyết
           </span>
           <span>
-            <span className="cb-req is-group">nhóm</span> điều kiện nhóm
+            <span className="cb-req is-group">Nhóm</span> Điều kiện nhóm
           </span>
           <span>
-            <span className="cb-req is-warn">mã</span> ngoài chương trình
+            <span className="cb-req is-warn">Mã</span> Ngoài chương trình
           </span>
         </span>
       </div>
@@ -556,8 +550,8 @@ function Board({ majorId }: { majorId: string }) {
                       >
                         <span className="cb-card-top">
                           <span className="cell-code">{s.code}</span>
-                          {s.choiceGroup && <span className="badge badge-blue" style={{ height: 20, fontSize: 11 }}>{s.choiceGroup}</span>}
-                          {!s.isRequired && !s.choiceGroup && <span className="badge badge-gray" style={{ height: 20, fontSize: 11 }}>Tự chọn</span>}
+                          {s.choiceGroup && <span className="cb-tag">{s.choiceGroup}</span>}
+                          {!s.isRequired && !s.choiceGroup && <span className="cb-tag is-gray">Tự chọn</span>}
                           <span className="cb-credits">{s.credits} TC</span>
                         </span>
                         <span className="cb-name">{s.nameVi}</span>
@@ -567,7 +561,7 @@ function Board({ majorId }: { majorId: string }) {
                   )}
                 </div>
                 <button type="button" className="cb-add" onClick={() => setAdding(t)}>
-                  <Plus className="ic ic-xs" />
+                  <Plus className="ic" />
                   Thêm môn
                 </button>
               </section>
@@ -575,11 +569,11 @@ function Board({ majorId }: { majorId: string }) {
           })}
           <div className="cb-col is-new" role="group" aria-label="Số kỳ">
             <button type="button" className="btn btn-soft" onClick={() => changeTerms(1)} disabled={saveMajor.isPending || termCount >= 20}>
-              <CalendarPlus className="ic ic-sm" />
+              <CalendarPlus className="ic" />
               Thêm kỳ {termCount + 1}
             </button>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => changeTerms(-1)} disabled={saveMajor.isPending || termCount <= 1 || inColumn(termCount).length > 0} title={inColumn(termCount).length ? `Kỳ ${termCount} còn môn` : undefined}>
-              <CalendarMinus className="ic ic-sm" />
+              <CalendarMinus className="ic" />
               Bớt kỳ {termCount}
             </button>
           </div>
@@ -587,12 +581,13 @@ function Board({ majorId }: { majorId: string }) {
       )}
 
       {!isLoading && subjects.length === 0 && (
-        <EmptyState
+        <EmptyBlock
+          icon={RouteIcon}
           title="Chương trình chưa có môn nào"
-          description="Thêm môn vào từng kỳ, rồi bấm vào thẻ môn để đặt điều kiện tiên quyết."
+          text="Thêm môn vào từng kỳ, rồi bấm vào thẻ môn để đặt điều kiện tiên quyết."
           action={
-            <button type="button" className="btn btn-primary" onClick={() => setAdding(1)}>
-              <RouteIcon className="ic ic-sm" />
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => setAdding(1)}>
+              <Plus className="ic" />
               Thêm môn vào kỳ 1
             </button>
           }

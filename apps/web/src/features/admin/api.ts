@@ -20,6 +20,10 @@ import type {
   DocumentBulkInput,
   DocumentStatus,
   FacultyInput,
+  FolderDto,
+  FolderInput,
+  FolderUpdate,
+  MoveDocumentsInput,
   MajorInput,
   Paginated,
   Role,
@@ -44,6 +48,8 @@ export const adminKeys = {
   majors: (universityId?: string) => ['admin', 'majors', universityId ?? 'all'] as const,
   terms: (universityId: string) => ['admin', 'terms', universityId] as const,
   subjects: (p: object) => ['admin', 'subjects', p] as const,
+  subject: (id: string) => ['admin', 'subject', id] as const,
+  folders: (subjectId: string) => ['admin', 'folders', subjectId] as const,
   curriculum: (majorId: string) => ['admin', 'curriculum', majorId] as const,
   candidates: (majorId: string, q: string) => ['admin', 'candidates', majorId, q] as const,
   documents: (p: object) => ['admin', 'documents', p] as const,
@@ -91,6 +97,16 @@ export const useSubjectsAdmin = (p: SubjectListParams, enabled = true) =>
     queryFn: () => get<Paginated<AdminSubjectDto>>('/subjects', p),
     placeholderData: keepPreviousData,
     enabled,
+  });
+
+export const useSubjectAdmin = (id?: string) =>
+  useQuery({ queryKey: adminKeys.subject(id ?? ''), queryFn: () => get<AdminSubjectDto>(`/subjects/${id}`), enabled: Boolean(id) });
+
+export const useFoldersAdmin = (subjectId?: string) =>
+  useQuery({
+    queryKey: adminKeys.folders(subjectId ?? ''),
+    queryFn: () => get<FolderDto[]>(`/subjects/${subjectId}/folders`),
+    enabled: Boolean(subjectId),
   });
 
 export const useCurriculumAdmin = (majorId?: string) =>
@@ -194,3 +210,11 @@ export const useBulkDocuments = () =>
 
 export const useSetRole = () =>
   useWrite(({ id, role }: { id: string; role: Role }, key) => send<{ id: string; role: Role }>('patch', `/users/${id}/role`, key, { role }));
+
+export const useSaveFolder = () =>
+  useWrite(({ id, input }: { id?: string; input: FolderInput | FolderUpdate }, key) =>
+    id ? send<FolderDto>('patch', `/folders/${id}`, key, input) : send<FolderDto>('post', '/folders', key, input),
+  );
+export const useDeleteFolder = () => useWrite((id: string, key) => send<void>('delete', `/folders/${id}`, key));
+export const useMoveDocuments = () =>
+  useWrite((input: MoveDocumentsInput, key) => send<{ moved: number }>('post', '/documents/move', key, input));

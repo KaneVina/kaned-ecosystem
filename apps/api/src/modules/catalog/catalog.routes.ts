@@ -3,6 +3,7 @@ import { subjectQuerySchema, type SubjectQuery } from '@kaned/shared';
 import { parsedQuery, validateQuery } from '../../middleware/validate.js';
 import * as service from './catalog.service.js';
 import { listTerms } from '../admin/institutions.service.js';
+import { listFolders } from '../admin/folders.service.js';
 
 export const catalogRouter = Router();
 
@@ -34,6 +35,11 @@ catalogRouter.get('/majors/:id/curriculum', async (req, res) => {
 
 catalogRouter.get('/subjects', validateQuery(subjectQuerySchema), async (_req, res) => {
   res.json(await service.searchSubjects(parsedQuery<SubjectQuery>(res)));
+});
+
+/** Folders of a subject with how many published documents each holds. */
+catalogRouter.get('/subjects/:id/folders', async (req, res) => {
+  res.json(await listFolders(req.params.id, true));
 });
 
 catalogRouter.get('/subjects/:idOrCode', async (req, res) => {

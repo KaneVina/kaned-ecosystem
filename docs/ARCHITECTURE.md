@@ -27,7 +27,9 @@ nghĩa bảng vừa là kiểu dữ liệu, và `db.query.*` cho API quan hệ g
 University ─┬─ Faculty → Major (termCount, passMark) → (majorSubjects: termNo, requirements) → Subject
             ├─ AcademicTerm (Fall 2026, HK1 2026–2027…)
             └─ Subject ─┬─ subjectPrerequisites  (chỉ mục phẳng dựng lại từ requirements)
-                        ├─ documents (tệp hoặc liên kết, gắn AcademicTerm) → reviews / bookmarks / tags
+                        ├─ subjectFolders (cây thư mục: parentId, tối đa 3 cấp)
+                        ├─ documents (tệp hoặc liên kết, gắn AcademicTerm, nằm trong một thư mục hoặc không)
+                        │    → reviews / bookmarks / tags
                         └─ grades (của từng user)
 
 adminActivity   nhật ký thao tác quản trị
@@ -38,6 +40,11 @@ appMeta         phiên bản dữ liệu mẫu đã nạp
 Mỗi trường tự đặt tên kỳ học (`academic_terms`), nhưng mỗi kỳ ánh xạ về cặp chuẩn (niên khoá, học kỳ 1 / 2 /
 hè) mà thư viện lọc chung, nên trường mới không làm vỡ bộ lọc. Tài liệu dạng liên kết dùng định dạng `LINK`:
 `file_url` là địa chỉ, không có `file_public_id` và dung lượng là 0.
+
+Thư mục (`subject_folders`) thuộc về đúng một môn, tên không trùng trong cùng một thư mục cha, và xoá thư mục
+cha thì thư mục con xoá theo (`ON DELETE CASCADE`). API không để chuyện đó xảy ra với dữ liệu thật: trước
+khi xoá, nó đưa tài liệu và thư mục con lên thư mục cha. `documents.folder_id` là `ON DELETE SET NULL` để
+không bao giờ mất tài liệu. API kiểm tra vòng lặp và độ sâu mỗi khi đổi thư mục cha.
 
 `majorSubjects` là chương trình học: nó giữ `termNo`, tức môn đó thuộc kỳ mấy của ngành nào — cùng một môn
 có thể nằm ở kỳ 3 của ngành này và kỳ 5 của ngành khác. `subjectPrerequisites` là đồ thị có hướng, mỗi cạnh
@@ -142,6 +149,12 @@ API trả `mode: "local"` và nhận tệp qua multer — front end không cần
 `/api/admin/*` nằm sau `requireAuth` + `requireRole('ADMIN', 'MODERATOR')` + Idempotency-Key cho mọi lệnh
 ghi; các route học vụ và người dùng thêm `requireRole('ADMIN')`. Mỗi thao tác ghi một dòng vào
 `admin_activity`. Phía web, khu quản trị là một chunk riêng (`React.lazy`) nên sinh viên không phải tải nó.
+
+Giao diện quản trị có bộ token riêng (`--a-*` trong `admin.css`): nền xám trung tính, màu tím chỉ dành cho
+nút chính, mục đang chọn và viền focus. Các mảnh dùng chung nằm trong `features/admin/ui.tsx`: `AdminHead`,
+`StatCard`, `ActionMenu` (menu "⋯" render qua portal để không bị bảng cắt), `Dialog` / `ConfirmDialog`
+(xoá thứ quan trọng phải gõ lại tên), `Sheet` (form trượt từ phải), `Pager`, `TableSkeleton`, `EmptyBlock`.
+`CommandPalette.tsx` là bảng tìm nhanh Ctrl K.
 
 Sửa điều kiện trong chương trình xong, API dựng lại `subject_prerequisites` cho các môn liên quan từ các
 luật `subject` ở cấp trên cùng của mọi chương trình chứa môn đó (lấy mức chặt hơn nếu hai chương trình

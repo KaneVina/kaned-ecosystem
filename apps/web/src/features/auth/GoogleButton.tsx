@@ -69,7 +69,7 @@ export function GoogleButton({ onCredential, disabled }: { onCredential: (creden
 
   if (!clientId) {
     return (
-      <p className="auth-note">
+      <p className="auth-note auth-note-text">
         Đăng nhập Google chưa bật. Thêm <code>GOOGLE_CLIENT_ID</code> vào <code>apps/api/.env</code> rồi khởi động lại API.
       </p>
     );

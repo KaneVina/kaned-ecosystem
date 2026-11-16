@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte, ilike, inArray, ne, or, sql, type SQL } from 'drizzle-orm';
+import { and, count, desc, eq, gte, ilike, inArray, isNull, ne, or, sql, type SQL } from 'drizzle-orm';
 import type {
   CreateDocumentInput,
   DocumentDetailDto,
@@ -12,6 +12,7 @@ import { db } from '../../db/index.js';
 import {
   academicTerms,
   bookmarks,
+  subjectFolders,
   documentTags,
   documents,
   majorSubjects,
@@ -42,6 +43,8 @@ function buildFilters(query: DocumentQuery): SQL[] {
   }
   if (query.minRating) filters.push(gte(documents.ratingAvg, query.minRating));
   if (query.uploaderId) filters.push(eq(documents.uploaderId, query.uploaderId));
+  if (query.folderId === 'none') filters.push(isNull(documents.folderId));
+  else if (query.folderId) filters.push(eq(documents.folderId, query.folderId));
 
   if (query.facultyId) {
     filters.push(
@@ -250,6 +253,16 @@ function assertSource(input: Pick<CreateDocumentInput, 'format' | 'fileUrl' | 'f
   }
 }
 
+/** A folder must belong to the document's subject. */
+export async function assertFolder(folderId: string | null | undefined, subjectId: string) {
+  if (!folderId) return null;
+  const folder = await db.query.subjectFolders.findFirst({ where: eq(subjectFolders.id, folderId) });
+  if (!folder || folder.subjectId !== subjectId) {
+    throw ApiError.badRequest('Thư mục không thuộc môn này.', { folderId: 'Chọn thư mục của môn này.' });
+  }
+  return folder.id;
+}
+
 /** The university's term, if one was picked, decides semester and school year. */
 async function termFields(academicTermId: string | null | undefined, universityId: string) {
   if (!academicTermId) return {};
@@ -271,6 +284,7 @@ export async function createDocument(
   }
   assertSource(input);
   const term = await termFields(input.academicTermId, subject.universityId);
+  const folderId = await assertFolder(input.folderId, subject.id);
   const isLink = input.format === 'LINK';
 
   const [created] = await db
@@ -290,6 +304,7 @@ export async function createDocument(
       semester: input.semester,
       schoolYear: input.schoolYear ?? null,
       ...term,
+      folderId,
       status: options.status ?? 'PUBLISHED',
       universityId: subject.universityId,
       subjectId: input.subjectId,
@@ -335,6 +350,15 @@ export async function updateDocument(
         : { academicTermId: null }
       : {};
 
+  const subjectId = input.subjectId ?? doc.subjectId;
+  // Moving to another subject leaves the old subject's folder behind.
+  const folder =
+    input.folderId !== undefined
+      ? { folderId: await assertFolder(input.folderId, subjectId) }
+      : input.subjectId && input.subjectId !== doc.subjectId
+        ? { folderId: null }
+        : {};
+
   await db
     .update(documents)
     .set({
@@ -348,6 +372,7 @@ export async function updateDocument(
       subjectId: input.subjectId,
       universityId: input.universityId,
       ...term,
+      ...folder,
     })
     .where(eq(documents.id, id));
 

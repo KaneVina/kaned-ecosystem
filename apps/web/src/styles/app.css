@@ -227,6 +227,16 @@
 .sd-docs li a:hover { background: var(--sunk); }
 .sd-doc-t { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 500; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sd-doc-actions { display: flex; gap: 8px; margin-top: 12px; }
+.sd-folder-head { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 6px; border-radius: 8px; font-size: 13.5px; font-weight: 600; color: var(--ink); text-align: left; transition: background .12s; }
+.sd-folder-head:hover { background: var(--sunk); }
+.sd-folder-head > span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sd-folder-head small { font-size: 12px; font-weight: 500; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.sd-chev { width: 14px; height: 14px; color: var(--ink-4); transition: transform .18s var(--ease); }
+.sd-folder.is-open > .sd-folder-head .sd-chev { transform: rotate(90deg); }
+.sd-fi { width: 16px; height: 16px; color: #C08A1E; }
+.sd-folder-body { margin-left: 13px; padding-left: 12px; border-left: 1px solid var(--line); animation: fieldIn .2s var(--ease-out); }
+.sd-loose { display: flex; align-items: center; gap: 8px; padding: 12px 6px 4px; font-size: 12.5px; font-weight: 600; color: var(--ink-3); }
+.sd-loose .ic { width: 14px; height: 14px; }
 
 /* ── requirement checklist ── */
 .req-list { display: flex; flex-direction: column; gap: 2px; }
@@ -320,9 +330,10 @@
 .ffield > select.finput + label { transform: translateY(-10px) scale(.74); }
 .ffield select.finput:invalid { color: transparent; }
 .ffield select.finput:focus:invalid { color: var(--ink-4); }
-.f-act { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-3); }
+/* Centred on the 58px input, not on the field: the error line below would push 50% down. */
+.f-act { position: absolute; right: 8px; top: 29px; transform: translateY(-50%); width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-3); }
 .f-act:hover { background: var(--sunk); color: var(--ink); }
-.f-ok { position: absolute; right: 15px; top: 50%; transform: translateY(-50%) scale(.6); color: var(--green); opacity: 0; transition: all .25s var(--ease-out); pointer-events: none; }
+.f-ok { position: absolute; right: 15px; top: 29px; transform: translateY(-50%) scale(.6); color: var(--green); opacity: 0; transition: all .25s var(--ease-out); pointer-events: none; }
 .ffield.valid .f-ok { opacity: 1; transform: translateY(-50%) scale(1); }
 .ffield.valid .finput { border-color: color-mix(in srgb, var(--green) 38%, white); }
 .ffield.invalid .finput { border-color: var(--red); background: #FEF7F6; }
@@ -412,6 +423,8 @@
 .auth-google > div { width: 100% !important; }
 .auth-note { display: flex; gap: 10px; align-items: flex-start; padding: 11px 13px; border-radius: 11px; background: var(--paper-2); border: 1px dashed var(--line-2); font-size: 12.5px; color: var(--ink-3); line-height: 1.5; }
 .auth-note code { font-size: 12px; color: var(--ink-2); }
+.auth-note-text { display: block; text-align: center; }
+.auth-note-text code { padding: 1px 5px; border-radius: 5px; background: var(--paper); border: 1px solid var(--line); white-space: nowrap; }
 
 @media (max-width: 1180px) { .canvas-mods { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 1080px) {

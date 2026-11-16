@@ -146,6 +146,12 @@ export function DocumentDetailPage() {
           <ChevronRight className="ic" />
           <Link to={`/app/subjects/${data.subject.code}`}>{data.subject.nameVi}</Link>
           <ChevronRight className="ic" />
+          {data.folder && (
+            <>
+              <Link to={`/app/subjects/${data.subject.code}`}>{data.folder.name}</Link>
+              <ChevronRight className="ic" />
+            </>
+          )}
           <span aria-current="page">{data.title}</span>
         </nav>
 

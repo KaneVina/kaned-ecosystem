@@ -1,15 +1,14 @@
 import { Link } from 'react-router-dom';
-import { BookOpen, ChevronRight, ClipboardList, Download, FileText, KeyRound, Target, X } from 'lucide-react';
+import { BookOpen, ChevronRight, ClipboardList, FileText, KeyRound, Target, X } from 'lucide-react';
 import { gradeBandFor, type CurriculumSubjectDto, type PlannerResult, type SubjectStatus } from '@kaned/shared';
-import { FileIcon } from '@/components/ui/FileBadge';
 import { Skeleton } from '@/components/ui/Feedback';
 import { subjectTone } from '@/components/paper/profiles';
 import { useSubject } from '@/features/catalog/queries';
 import { isInvalidScore, parseScore, type DraftEntry } from '@/features/grades/queries';
-import { fmtCompact } from '@/lib/format';
 import { cn } from '@/lib/cn';
 import { RequirementList } from './RequirementList';
 import { STATUS } from './status';
+import { SubjectDocuments } from './SubjectDocuments';
 
 /** Where the subject sits in the programme; three terms make an academic year. */
 const termLabel = (termNo: number | null) =>
@@ -236,24 +235,7 @@ export function SubjectDetail({
           Tài liệu cho {subject.code}
           <span className="sd-count">{detail?.documentCount ?? subject.documentCount ?? 0}</span>
         </h3>
-        {detail?.recentDocuments && detail.recentDocuments.length > 0 ? (
-          <ul className="sd-docs">
-            {detail.recentDocuments.map((d) => (
-              <li key={d.id}>
-                <Link to={`/app/library/${d.id}`}>
-                  <FileIcon format={d.format} size="xs" />
-                  <span className="sd-doc-t">{d.title}</span>
-                  <span className="stat-inline">
-                    <Download className="ic" />
-                    {fmtCompact(d.downloads)}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="sd-empty">Chưa có ai chia sẻ tài liệu cho môn này.</p>
-        )}
+        <SubjectDocuments subjectId={subject.id} />
         <div className="sd-doc-actions">
           <Link className="btn btn-secondary btn-sm" to={`/app/library?subjectId=${subject.id}`}>
             Mở trong thư viện

@@ -7,3 +7,4 @@ export { SubjectsPage } from './SubjectsPage';
 export { CurriculumPage } from './CurriculumPage';
 export { UsersPage } from './UsersPage';
 export { ActivityPage } from './ActivityPage';
+export { SubjectDetailPage } from './SubjectDetailPage';

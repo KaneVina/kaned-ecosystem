@@ -24,6 +24,7 @@ const AdminDocumentsPage = lazy(() => admin().then((m) => ({ default: m.Document
 const UniversitiesPage = lazy(() => admin().then((m) => ({ default: m.UniversitiesPage })));
 const UniversityDetailPage = lazy(() => admin().then((m) => ({ default: m.UniversityDetailPage })));
 const AdminSubjectsPage = lazy(() => admin().then((m) => ({ default: m.SubjectsPage })));
+const AdminSubjectDetailPage = lazy(() => admin().then((m) => ({ default: m.SubjectDetailPage })));
 const CurriculumPage = lazy(() => admin().then((m) => ({ default: m.CurriculumPage })));
 const UsersPage = lazy(() => admin().then((m) => ({ default: m.UsersPage })));
 const ActivityPage = lazy(() => admin().then((m) => ({ default: m.ActivityPage })));
@@ -107,6 +108,7 @@ export default function App() {
         <Route path="universities" element={<RequireStaff adminOnly><UniversitiesPage /></RequireStaff>} />
         <Route path="universities/:id" element={<RequireStaff adminOnly><UniversityDetailPage /></RequireStaff>} />
         <Route path="subjects" element={<RequireStaff adminOnly><AdminSubjectsPage /></RequireStaff>} />
+        <Route path="subjects/:id" element={<RequireStaff adminOnly><AdminSubjectDetailPage /></RequireStaff>} />
         <Route path="curriculum" element={<RequireStaff adminOnly><CurriculumPage /></RequireStaff>} />
         <Route path="curriculum/:majorId" element={<RequireStaff adminOnly><CurriculumPage /></RequireStaff>} />
         <Route path="users" element={<RequireStaff adminOnly><UsersPage /></RequireStaff>} />

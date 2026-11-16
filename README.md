@@ -137,12 +137,29 @@ Tài liệu và Nhật ký). Mục "Trang quản trị" hiện trong menu ảnh 
   hàng loạt, sửa thông tin, và **đăng tài liệu mới bằng tệp hoặc bằng liên kết**
 - **Trường học** — thêm / sửa / xoá trường; trong mỗi trường quản lý **khoa, ngành** (số kỳ, điểm qua môn,
   tổng tín chỉ) và **kỳ học** của trường (Fall 2026, HK1 2026–2027… có ngày bắt đầu / kết thúc)
-- **Môn học** — danh mục môn của từng trường, đề cương; đổi mã môn tự cập nhật điều kiện ở các môn khác
+- **Môn học** — danh mục môn của từng trường, đề cương; đổi mã môn tự cập nhật điều kiện ở các môn khác.
+  Bấm vào một môn để mở trang của môn đó, nơi sắp tài liệu vào **thư mục** (xem bên dưới)
 - **Chương trình đào tạo** — bảng các kỳ của một ngành: kéo thả môn giữa các kỳ, thêm / bớt kỳ, bấm vào môn
   để đặt điều kiện (môn tiên quyết, điểm tối thiểu, "đạt N trong nhóm", giới hạn nợ môn, điểm TB nhóm).
   Đây đúng là dữ liệu mà trang Môn học & điều kiện của sinh viên dùng.
 - **Người dùng** — tìm, lọc, cấp / thu hồi quyền (không tự đổi quyền mình, không bỏ được admin cuối cùng)
 - **Nhật ký thay đổi** — ai đã làm gì, khi nào
+
+Nhấn **Ctrl K** (⌘K trên Mac) ở bất kỳ trang quản trị nào để tìm nhanh trường, môn, tài liệu, người dùng
+hoặc nhảy tới một trang. Nút **Tạo mới** ở thanh trên cùng mở nhanh các thao tác tạo.
+
+### Thư mục trong môn học
+
+Mỗi môn có cây thư mục riêng, lồng tối đa 3 cấp — ví dụ môn CSD201 có thư mục *Đề thi* chứa *Đề thi 1*,
+*Đề thi 2*, *Đề thi 3*, hoặc *Đề thi › 2025 › Giữa kỳ*. Trong trang môn (Quản trị › Môn học › bấm vào môn):
+
+- **Thư mục mới** / **Thư mục con** để tạo; menu "⋯" cạnh thư mục để đổi tên, đưa ra cấp ngoài hoặc xoá
+- **Kéo một dòng tài liệu thả vào thư mục** ở cột trái, hoặc chọn nhiều dòng rồi bấm **Chuyển vào thư mục**
+- **Đăng tài liệu vào đây** mở form đăng với môn và thư mục đã điền sẵn
+- Xoá thư mục không xoá tài liệu: tài liệu và thư mục con được đưa lên thư mục cha
+
+Sinh viên thấy tài liệu của môn được nhóm theo thư mục ở trang Môn học & điều kiện, thấy thư mục trong
+đường dẫn của trang tài liệu và có thể chọn thư mục khi tải tài liệu lên.
 
 Muốn tài khoản Google của bạn thành quản trị viên: đăng nhập bằng `admin@kaned.vn`, vào **Người dùng**,
 đổi quyền tài khoản của bạn thành *Quản trị viên*.

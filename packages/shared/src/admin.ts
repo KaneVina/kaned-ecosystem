@@ -211,6 +211,37 @@ export const curriculumAddSchema = curriculumEntrySchema.extend({
 });
 export type CurriculumAddInput = z.infer<typeof curriculumAddSchema>;
 
+/* ──────────────────────────────── folders ──────────────────────────────── */
+
+/** Folders nest at most this deep: "Đề thi / Cuối kỳ / 2025". */
+export const MAX_FOLDER_DEPTH = 3;
+
+export const folderInputSchema = z.object({
+  subjectId: uuid('Chọn môn.'),
+  parentId: z
+    .string()
+    .uuid()
+    .nullish()
+    .or(z.literal(''))
+    .transform((v) => (v ? v : null)),
+  name: z.string().trim().min(1, 'Đặt tên thư mục.').max(80, 'Tên thư mục dài tối đa 80 ký tự.'),
+});
+export type FolderInput = z.infer<typeof folderInputSchema>;
+
+export const folderUpdateSchema = z.object({
+  name: z.string().trim().min(1, 'Đặt tên thư mục.').max(80).optional(),
+  parentId: z.string().uuid().nullable().optional(),
+  position: z.coerce.number().int().min(0).max(10_000).optional(),
+});
+export type FolderUpdate = z.infer<typeof folderUpdateSchema>;
+
+export const moveDocumentsSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1, 'Chọn ít nhất một tài liệu.').max(200),
+  /** null takes them out of every folder. */
+  folderId: z.string().uuid().nullable(),
+});
+export type MoveDocumentsInput = z.infer<typeof moveDocumentsSchema>;
+
 /* ─────────────────────────────── documents ─────────────────────────────── */
 
 export const adminDocumentQuerySchema = z.object({
@@ -220,6 +251,8 @@ export const adminDocumentQuerySchema = z.object({
   subjectId: z.string().uuid().optional(),
   type: z.enum(DOCUMENT_TYPES).optional(),
   format: z.enum(FILE_FORMATS).optional(),
+  /** A folder id, or "none" for documents in no folder. */
+  folderId: z.string().optional(),
   sort: z.enum(['recent', 'downloads', 'title']).default('recent'),
   ...page,
 });

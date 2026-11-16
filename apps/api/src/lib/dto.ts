@@ -27,6 +27,7 @@ export const documentWith = {
   uploader: { with: userWith },
   tags: { with: { tag: true } },
   term: true,
+  folder: true,
 } as const;
 
 /* ------------------------------------------------------------- row shapes */
@@ -86,6 +87,7 @@ interface DocumentLike {
   tags: Array<{ tag: { name: string } }>;
   fileUrl: string;
   term?: { id: string; code: string; name: string } | null;
+  folder?: { id: string; name: string } | null;
 }
 
 /* --------------------------------------------------------------- mappers */
@@ -183,6 +185,7 @@ export function toDocumentSummary(
     tags: row.tags.map((t) => t.tag.name),
     linkUrl: row.format === 'LINK' ? row.fileUrl : null,
     term: row.term ? { id: row.term.id, code: row.term.code, name: row.term.name } : null,
+    folder: row.folder ? { id: row.folder.id, name: row.folder.name } : null,
     isBookmarked: opts.isBookmarked,
   };
 }

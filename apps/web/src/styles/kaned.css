@@ -381,23 +381,23 @@ kbd { font-family: var(--font); font-size: 11px; font-weight: 600; color: var(--
 }
 .nav.scrolled { border-bottom-color: var(--line); background: rgba(255, 255, 255, .84); }
 .nav-in { height: 100%; display: flex; align-items: center; gap: 16px; }
-/* Lockup: KANED on top, ECOSYSTEM spread to exactly the same width underneath. */
+/* Lockup: ECOSYSTEM sets the width, KANED spreads its letters to match it exactly. */
 .brand { display: inline-flex; flex-direction: column; align-items: stretch; gap: 5px; border-radius: 8px; flex: none; padding: 2px 2px 3px; white-space: nowrap; }
-.wm-k { font-family: "Syne", var(--font); font-weight: 800; font-size: 20px; letter-spacing: .01em; text-transform: uppercase; display: inline-flex; color: var(--ink); line-height: .86; }
+.wm-k { font-family: "Syne", var(--font); font-weight: 800; font-size: 20px; text-transform: uppercase; display: flex; justify-content: space-between; color: var(--ink); line-height: .86; }
 .wm-k i { font-style: normal; transition: color .3s var(--ease), transform .4s var(--ease-out); }
-.wm-e { display: flex; justify-content: space-between; font-size: 6.9px; font-weight: 700; line-height: 1; color: var(--ink-4); text-transform: uppercase; position: relative; padding-bottom: 1px; }
+.wm-e { display: block; font-size: 9.5px; font-weight: 600; letter-spacing: .34em; margin-right: -.34em; line-height: 1; color: var(--ink-4); text-transform: uppercase; position: relative; padding-bottom: 1px; }
 .wm-e i { font-style: normal; transition: color .3s var(--ease); }
-.wm-e::after { content: ""; position: absolute; left: 0; right: 100%; bottom: -4px; height: 1.5px; background: var(--violet); transition: right .45s var(--ease-out); }
+.wm-e::after { content: ""; position: absolute; left: 0; right: .34em; bottom: -4px; height: 1.5px; background: var(--violet); transform: scaleX(0); transform-origin: left; transition: transform .45s var(--ease-out); }
 .brand:hover .wm-k i, .brand:focus-visible .wm-k i { color: var(--violet); }
 .brand:hover .wm-k i { transform: translateY(-2px); }
 .brand:hover .wm-e i { color: var(--violet-600); }
-.brand:hover .wm-e::after { right: 0; }
+.brand:hover .wm-e::after { transform: scaleX(1); }
 .wm-k i:nth-child(1) { transition-delay: 0ms; } .wm-k i:nth-child(2) { transition-delay: 40ms; }
 .wm-k i:nth-child(3) { transition-delay: 80ms; } .wm-k i:nth-child(4) { transition-delay: 120ms; }
 .wm-k i:nth-child(5) { transition-delay: 160ms; }
 .wm-e i:nth-child(n) { transition-delay: calc(var(--d, 0) * 22ms + 120ms); }
 .footer .brand .wm-k { font-size: 22px; }
-.footer .brand .wm-e { font-size: 7.6px; }
+.footer .brand .wm-e { font-size: 10.5px; }
 .nav-links { display: flex; gap: 2px; margin-left: 10px; }
 .nav-links a { padding: 7px 11px; border-radius: 7px; font-size: 14px; font-weight: 500; color: var(--ink-2); transition: color .15s, background .15s; }
 .nav-links a:hover { color: var(--ink); background: rgba(28, 26, 43, .045); }

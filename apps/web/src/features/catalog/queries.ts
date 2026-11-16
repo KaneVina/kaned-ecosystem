@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import type {
   AcademicTermDto,
+  FolderDto,
   CurriculumDto,
   FacultyDto,
   MajorDto,
@@ -77,5 +78,15 @@ export function useTerms(universityId?: string) {
     queryFn: async () => (await http.get<AcademicTermDto[]>(`/catalog/universities/${universityId}/terms`)).data,
     enabled: Boolean(universityId),
     staleTime: 10 * 60_000,
+  });
+}
+
+/** Folders of a subject ("Đề thi", "Slide"…) with how many documents each holds. */
+export function useFolders(subjectId?: string) {
+  return useQuery({
+    queryKey: ['catalog', 'folders', subjectId ?? ''],
+    queryFn: async () => (await http.get<FolderDto[]>(`/catalog/subjects/${subjectId}/folders`)).data,
+    enabled: Boolean(subjectId),
+    staleTime: 5 * 60_000,
   });
 }

@@ -1,17 +1,16 @@
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { BookPlus, Pencil, Trash2 } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { BookOpen, BookPlus, FolderOpen, Pencil, SearchX, Trash2 } from 'lucide-react';
 import { SEMESTERS, SEMESTER_LABELS, STUDY_YEARS, subjectInputSchema, type AdminSubjectDto } from '@kaned/shared';
 import { useForm } from 'react-hook-form';
 import type { z } from 'zod';
 import { Field } from '@/components/ui/Field';
-import { EmptyState } from '@/components/ui/Feedback';
 import { useToast } from '@/providers/ToastProvider';
 import { toApiError } from '@/lib/api';
 import { fmtInt } from '@/lib/format';
 import { cn } from '@/lib/cn';
 import { useDeleteSubject, useFacultiesAdmin, useSaveSubject, useSubjectsAdmin, useUniversitiesAdmin } from './api';
-import { AdminHead, ConfirmDialog, EmptyRow, Pager, SearchBox, Sheet, TableSkeleton, useDebounced, type ConfirmState } from './ui';
+import { ActionMenu, AdminHead, ConfirmDialog, EmptyBlock, EmptyRow, Pager, SearchBox, Sheet, Swatch, TableSkeleton, useDebounced, type ConfirmState } from './ui';
 import { applyServerErrors, schemaResolver } from './forms';
 import { useAdminCrumbs } from './AdminShell';
 
@@ -177,6 +176,7 @@ const PAGE_SIZE = 30;
 
 export function SubjectsPage() {
   const toast = useToast();
+  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const { data: universities = [] } = useUniversitiesAdmin();
   const universityId = params.get('universityId') ?? '';
@@ -207,10 +207,10 @@ export function SubjectsPage() {
     <>
       <AdminHead
         title="Môn học"
-        description="Danh mục môn của từng trường. Một môn có thể nằm trong nhiều chương trình đào tạo với điều kiện khác nhau."
+        count={data?.total}
         actions={
           <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}>
-            <BookPlus className="ic ic-sm" />
+            <BookPlus className="ic" />
             Thêm môn
           </button>
         }
@@ -219,7 +219,7 @@ export function SubjectsPage() {
         <div className="adm-toolbar">
           <SearchBox value={q} onChange={setQ} placeholder="Tìm mã hoặc tên môn…" />
           <select
-            className="select"
+            className={cn('select', universityId && 'is-on')}
             value={universityId}
             onChange={(e) => {
               const p = new URLSearchParams(params);
@@ -238,7 +238,7 @@ export function SubjectsPage() {
           </select>
         </div>
         <div className="adm-table-wrap">
-          <table className={cn('adm-table is-clickable', !isLoading && 'rows-in')}>
+          <table className="adm-table is-clickable">
             <thead>
               <tr>
                 <th>Môn học</th>
@@ -246,39 +246,44 @@ export function SubjectsPage() {
                 <th className="num">Tín chỉ</th>
                 <th>Chương trình</th>
                 <th className="num">Tài liệu</th>
-                <th className="w-acts" aria-label="Thao tác" />
+                <th className="w-menu" aria-label="Thao tác" />
               </tr>
             </thead>
             {isLoading ? (
               <TableSkeleton cols={6} />
             ) : !items.length ? (
               <EmptyRow cols={6}>
-                <EmptyState
-                  title={query ? 'Không có môn khớp' : 'Chưa có môn học'}
-                  description={query ? `Không tìm thấy “${query}”.` : 'Thêm môn đầu tiên cho trường này.'}
-                  action={
-                    <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}>
-                      <BookPlus className="ic ic-sm" />
-                      Thêm môn
-                    </button>
-                  }
-                />
+                {query ? (
+                  <EmptyBlock icon={SearchX} title="Không có môn khớp" text={`Không tìm thấy “${query}”.`} />
+                ) : (
+                  <EmptyBlock
+                    icon={BookOpen}
+                    title="Chưa có môn học"
+                    text="Thêm môn đầu tiên cho trường này."
+                    action={
+                      <button type="button" className="btn btn-primary btn-sm" onClick={() => setCreating(true)}>
+                        <BookPlus className="ic" />
+                        Thêm môn
+                      </button>
+                    }
+                  />
+                )}
               </EmptyRow>
             ) : (
               <tbody>
                 {items.map((s) => {
                   const u = uniById.get(s.universityId);
                   return (
-                    <tr key={s.id} onClick={() => setEditing(s)}>
-                      <td>
+                    <tr key={s.id} onClick={() => navigate(`/admin/subjects/${s.id}`)}>
+                      <td style={{ maxWidth: 0, width: '40%' }}>
                         <span className="cell-title">
                           <span className="cell-code">{s.code}</span> · {s.nameVi}
                         </span>
                         <span className="cell-sub">{s.name}</span>
                       </td>
                       <td>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13.5 }}>
-                          {u && <span className="adm-swatch" style={{ background: u.color }} />}
+                        <span className="cell-dot">
+                          {u && <Swatch color={u.color} />}
                           {u?.code ?? '—'}
                           {s.faculty ? <span className="muted">· {s.faculty.code}</span> : null}
                         </span>
@@ -287,7 +292,7 @@ export function SubjectsPage() {
                       <td style={{ fontSize: 13 }}>
                         {s.programmes.length ? (
                           s.programmes.map((p) => (
-                            <Link key={p.majorId} to={`/admin/curriculum/${p.majorId}`} className="badge badge-violet" style={{ marginRight: 4 }} onClick={(ev) => ev.stopPropagation()}>
+                            <Link key={p.majorId} to={`/admin/curriculum/${p.majorId}`} className="chip-x" style={{ marginRight: 4 }} onClick={(ev) => ev.stopPropagation()}>
                               {p.majorCode}
                               {p.termNo ? ` · kỳ ${p.termNo}` : ''}
                             </Link>
@@ -297,44 +302,43 @@ export function SubjectsPage() {
                         )}
                       </td>
                       <td className="num">{fmtInt(s.documentCount)}</td>
-                      <td className="w-acts" onClick={(ev) => ev.stopPropagation()}>
-                        <div className="row-acts">
-                          <button type="button" className="icon-btn" aria-label={`Sửa ${s.code}`} onClick={() => setEditing(s)}>
-                            <Pencil className="ic ic-sm" />
-                          </button>
-                          <button
-                            type="button"
-                            className="icon-btn is-danger"
-                            aria-label={`Xoá ${s.code}`}
-                            onClick={() =>
-                              setConfirm({
-                                title: `Xoá ${s.code}?`,
-                                body: s.documentCount ? (
-                                  <>
-                                    Môn còn <b>{s.documentCount} tài liệu</b>. Chuyển tài liệu sang môn khác trước khi xoá.
-                                  </>
-                                ) : (
-                                  <>
-                                    <b>{s.nameVi}</b> sẽ bị xoá khỏi danh mục{s.programmes.length ? ` và khỏi ${s.programmes.length} chương trình` : ''}. Điểm sinh viên đã nhập
-                                    cho môn này cũng mất.
-                                  </>
-                                ),
-                                confirmLabel: 'Xoá môn',
-                                typeToConfirm: s.programmes.length ? s.code : undefined,
-                                run: () =>
-                                  remove.mutateAsync(s.id).then(
-                                    () => toast.success('Đã xoá môn', s.code),
-                                    (err) => {
-                                      toast.error('Không xoá được', toApiError(err).message);
-                                      throw err;
-                                    },
+                      <td className="w-menu" onClick={(ev) => ev.stopPropagation()}>
+                        <ActionMenu
+                          label={`Thao tác cho ${s.code}`}
+                          items={[
+                            { label: 'Tài liệu và thư mục', icon: FolderOpen, onSelect: () => navigate(`/admin/subjects/${s.id}`) },
+                            { label: 'Sửa môn', icon: Pencil, onSelect: () => setEditing(s) },
+                            'separator',
+                            {
+                              label: 'Xoá môn',
+                              icon: Trash2,
+                              danger: true,
+                              onSelect: () =>
+                                setConfirm({
+                                  title: `Xoá ${s.code}?`,
+                                  body: s.documentCount ? (
+                                    <>
+                                      Môn còn <b>{s.documentCount} tài liệu</b>. Chuyển tài liệu sang môn khác trước khi xoá.
+                                    </>
+                                  ) : (
+                                    <>
+                                      <b>{s.nameVi}</b> sẽ bị xoá khỏi danh mục{s.programmes.length ? ` và ${s.programmes.length} chương trình` : ''}, cùng điểm sinh viên đã nhập cho môn.
+                                    </>
                                   ),
-                              })
-                            }
-                          >
-                            <Trash2 className="ic ic-sm" />
-                          </button>
-                        </div>
+                                  confirmLabel: 'Xoá môn',
+                                  typeToConfirm: s.programmes.length ? s.code : undefined,
+                                  run: () =>
+                                    remove.mutateAsync(s.id).then(
+                                      () => toast.success('Đã xoá môn', s.code),
+                                      (err) => {
+                                        toast.error('Không xoá được', toApiError(err).message);
+                                        throw err;
+                                      },
+                                    ),
+                                }),
+                            },
+                          ]}
+                        />
                       </td>
                     </tr>
                   );
@@ -343,7 +347,7 @@ export function SubjectsPage() {
             )}
           </table>
         </div>
-        {data && <Pager page={page} totalPages={data.totalPages} total={data.total} unit="môn" onPage={setPage} />}
+        {data && data.total > 0 && <Pager page={page} totalPages={data.totalPages} total={data.total} unit="môn" onPage={setPage} />}
       </section>
       <SubjectForm open={creating || Boolean(editing)} subject={editing} universityId={universityId || undefined} onClose={() => (setCreating(false), setEditing(null))} />
       <ConfirmDialog state={confirm} onClose={() => setConfirm(null)} />
