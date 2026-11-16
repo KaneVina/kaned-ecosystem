@@ -192,18 +192,75 @@ Mặc định tệp đi thẳng từ trình duyệt lên **Cloudinary** bằng c
 nên một tệp 50 MB không phải đi qua server. Khi chưa cấu hình Cloudinary, API tự chuyển sang nhận tệp qua
 `POST /api/uploads/direct` và ghi vào `apps/api/uploads/` để phát triển local — không phải sửa gì ở front end.
 
-## Đăng nhập Google
+## Đăng nhập bằng tài khoản bên thứ ba
 
-Tạo OAuth client (Web application) ở [Google Cloud Console](https://console.cloud.google.com/apis/credentials),
-thêm `http://localhost:5173` vào *Authorized JavaScript origins*, rồi điền `GOOGLE_CLIENT_ID` vào
-`apps/api/.env`. Front end tự lấy client ID từ `GET /api/auth/config`, nên hai đầu không bao giờ lệch nhau.
-API xác thực ID token bằng `google-auth-library` trước khi tạo hoặc liên kết tài khoản.
+Sinh viên có thể đăng nhập / đăng ký bằng **Google, Microsoft, GitHub hoặc Facebook**. Mỗi nhà cung cấp tự
+hiện trên trang đăng nhập khi `apps/api/.env` có **cả client ID lẫn secret** của nó — không phải sửa code,
+chỉ cần khởi động lại API. Chưa bật cái nào thì trang đăng nhập chỉ có email + mật khẩu.
+
+Ở mọi nhà cung cấp, địa chỉ chuyển về (redirect / callback URL) có dạng:
+
+```
+http://localhost:5173/api/auth/oauth/<provider>/callback        ← khi chạy trên máy
+<API_PUBLIC_URL>/api/auth/oauth/<provider>/callback             ← production
+```
+
+với `<provider>` là `google`, `microsoft`, `github` hoặc `facebook`.
+
+**Google** — [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → *Create credentials* →
+*OAuth client ID* → loại *Web application* → thêm callback URL ở trên vào *Authorized redirect URIs*. Điền
+*Client ID* / *Client secret* vào `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`. Lần đầu Google bắt cấu hình
+*OAuth consent screen*; khi app còn ở chế độ *Testing*, chỉ các email trong *Test users* đăng nhập được.
+
+**Microsoft** (tài khoản Outlook / Microsoft 365 của trường) — [Microsoft Entra](https://entra.microsoft.com) →
+*App registrations* → *New registration* → *Accounts in any organizational directory and personal Microsoft
+accounts* → *Redirect URI* loại *Web* = callback URL. Sau đó *Certificates & secrets* → *New client secret*
+(chép cột **Value**). Điền *Application (client) ID* và secret vào `MICROSOFT_CLIENT_ID` /
+`MICROSOFT_CLIENT_SECRET`. Muốn chỉ cho email của một trường: đặt `MICROSOFT_TENANT` bằng tenant ID của trường.
+
+**GitHub** — *Settings* → *Developer settings* → *OAuth Apps* → *New OAuth App*: *Homepage URL*
+`http://localhost:5173`, *Authorization callback URL* = callback URL. Bấm *Generate a new client secret*, điền
+vào `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET`.
+
+**Facebook** — [Meta for Developers](https://developers.facebook.com/apps) → *Create app* → chọn trường hợp
+dùng *Facebook Login* → thêm callback URL vào *Valid OAuth Redirect URIs* (khi app ở chế độ Development, địa
+chỉ `localhost` được chấp nhận sẵn). *App settings → Basic* có *App ID* / *App secret* → điền vào
+`FACEBOOK_CLIENT_ID` / `FACEBOOK_CLIENT_SECRET`.
+
+Logo chính thức của các hãng không đi kèm repo; nút hiện chữ cái đầu. Muốn có logo, đặt tệp từ bộ nhận diện
+của từng hãng vào `apps/web/src/assets/brands/` (`google.svg`, `microsoft.svg`, `github.svg`, `facebook.svg`).
+
+### Luồng đăng nhập
+
+1. Bấm nút → API tạo `state`, PKCE và `nonce`, cất vào cookie mã hoá, rồi chuyển sang trang của nhà cung cấp
+2. Người dùng đồng ý → nhà cung cấp trả về `code` → API kiểm tra `state`, đổi `code` lấy token ở phía server,
+   lấy tên + email, rồi tìm hoặc tạo tài khoản và đặt cookie phiên
+3. Trình duyệt về `/auth/callback` → vào đúng trang đang mở dở (hoặc `/app`). Tài khoản mới đi qua
+   `/welcome` để chọn trường và ngành (bỏ qua được)
+
+Kaned gắn tài khoản bên ngoài với tài khoản Kaned theo các luật sau:
+
+| Trường hợp | Kết quả |
+| --- | --- |
+| Tài khoản bên ngoài đã liên kết | Đăng nhập vào tài khoản đó |
+| Email **đã xác minh** trùng một tài khoản Kaned | Tự liên kết rồi đăng nhập |
+| Email trùng nhưng nhà cung cấp **không xác minh** email (thường gặp với Microsoft) | Từ chối, hướng dẫn đăng nhập bằng mật khẩu rồi liên kết trong Cài đặt — chặn chiếm tài khoản bằng email giả |
+| Email chưa có ai dùng | Tạo tài khoản mới |
+| Nhà cung cấp không cho email (Facebook đăng ký bằng số điện thoại, GitHub chưa xác minh email) | Từ chối, giải thích lý do |
+
+Trong **Cài đặt tài khoản** (`/app/settings`, có trong menu ảnh đại diện) người dùng liên kết / bỏ liên kết
+từng nhà cung cấp và đặt hoặc đổi mật khẩu. Không bỏ được cách đăng nhập cuối cùng; đổi mật khẩu thì các
+thiết bị khác bị đăng xuất. Người dùng cũ đã đăng nhập Google trước bản này vẫn giữ liên kết.
 
 ## Bảo mật
 
 - Access token sống 15 phút, chỉ nằm trong bộ nhớ của tab — không vào `localStorage`
 - Refresh token là cookie `httpOnly`, được băm trước khi lưu vào database, và xoay vòng mỗi lần dùng
 - Mật khẩu băm bằng bcrypt; `helmet`, CORS theo danh sách origin, rate limit cho toàn bộ `/api`
+- Đăng nhập bên thứ ba dùng authorization code + PKCE; `state`, PKCE verifier và `nonce` nằm trong cookie
+  mã hoá AES-GCM chỉ sống 10 phút và chỉ dùng một lần. Token của nhà cung cấp không bao giờ tới trình duyệt và
+  không được lưu. Mọi đường quay về web đi tới `WEB_URL` trong cấu hình, `next` chỉ nhận đường dẫn nội bộ
+  (không có open redirect)
 - Khi lên production, cookie chuyển sang `SameSite=None; Secure` để Vercel gọi được Render
 
 ---

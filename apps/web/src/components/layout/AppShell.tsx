@@ -20,6 +20,7 @@ import {
   User,
   X,
   type LucideIcon,
+  Settings,
 } from 'lucide-react';
 import { useAuth } from '@/providers/AuthProvider';
 import { STAFF_ROLES } from '@kaned/shared';
@@ -239,6 +240,9 @@ export function AppShell() {
               <MenuLink to="/app/tools/gpa" icon={<Calculator className="ic ic-sm" />}>
                 Bảng điểm của bạn
               </MenuLink>
+              <MenuLink to="/app/settings" icon={<Settings className="ic ic-sm" />}>
+                Cài đặt tài khoản
+              </MenuLink>
               {STAFF_ROLES.includes(user.role) && (
                 <>
                   <MenuSeparator />
@@ -310,6 +314,10 @@ export function AppShell() {
               <Bookmark className="ic" />
               Đã lưu
               <span className="menu-count">{saved?.length ?? 0}</span>
+            </Link>
+            <Link to="/app/settings">
+              <Settings className="ic" />
+              Cài đặt tài khoản
             </Link>
             {STAFF_ROLES.includes(user.role) && (
               <Link to="/admin">

@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowLeft, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { registerSchema, STUDY_YEARS, type RegisterInput } from '@kaned/shared';
 import { AuthLayout, FloatField, FloatSelect } from './AuthLayout';
-import { GoogleButton } from './GoogleButton';
+import { ProviderButtons } from './ProviderButtons';
 import { useAuth } from '@/providers/AuthProvider';
 import { useToast } from '@/providers/ToastProvider';
 import { useMajors, useUniversities } from '@/features/catalog/queries';
@@ -26,7 +26,7 @@ function strength(pw: string) {
 const STRENGTH_WORD = ['', 'Quá ngắn', 'Tạm được', 'Khá mạnh', 'Rất mạnh'];
 
 export function RegisterPage() {
-  const { register: signUp, loginWithGoogle } = useAuth();
+  const { register: signUp } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
   const [step, setStep] = useState<1 | 2>(1);
@@ -176,17 +176,7 @@ export function RegisterPage() {
           </div>
         )}
 
-        <div className="auth-or">hoặc tiếp tục với</div>
-        <GoogleButton
-          onCredential={async (credential) => {
-            try {
-              await loginWithGoogle(credential);
-              navigate('/app', { replace: true });
-            } catch (error) {
-              toast.error('Không đăng ký được bằng Google', toApiError(error).message);
-            }
-          }}
-        />
+        <ProviderButtons divider="hoặc đăng ký nhanh với" />
 
         <p className="auth-switch">
           Đã có tài khoản? <Link to="/login" className="link">Đăng nhập</Link>

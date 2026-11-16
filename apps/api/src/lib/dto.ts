@@ -7,7 +7,9 @@ import type {
   SubjectSummaryDto,
   UniversityDto,
   UserSummaryDto,
+  OAuthProviderId,
 } from '@kaned/shared';
+import { OAUTH_PROVIDERS } from '@kaned/shared';
 
 /* ------------------------------------------------- relational query parts */
 
@@ -119,7 +121,8 @@ export function toCurrentUser(
     role: CurrentUserDto['role'];
     bio: string | null;
     majorId: string | null;
-    googleId: string | null;
+    passwordHash: string | null;
+    identities?: Array<{ provider: string }>;
     createdAt: Date;
   },
   stats?: CurrentUserDto['stats'],
@@ -130,7 +133,10 @@ export function toCurrentUser(
     role: row.role,
     bio: row.bio,
     majorId: row.majorId,
-    hasGoogle: Boolean(row.googleId),
+    hasPassword: Boolean(row.passwordHash),
+    providers: (row.identities ?? [])
+      .map((i) => i.provider)
+      .filter((p): p is OAuthProviderId => (OAUTH_PROVIDERS as readonly string[]).includes(p)),
     createdAt: row.createdAt.toISOString(),
     stats,
   };

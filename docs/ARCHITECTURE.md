@@ -32,6 +32,7 @@ University ─┬─ Faculty → Major (termCount, passMark) → (majorSubjects:
                         │    → reviews / bookmarks / tags
                         └─ grades (của từng user)
 
+userIdentities  tài khoản Google / Microsoft / GitHub / Facebook gắn với user (mỗi nhà cung cấp tối đa một)
 adminActivity   nhật ký thao tác quản trị
 idempotencyKeys sổ ghi Idempotency-Key và kết quả đã trả
 appMeta         phiên bản dữ liệu mẫu đã nạp
@@ -101,6 +102,22 @@ Service không bao giờ trả thẳng row của database ra ngoài: mọi phả
 
 Access token không nằm trong `localStorage`, nên một script chèn được vào trang cũng không đọc được nó.
 Refresh token xoay vòng mỗi lần dùng: nếu một token cũ bị dùng lại, nó đã bị thu hồi.
+
+### Đăng nhập bằng tài khoản bên thứ ba
+
+`modules/auth/oauth/providers.ts` mô tả từng nhà cung cấp (URL, scope, cách đọc hồ sơ); thêm một hãng là
+thêm một mục ở đó và hai biến môi trường. `oauth.service.ts` chạy luồng authorization code ở phía server:
+
+```
+GET /api/auth/oauth/:provider/start     → cookie kaned_oauth (state, PKCE, nonce; AES-GCM, 10 phút) → nhà cung cấp
+GET /api/auth/oauth/:provider/callback  → so state, đổi code lấy token, đọc hồ sơ, tìm / liên kết / tạo user,
+                                          đặt refresh cookie như đăng nhập thường → WEB_URL/auth/callback
+```
+
+Không có access token nào được trả trong URL: phía web chỉ cần chạy `bootstrapSession()` như khi tải lại
+trang. Google và Microsoft là OpenID Connect nên ID token còn bị kiểm `aud` và `nonce`. Liên kết thêm một
+nhà cung cấp cho tài khoản đang đăng nhập dùng vé một lần (`POST /auth/oauth/:provider/link`, mã hoá, sống 2
+phút) thay cho cookie phiên, để một trang lạ không tự kích hoạt được việc liên kết.
 
 Trên web, axios interceptor bắt lỗi 401, gọi `/auth/refresh` **một lần duy nhất** dù mười request cùng
 hỏng một lúc (single-flight), rồi chạy lại các request đã hỏng. Lúc mở trang, `bootstrapSession()` thử

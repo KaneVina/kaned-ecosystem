@@ -1,6 +1,7 @@
 import { and, count, desc, eq, ilike, or, sql, type SQL } from 'drizzle-orm';
 import {
   DOCUMENT_STATUSES,
+  OAUTH_PROVIDERS,
   ROLES,
   ROLE_LABELS,
   type ActivityDto,
@@ -9,6 +10,7 @@ import {
   type AdminUserDto,
   type AdminUserQuery,
   type DocumentStatus,
+  type OAuthProviderId,
   type Paginated,
   type Role,
 } from '@kaned/shared';
@@ -46,7 +48,7 @@ export async function listUsers(query: AdminUserQuery): Promise<Paginated<AdminU
     db.select({ value: count() }).from(users).where(where),
     db.query.users.findMany({
       where,
-      with: { university: true, major: true },
+      with: { university: true, major: true, identities: { columns: { provider: true } } },
       extras: {
         uploadCount: sql<number>`(select count(*)::int from documents d where d.uploader_id = ${users.id})`.as('upload_count'),
       },
@@ -69,7 +71,10 @@ export async function listUsers(query: AdminUserQuery): Promise<Paginated<AdminU
         : null,
       major: u.major ? { id: u.major.id, name: u.major.nameVi } : null,
       uploadCount: Number(u.uploadCount ?? 0),
-      hasGoogle: Boolean(u.googleId),
+      signInMethods: [
+        ...(u.passwordHash ? (['password'] as const) : []),
+        ...u.identities.map((i) => i.provider as OAuthProviderId).filter((p) => OAUTH_PROVIDERS.includes(p)),
+      ],
       createdAt: u.createdAt.toISOString(),
     })),
     page: query.page,

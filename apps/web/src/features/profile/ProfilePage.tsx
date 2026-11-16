@@ -160,7 +160,6 @@ export function ProfilePage({ defaultTab = 'uploads' }: { defaultTab?: Tab }) {
         <div className="ph-info">
           <div className="ph-name">
             <h1 className="t-h1">{user.name}</h1>
-            {user.hasGoogle && <span className="badge badge-blue">Google</span>}
           </div>
           <ul className="eh-meta">
             {user.university && (

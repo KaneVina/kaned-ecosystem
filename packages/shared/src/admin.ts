@@ -17,6 +17,7 @@ import {
   type Semester,
 } from './domain.js';
 import type { Requirement } from './planner.js';
+import type { SignInMethod } from './oauth.js';
 import type { DocumentSummaryDto, MajorDto, SubjectSummaryDto, UniversityDto } from './types.js';
 import { updateDocumentSchema } from './schemas.js';
 
@@ -366,7 +367,7 @@ export interface AdminUserDto {
   university: Pick<UniversityDto, 'id' | 'code' | 'name' | 'color'> | null;
   major: { id: string; name: string } | null;
   uploadCount: number;
-  hasGoogle: boolean;
+  signInMethods: SignInMethod[];
   createdAt: string;
 }
 

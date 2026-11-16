@@ -6,6 +6,9 @@ import { LandingPage } from '@/features/landing/LandingPage';
 import { NotFoundPage } from '@/features/landing/NotFoundPage';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { RegisterPage } from '@/features/auth/RegisterPage';
+import { OAuthCallbackPage } from '@/features/auth/OAuthCallbackPage';
+import { WelcomePage } from '@/features/auth/WelcomePage';
+import { SettingsPage } from '@/features/settings/SettingsPage';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import { LibraryPage } from '@/features/library/LibraryPage';
 import { DocumentDetailPage } from '@/features/library/DocumentDetailPage';
@@ -71,6 +74,9 @@ export default function App() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<GuestOnly><LoginPage /></GuestOnly>} />
       <Route path="/register" element={<GuestOnly><RegisterPage /></GuestOnly>} />
+      {/* Back from Google / Microsoft / GitHub / Facebook; works signed in or out. */}
+      <Route path="/auth/callback" element={<OAuthCallbackPage />} />
+      <Route path="/welcome" element={<RequireAuth><WelcomePage /></RequireAuth>} />
 
       <Route path="/app" element={<RequireAuth><AppShell /></RequireAuth>}>
         <Route index element={<DashboardPage />} />
@@ -82,6 +88,7 @@ export default function App() {
         <Route path="tools/gpa" element={<GpaPage />} />
         <Route path="saved" element={<ProfilePage defaultTab="saved" />} />
         <Route path="profile" element={<ProfilePage defaultTab="uploads" />} />
+        <Route path="settings" element={<SettingsPage />} />
 
         {/* Older addresses, kept so saved links keep working. */}
         <Route path="planner" element={<Navigate to="/app/subjects" replace />} />

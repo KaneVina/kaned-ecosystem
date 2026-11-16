@@ -38,11 +38,16 @@ function stableStringify(value: unknown): string {
   return JSON.stringify(value ?? null);
 }
 
-function fingerprint(req: Request, path: string) {
+function fingerprint(req: Request, path: string, redact: string[]) {
   // Multipart bodies are parsed later by multer; the size stands in for them.
-  const body = req.is('multipart/form-data')
-    ? `multipart:${req.get('content-length') ?? '0'}`
-    : stableStringify(req.body ?? {});
+  let payload: unknown = req.body ?? {};
+  if (redact.length && payload && typeof payload === 'object') {
+    // Secrets (passwords) never reach the ledger, not even as a hash.
+    payload = Object.fromEntries(
+      Object.entries(payload as Record<string, unknown>).map(([k, v]) => [k, redact.includes(k) && v != null ? '[redacted]' : v]),
+    );
+  }
+  const body = req.is('multipart/form-data') ? `multipart:${req.get('content-length') ?? '0'}` : stableStringify(payload);
   return createHash('sha256').update(`${req.method} ${path}\n${body}`).digest('hex');
 }
 
@@ -86,10 +91,12 @@ async function reserve(scope: string, key: string, method: string, path: string,
 export interface IdempotencyOptions {
   /** Reject requests without a key (default). */
   required?: boolean;
+  /** Body fields left out of the request fingerprint, e.g. passwords. */
+  redact?: string[];
 }
 
 /** Must run after the auth middleware, so keys are scoped to the caller. */
-export function idempotent({ required = true }: IdempotencyOptions = {}): RequestHandler {
+export function idempotent({ required = true, redact = [] }: IdempotencyOptions = {}): RequestHandler {
   return async (req, res, next) => {
     const key = req.get(IDEMPOTENCY_HEADER)?.trim();
     if (!key) {
@@ -108,7 +115,7 @@ export function idempotent({ required = true }: IdempotencyOptions = {}): Reques
 
     const scope = req.user?.id ?? `ip:${req.ip ?? 'unknown'}`;
     const path = `${req.baseUrl}${req.path}`;
-    const requestHash = fingerprint(req, path);
+    const requestHash = fingerprint(req, path, redact);
 
     void sweepExpired();
 

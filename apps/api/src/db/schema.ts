@@ -259,7 +259,6 @@ export const users = pgTable(
     email: varchar('email', { length: 190 }).notNull().unique(),
     name: text('name').notNull(),
     passwordHash: text('password_hash'),
-    googleId: varchar('google_id', { length: 64 }).unique(),
     avatarUrl: text('avatar_url'),
     bio: text('bio'),
     role: roleEnum('role').notNull().default('STUDENT'),
@@ -271,6 +270,31 @@ export const users = pgTable(
   },
   (t) => ({
     universityIdx: index('users_university_idx').on(t.universityId),
+  }),
+);
+
+/**
+ * Outside accounts (Google, Microsoft, GitHub, Facebook) a user signs in with.
+ * One row per provider account; a user has at most one account per provider.
+ */
+export const userIdentities = pgTable(
+  'user_identities',
+  {
+    id: id(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    provider: varchar('provider', { length: 20 }).notNull(),
+    /** The provider's stable id for the account (Google "sub", GitHub user id…). */
+    providerUserId: varchar('provider_user_id', { length: 190 }).notNull(),
+    email: varchar('email', { length: 190 }),
+    emailVerified: boolean('email_verified').notNull().default(false),
+    createdAt: createdAt(),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+  },
+  (t) => ({
+    providerAccount: uniqueIndex('user_identities_provider_account_idx').on(t.provider, t.providerUserId),
+    onePerProvider: uniqueIndex('user_identities_user_provider_idx').on(t.userId, t.provider),
   }),
 );
 
@@ -598,6 +622,11 @@ export const userRelations = relations(users, ({ one, many }) => ({
   reviews: many(reviews),
   grades: many(grades),
   collections: many(collections),
+  identities: many(userIdentities),
+}));
+
+export const userIdentityRelations = relations(userIdentities, ({ one }) => ({
+  user: one(users, { fields: [userIdentities.userId], references: [users.id] }),
 }));
 
 export const documentRelations = relations(documents, ({ one, many }) => ({
@@ -654,6 +683,7 @@ export const gradeRelations = relations(grades, ({ one }) => ({
 /* ──────────────────────────────── types ─────────────────────────────── */
 
 export type UserRow = typeof users.$inferSelect;
+export type UserIdentityRow = typeof userIdentities.$inferSelect;
 export type DocumentRow = typeof documents.$inferSelect;
 export type SubjectRow = typeof subjects.$inferSelect;
 export type UniversityRow = typeof universities.$inferSelect;

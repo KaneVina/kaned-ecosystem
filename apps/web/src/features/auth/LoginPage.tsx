@@ -5,22 +5,25 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Eye, EyeOff, Lightbulb } from 'lucide-react';
 import { loginSchema, type LoginInput } from '@kaned/shared';
 import { AuthLayout, FloatField } from './AuthLayout';
-import { GoogleButton } from './GoogleButton';
+import { ProviderButtons } from './ProviderButtons';
+import { OAuthProblemAlert } from './OAuthProblemAlert';
+import type { OAuthProblem } from './oauth';
 import { useAuth } from '@/providers/AuthProvider';
-import { useToast } from '@/providers/ToastProvider';
 import { toApiError } from '@/lib/api';
 import { cn } from '@/lib/cn';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function LoginPage() {
-  const { login, loginWithGoogle } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const toast = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [shake, setShake] = useState(false);
-  const redirectTo = (location.state as { from?: string } | null)?.from ?? '/app';
+  const state = location.state as { from?: string; oauthProblem?: OAuthProblem } | null;
+  const redirectTo = state?.from ?? '/app';
+  // Why a sign-in with Google / Microsoft / … came back without a session.
+  const [problem, setProblem] = useState<OAuthProblem | null>(state?.oauthProblem ?? null);
 
   const form = useForm<LoginInput>({ resolver: zodResolver(loginSchema), defaultValues: { email: '', password: '' } });
   const email = form.watch('email');
@@ -33,6 +36,7 @@ export function LoginPage() {
 
   const onSubmit = form.handleSubmit(
     async (values) => {
+      setProblem(null);
       try {
         await login(values);
         navigate(redirectTo, { replace: true });
@@ -46,18 +50,10 @@ export function LoginPage() {
     () => fail(),
   );
 
-  const onGoogle = async (credential: string) => {
-    try {
-      await loginWithGoogle(credential);
-      navigate(redirectTo, { replace: true });
-    } catch (error) {
-      toast.error('Không đăng nhập được bằng Google', toApiError(error).message);
-    }
-  };
-
   return (
     <AuthLayout title="Chào mừng trở lại" subtitle="Đăng nhập để mở thư viện, bảng điểm và mọi công cụ trên tài khoản của bạn.">
       <form onSubmit={onSubmit} noValidate className={cn(shake && 'shake')}>
+        {problem && <OAuthProblemAlert problem={problem} onDismiss={() => setProblem(null)} />}
         <div className="step-pane">
           <div className="auth-fields">
             <FloatField
@@ -112,8 +108,7 @@ export function LoginPage() {
           </button>
         </div>
 
-        <div className="auth-or">hoặc tiếp tục với</div>
-        <GoogleButton onCredential={onGoogle} />
+        <ProviderButtons next={redirectTo} />
 
         <p className="auth-switch">
           Mới dùng Kaned? <Link to="/register" className="link">Tạo tài khoản</Link>

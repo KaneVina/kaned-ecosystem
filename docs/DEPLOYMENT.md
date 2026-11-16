@@ -47,7 +47,12 @@ DATABASE_URL=<connection string>
 JWT_ACCESS_SECRET=<48 bytes hex>
 JWT_REFRESH_SECRET=<48 bytes hex>
 CORS_ORIGINS=https://<tên-app>.vercel.app
-GOOGLE_CLIENT_ID=<nếu dùng đăng nhập Google>
+WEB_URL=https://<tên-app>.vercel.app
+API_PUBLIC_URL=https://kaned-api.onrender.com
+# Đăng nhập bằng tài khoản bên thứ ba — điền cặp nào thì nhà cung cấp đó bật:
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+# MICROSOFT_CLIENT_ID / _SECRET, GITHUB_CLIENT_ID / _SECRET, FACEBOOK_CLIENT_ID / _SECRET
 CLOUDINARY_CLOUD_NAME=...
 CLOUDINARY_API_KEY=...
 CLOUDINARY_API_SECRET=...
@@ -84,7 +89,6 @@ Biến môi trường:
 
 ```
 VITE_API_URL=https://kaned-api.onrender.com
-VITE_GOOGLE_CLIENT_ID=<cùng client ID với API>
 ```
 
 > `VITE_API_URL` được nhúng vào bundle lúc build, nên sau khi đổi phải deploy lại.
@@ -94,7 +98,9 @@ VITE_GOOGLE_CLIENT_ID=<cùng client ID với API>
 1. Deploy API trước, lấy URL Render.
 2. Deploy web với `VITE_API_URL` trỏ vào URL đó.
 3. Quay lại Render, đặt `CORS_ORIGINS` bằng URL Vercel (thêm cả domain preview nếu cần, cách nhau bằng dấu phẩy).
-4. Nếu dùng Google: thêm cả hai URL vào *Authorized JavaScript origins* của OAuth client.
+4. Với mỗi nhà cung cấp đăng nhập đã bật: thêm callback URL production
+   `https://kaned-api.onrender.com/api/auth/oauth/<provider>/callback` vào cấu hình ứng dụng bên đó
+   (cách làm cho từng hãng: README → *Đăng nhập bằng tài khoản bên thứ ba*).
 
 ## 5. Cloudinary
 

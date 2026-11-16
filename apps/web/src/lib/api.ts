@@ -40,7 +40,7 @@ export const withKey = (key: string) => ({ headers: { 'Idempotency-Key': key } }
 
 const WRITE_METHODS = new Set(['post', 'put', 'patch', 'delete']);
 // Session endpoints hand out tokens and are not replayed; everything else that writes is.
-const SESSION_PATHS = ['/auth/login', '/auth/register', '/auth/google', '/auth/refresh', '/auth/logout'];
+const SESSION_PATHS = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/logout'];
 
 http.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`;

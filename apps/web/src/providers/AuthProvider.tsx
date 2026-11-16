@@ -9,7 +9,6 @@ interface AuthContextValue {
   initialising: boolean;
   login: (input: LoginInput) => Promise<void>;
   register: (input: RegisterInput) => Promise<void>;
-  loginWithGoogle: (credential: string) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (input: UpdateProfileInput) => Promise<void>;
   setUser: (user: CurrentUserDto) => void;
@@ -61,12 +60,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data } = await http.post<AuthResponse>('/auth/register', input);
         apply(data);
       },
-      async loginWithGoogle(credential) {
-        const { data } = await http.post<AuthResponse>('/auth/google', { credential });
-        apply(data);
-      },
       async updateProfile(input) {
-        const { data } = await http.patch<CurrentUserDto>('/users/me', input);
+        const { data } = await http.patch<CurrentUserDto>('/auth/me', input);
         setUser(data);
       },
       async logout() {

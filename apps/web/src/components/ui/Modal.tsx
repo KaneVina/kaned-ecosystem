@@ -13,7 +13,8 @@ export interface ModalProps {
   /** Render children straight into .modal, without the standard head and body. */
   bare?: boolean;
   className?: string;
-  children: ReactNode;
+  /** Optional: a confirmation can be just a title, a description and buttons. */
+  children?: ReactNode;
 }
 
 /** .modal-wrap with backdrop, focus trap, Escape to close, and the enter/leave transition. */
@@ -90,7 +91,7 @@ export function Modal({ open, onClose, title, description, size = 'md', footer, 
             <X className="ic" />
           </button>
         </div>
-        <div className="modal-body">{children}</div>
+        {children != null && children !== false && <div className="modal-body">{children}</div>}
         {footer && <div className="modal-foot">{footer}</div>}
         </>
         )}

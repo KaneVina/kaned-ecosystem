@@ -10,6 +10,7 @@ import type {
   Role,
   Semester,
 } from './domain.js';
+import type { OAuthProviderId } from './oauth.js';
 import type { Requirement } from './planner.js';
 
 export interface Paginated<T> {
@@ -124,8 +125,10 @@ export interface CurrentUserDto extends UserSummaryDto {
   role: Role;
   bio: string | null;
   majorId: string | null;
-  /** True when the account is linked to Google sign-in. */
-  hasGoogle: boolean;
+  /** False for accounts created with an outside provider that never set one. */
+  hasPassword: boolean;
+  /** Outside accounts this account can sign in with. */
+  providers: OAuthProviderId[];
   createdAt: string;
   stats?: {
     uploads: number;

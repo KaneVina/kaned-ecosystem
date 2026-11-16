@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ROLES, ROLE_LABELS, type AdminUserDto, type Role } from '@kaned/shared';
+import { OAUTH_PROVIDER_LABELS, ROLES, ROLE_LABELS, type AdminUserDto, type Role } from '@kaned/shared';
 import { Avatar } from '@/components/ui/Avatar';
 import { useAuth } from '@/providers/AuthProvider';
 import { useToast } from '@/providers/ToastProvider';
@@ -96,7 +96,7 @@ export function UsersPage() {
                 {items.map((u) => (
                   <tr key={u.id}>
                     <td>
-                      <div className="cell-main">
+                      <div className="cell">
                         <Avatar name={u.name} src={u.avatarUrl} size="sm" />
                         <div>
                           <span className="cell-title">
@@ -104,7 +104,12 @@ export function UsersPage() {
                           </span>
                           <span className="cell-sub">
                             {u.email}
-                            {u.hasGoogle ? ' · Google' : ''}
+                            {u.signInMethods.length > 0 && (
+                              <span className="sign-in-methods" title="Cách đăng nhập">
+                                {' · '}
+                                {u.signInMethods.map((m) => (m === 'password' ? 'Mật khẩu' : OAUTH_PROVIDER_LABELS[m])).join(', ')}
+                              </span>
+                            )}
                           </span>
                         </div>
                       </div>

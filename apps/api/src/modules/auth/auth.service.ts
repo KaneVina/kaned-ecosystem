@@ -1,18 +1,17 @@
 import bcrypt from 'bcryptjs';
 import { and, count, eq, isNull, sql } from 'drizzle-orm';
-import { OAuth2Client } from 'google-auth-library';
-import type { CurrentUserDto, RegisterInput } from '@kaned/shared';
+import type { CurrentUserDto, RegisterInput, SetPasswordInput } from '@kaned/shared';
 import { db } from '../../db/index.js';
 import { bookmarks, documents, refreshTokens, reviews, users } from '../../db/schema.js';
 import { ApiError } from '../../lib/errors.js';
 import { createRefreshToken, hashRefreshToken, signAccessToken } from '../../lib/jwt.js';
 import { toCurrentUser, userWith } from '../../lib/dto.js';
-import { env } from '../../env.js';
-
-const googleClient = env.googleEnabled ? new OAuth2Client(env.GOOGLE_CLIENT_ID) : null;
 
 async function findUser(userId: string) {
-  return db.query.users.findFirst({ where: eq(users.id, userId), with: userWith });
+  return db.query.users.findFirst({
+    where: eq(users.id, userId),
+    with: { ...userWith, identities: { columns: { provider: true } } },
+  });
 }
 
 async function statsFor(userId: string): Promise<CurrentUserDto['stats']> {
@@ -98,55 +97,24 @@ export async function login(email: string, password: string, userAgent?: string)
   return issueSession(user.id, userAgent);
 }
 
-export async function loginWithGoogle(credential: string, userAgent?: string) {
-  if (!googleClient) {
-    throw ApiError.badRequest(
-      'Google sign-in is not configured on this server. Add GOOGLE_CLIENT_ID to apps/api/.env.',
-    );
-  }
-
-  const ticket = await googleClient
-    .verifyIdToken({ idToken: credential, audience: env.GOOGLE_CLIENT_ID })
-    .catch(() => null);
-
-  const payload = ticket?.getPayload();
-  if (!payload?.email || !payload.sub) {
-    throw ApiError.badRequest('Google did not confirm that account. Please try again.');
-  }
-  if (payload.email_verified === false) {
-    throw ApiError.badRequest('That Google account does not have a verified email address.');
-  }
-
-  const email = payload.email.toLowerCase();
-  const existing = await db.query.users.findFirst({
-    where: sql`${users.googleId} = ${payload.sub} or ${users.email} = ${email}`,
-  });
-
-  if (existing) {
-    // Link the Google identity to an account that started with a password.
-    if (!existing.googleId || (!existing.avatarUrl && payload.picture)) {
-      await db
-        .update(users)
-        .set({
-          googleId: existing.googleId ?? payload.sub,
-          avatarUrl: existing.avatarUrl ?? payload.picture ?? null,
-        })
-        .where(eq(users.id, existing.id));
+/**
+ * Sets a password, or changes it. Accounts created with an outside provider
+ * have none until they set one here; changing an existing one needs the old.
+ */
+export async function setPassword(userId: string, input: SetPasswordInput) {
+  const user = await db.query.users.findFirst({ where: eq(users.id, userId), columns: { passwordHash: true } });
+  if (!user) throw ApiError.notFound('That account no longer exists.');
+  if (user.passwordHash) {
+    const ok = input.currentPassword ? await bcrypt.compare(input.currentPassword, user.passwordHash) : false;
+    if (!ok) {
+      throw ApiError.badRequest('Mật khẩu hiện tại không đúng.', { currentPassword: 'Mật khẩu hiện tại không đúng.' });
     }
-    return issueSession(existing.id, userAgent);
   }
-
-  const [created] = await db
-    .insert(users)
-    .values({
-      email,
-      name: payload.name?.trim() || email.split('@')[0],
-      googleId: payload.sub,
-      avatarUrl: payload.picture ?? null,
-    })
-    .returning({ id: users.id });
-
-  return issueSession(created.id, userAgent);
+  await db
+    .update(users)
+    .set({ passwordHash: await bcrypt.hash(input.newPassword, 12) })
+    .where(eq(users.id, userId));
+  return { hadPassword: Boolean(user.passwordHash) };
 }
 
 /** How long a just-rotated refresh token still works, for parallel requests. */

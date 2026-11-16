@@ -38,11 +38,6 @@ export const loginSchema = z.object({
 });
 export type LoginInput = z.infer<typeof loginSchema>;
 
-export const googleAuthSchema = z.object({
-  credential: z.string().min(10, 'Missing Google credential.'),
-});
-export type GoogleAuthInput = z.infer<typeof googleAuthSchema>;
-
 export const updateProfileSchema = z.object({
   name: z.string().trim().min(2).max(80).optional(),
   bio: z.string().trim().max(280).optional().nullable(),

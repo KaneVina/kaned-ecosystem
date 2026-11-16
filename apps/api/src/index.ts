@@ -3,6 +3,7 @@
 import 'express-async-errors';
 import { createApp } from './app.js';
 import { env } from './env.js';
+import { configuredProviders } from './modules/auth/oauth/providers.js';
 import { sqlClient } from './db/index.js';
 
 const app = createApp();
@@ -11,7 +12,8 @@ const server = app.listen(env.PORT, () => {
   console.log(`\n  Kaned API ready on http://localhost:${env.PORT}`);
   console.log(`  Environment : ${env.NODE_ENV}`);
   console.log(`  CORS origins: ${env.corsOrigins.join(', ')}`);
-  console.log(`  Google login: ${env.googleEnabled ? 'enabled' : 'not configured'}`);
+  const providers = configuredProviders().map((p) => p.label);
+  console.log(`  Sign-in with: ${providers.length ? providers.join(', ') : 'password only (no provider configured)'}`);
   console.log(`  Cloudinary  : ${env.cloudinaryEnabled ? 'enabled' : 'not configured'}\n`);
 });
 
