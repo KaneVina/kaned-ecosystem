@@ -261,10 +261,16 @@ export function DocumentDetailPage() {
                 <div>
                   <dt>Học kỳ</dt>
                   <dd>
-                    <Link to={`/app/library?semester=${data.semester}`}>{semesterVi(data.semester)}</Link>
-                    {data.schoolYear && <span>Năm học {data.schoolYear}</span>}
+                    {data.term ? <span>{data.term.name}</span> : <Link to={`/app/library?semester=${data.semester}`}>{semesterVi(data.semester)}</Link>}
+                    {data.period && <span>{data.period}</span>}
                   </dd>
                 </div>
+                {data.lecturer && (
+                  <div>
+                    <dt>Giảng viên</dt>
+                    <dd>{data.lecturer}</dd>
+                  </div>
+                )}
               </dl>
             </section>
 

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm, type FieldValues, type Path, type Resolver, type UseFormReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { z, ZodTypeAny } from 'zod';
@@ -60,6 +60,8 @@ export function UniversityForm({ open, onClose, university }: { open: boolean; o
   const save = useSaveUniversity();
   const form = useForm<UniIn, unknown, UniOut>({ resolver: schemaResolver(universityInputSchema) });
   const color = form.watch('color');
+  // Edited as one comma-separated line, stored as a list.
+  const [periodsText, setPeriodsText] = useState('');
 
   useEffect(() => {
     if (!open) return;
@@ -75,14 +77,17 @@ export function UniversityForm({ open, onClose, university }: { open: boolean; o
             foundedYear: university.foundedYear ?? '',
             color: university.color,
             description: university.description ?? '',
+            periods: university.periods ?? [],
           }
         : { code: '', name: '', nameVi: '', city: '', region: 'south', kind: 'Public', foundedYear: '', color: '#4433B4', description: '' },
     );
+    setPeriodsText((university?.periods ?? []).join(', '));
   }, [open, university, form]);
 
   const onSubmit = form.handleSubmit(async (input) => {
     try {
-      const saved = await save.mutateAsync({ id: university?.id, input });
+      const periods = periodsText.split(',').map((x) => x.trim()).filter(Boolean);
+      const saved = await save.mutateAsync({ id: university?.id, input: { ...input, periods } });
       toast.success(university ? 'Đã lưu trường' : 'Đã thêm trường', `${saved.code} — ${saved.nameVi}`);
       onClose();
     } catch (e) {
@@ -143,6 +148,9 @@ export function UniversityForm({ open, onClose, university }: { open: boolean; o
                 ))}
               </div>
             </div>
+          </Field>
+          <Field label="Block / đợt học trong kỳ" htmlFor="u-periods" optional hint="Cách nhau bằng dấu phẩy, vd. Block 10, Block 10 - Half 1, Block 3. Hiện trên form đăng tài liệu." className="span-2">
+            <input id="u-periods" className="input" value={periodsText} onChange={(ev) => setPeriodsText(ev.target.value)} placeholder="Để trống nếu trường không chia block" />
           </Field>
           <Field label="Giới thiệu" htmlFor="u-desc" optional error={e.description?.message} className="span-2">
             <textarea id="u-desc" className="textarea" rows={3} {...form.register('description')} />

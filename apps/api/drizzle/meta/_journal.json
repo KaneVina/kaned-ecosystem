@@ -43,6 +43,13 @@
       "when": 1794836960572,
       "tag": "0005_user_activity",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794853728931,
+      "tag": "0006_types_periods_lecturer",
+      "breakpoints": true
     }
   ]
 }

@@ -31,7 +31,7 @@ import { useCreateDocumentAdmin, useFoldersAdmin, useUpdateDocumentAdmin } from 
 import { buildFolderTree, flattenTree } from '@/lib/folders';
 import { Sheet } from './ui';
 
-const EXT: Record<string, FileFormat> = { pdf: 'PDF', docx: 'DOCX', pptx: 'PPTX', xlsx: 'XLSX' };
+const EXT: Record<string, FileFormat> = { pdf: 'PDF', docx: 'DOCX', pptx: 'PPTX', xlsx: 'XLSX', html: 'HTML', htm: 'HTML', md: 'MD', markdown: 'MD' };
 
 interface Draft {
   source: 'file' | 'link';
@@ -322,7 +322,7 @@ export function DocumentEditor({ doc, open, onClose, defaults }: { doc: AdminDoc
                   ref={picker}
                   type="file"
                   hidden
-                  accept=".pdf,.docx,.pptx,.xlsx"
+                  accept=".pdf,.docx,.pptx,.xlsx,.html,.htm,.md,.markdown"
                   onChange={(e) => {
                     const f = e.target.files?.[0];
                     if (f) accept(f);

@@ -36,7 +36,12 @@ export const storage = {
 
     const timestamp = Math.floor(Date.now() / 1000);
     const safeName = filename.replace(/\.[^.]+$/, '').replace(/[^\w-]+/g, '-').slice(0, 50);
-    const publicId = `${safeName || 'document'}-${crypto.randomBytes(6).toString('hex')}`;
+    // Word, PowerPoint, Excel, HTML and Markdown are stored as raw files; their
+    // public id must keep the extension or the delivered file has none and
+    // viewers cannot tell what it is.
+    const ext = (filename.split('.').pop() ?? '').toLowerCase();
+    const keepExt = /^(docx?|pptx?|xlsx?|html?|md|markdown)$/.test(ext) ? `.${ext}` : '';
+    const publicId = `${safeName || 'document'}-${crypto.randomBytes(6).toString('hex')}${keepExt}`;
     const folder = `${env.CLOUDINARY_FOLDER}/${userId}`;
 
     const signature = cloudinary.utils.api_sign_request(
@@ -100,10 +105,12 @@ export const storage = {
   },
 
   /** Cloudinary can render page 1 of a PDF as a JPEG — used for the card thumbnail. */
-  thumbnailFor(publicId: string): string | null {
+  thumbnailFor(publicId: string, format?: string): string | null {
     if (!env.cloudinaryEnabled || !publicId) return null;
+    // Cloudinary can draw a page only from a PDF.
+    if (format && format !== 'PDF') return null;
     // Word / PowerPoint / Excel files are stored raw; Cloudinary can only draw PDFs and images.
-    if (/\.(docx?|pptx?|xlsx?|zip|rar)$/i.test(publicId)) return null;
+    if (/\.(docx?|pptx?|xlsx?|html?|md|markdown|zip|rar)$/i.test(publicId)) return null;
     return cloudinary.url(publicId, {
       resource_type: 'image',
       format: 'jpg',

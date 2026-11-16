@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, Download, FileText, Folder, FolderOpen } from 'lucide-react';
+import { ChevronRight, Download, FileText, Folder, FolderOpen, Plus } from 'lucide-react';
 import type { DocumentSummaryDto } from '@kaned/shared';
 import { FileIcon } from '@/components/ui/FileBadge';
 import { Skeleton } from '@/components/ui/Feedback';
@@ -29,7 +29,7 @@ function DocLine({ d }: { d: DocumentSummaryDto }) {
   );
 }
 
-function FolderBranch({ node, docsBy, depth }: { node: FolderNode; docsBy: Map<string, DocumentSummaryDto[]>; depth: number }) {
+function FolderBranch({ node, docsBy, depth, uploadTo }: { node: FolderNode; docsBy: Map<string, DocumentSummaryDto[]>; depth: number; uploadTo: (folderId: string) => string }) {
   const [open, setOpen] = useState(depth === 0);
   const docs = docsBy.get(node.id) ?? [];
   if (!node.total) return null;
@@ -44,11 +44,17 @@ function FolderBranch({ node, docsBy, depth }: { node: FolderNode; docsBy: Map<s
       {open && (
         <ul className="sd-folder-body">
           {node.children.map((c) => (
-            <FolderBranch key={c.id} node={c} docsBy={docsBy} depth={depth + 1} />
+            <FolderBranch key={c.id} node={c} docsBy={docsBy} depth={depth + 1} uploadTo={uploadTo} />
           ))}
           {docs.map((d) => (
             <DocLine key={d.id} d={d} />
           ))}
+          <li className="sd-add">
+            <Link to={uploadTo(node.id)}>
+              <Plus className="ic" />
+              Đăng tài liệu vào “{node.name}”
+            </Link>
+          </li>
         </ul>
       )}
     </li>
@@ -59,7 +65,8 @@ function FolderBranch({ node, docsBy, depth }: { node: FolderNode; docsBy: Map<s
  * A subject's documents, grouped the way admins filed them: "Đề thi" →
  * "Đề thi 1, 2, 3…". Documents in no folder are listed after the folders.
  */
-export function SubjectDocuments({ subjectId }: { subjectId: string }) {
+export function SubjectDocuments({ subjectId, universityId }: { subjectId: string; universityId?: string }) {
+  const uploadTo = (folderId: string) => `/app/upload?${new URLSearchParams({ ...(universityId ? { university: universityId } : {}), subject: subjectId, folder: folderId })}`;
   const { data: folders = [], isLoading: loadingFolders } = useFolders(subjectId);
   const { data, isLoading } = useDocuments({ subjectId: [subjectId], pageSize: 48, sort: 'recent' });
   const docs = data?.items ?? [];
@@ -88,7 +95,7 @@ export function SubjectDocuments({ subjectId }: { subjectId: string }) {
   return (
     <ul className="sd-docs">
       {visibleFolders.map((f) => (
-        <FolderBranch key={f.id} node={f} docsBy={docsBy} depth={0} />
+        <FolderBranch key={f.id} node={f} docsBy={docsBy} depth={0} uploadTo={uploadTo} />
       ))}
       {visibleFolders.length > 0 && loose.length > 0 && (
         <li className="sd-loose">

@@ -12,6 +12,8 @@ export const DOCUMENT_TYPES = [
   'ASSIGNMENT',
   'BOOK',
   'REPORT',
+  'PROJECT',
+  'TEXTBOOK',
 ] as const;
 export type DocumentType = (typeof DOCUMENT_TYPES)[number];
 
@@ -22,22 +24,26 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, { en: string; vi: string
   EXAM: { en: 'Exam papers', vi: 'Đề thi', icon: 'file-check' },
   REVIEW: { en: 'Review materials', vi: 'Tài liệu ôn tập', icon: 'book-marked' },
   ASSIGNMENT: { en: 'Assignments', vi: 'Bài tập lớn', icon: 'square-pen' },
-  BOOK: { en: 'Reference books', vi: 'Sách tham khảo', icon: 'book-open' },
+  BOOK: { en: 'References', vi: 'Tham khảo', icon: 'book-open' },
   REPORT: { en: 'Project reports', vi: 'Báo cáo đồ án', icon: 'scroll-text' },
+  PROJECT: { en: 'Group projects', vi: 'Dự án nhóm', icon: 'users' },
+  TEXTBOOK: { en: 'Textbooks', vi: 'Giáo trình', icon: 'library' },
 };
 
 /** LINK is a document that lives elsewhere (Google Slides, Canva, YouTube…). */
-export const FILE_FORMATS = ['PDF', 'DOCX', 'PPTX', 'XLSX', 'LINK'] as const;
+export const FILE_FORMATS = ['PDF', 'DOCX', 'PPTX', 'XLSX', 'HTML', 'MD', 'LINK'] as const;
 export type FileFormat = (typeof FILE_FORMATS)[number];
 
 /** Formats that are uploaded as files. */
-export const UPLOAD_FORMATS = ['PDF', 'DOCX', 'PPTX', 'XLSX'] as const;
+export const UPLOAD_FORMATS = ['PDF', 'DOCX', 'PPTX', 'XLSX', 'HTML', 'MD'] as const;
 
 export const FILE_FORMAT_LABELS: Record<FileFormat, string> = {
   PDF: 'PDF',
   DOCX: 'Word',
   PPTX: 'PowerPoint',
   XLSX: 'Excel',
+  HTML: 'HTML',
+  MD: 'Markdown',
   LINK: 'Liên kết',
 };
 
@@ -47,6 +53,8 @@ export const FILE_FORMAT_COLORS: Record<FileFormat, string> = {
   PPTX: '#CF5F22',
   XLSX: '#1C7F4F',
   LINK: '#4433B4',
+  HTML: '#C2410C',
+  MD: '#475467',
 };
 
 export const MIME_TO_FORMAT: Record<string, FileFormat> = {
@@ -57,6 +65,9 @@ export const MIME_TO_FORMAT: Record<string, FileFormat> = {
   'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'PPTX',
   'application/vnd.ms-excel': 'XLSX',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'XLSX',
+  'text/html': 'HTML',
+  'text/markdown': 'MD',
+  'text/x-markdown': 'MD',
 };
 
 export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024; // 50 MB

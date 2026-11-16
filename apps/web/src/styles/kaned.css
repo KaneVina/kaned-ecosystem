@@ -383,11 +383,12 @@ kbd { font-family: var(--font); font-size: 11px; font-weight: 600; color: var(--
 .nav-in { height: 100%; display: flex; align-items: center; gap: 16px; }
 /* Lockup: ECOSYSTEM sets the width, KANED spreads its letters to match it exactly. */
 .brand { display: inline-flex; flex-direction: column; align-items: stretch; gap: 5px; border-radius: 8px; flex: none; padding: 2px 2px 3px; white-space: nowrap; }
-.wm-k { font-family: "Syne", var(--font); font-weight: 800; font-size: 20px; text-transform: uppercase; display: flex; justify-content: space-between; color: var(--ink); line-height: .86; }
+.wm-k { font-family: "Syne", var(--font); font-weight: 800; font-size: 20px; text-transform: uppercase; display: flex; gap: .02em; color: var(--ink); line-height: .86; }
 .wm-k i { font-style: normal; transition: color .3s var(--ease), transform .4s var(--ease-out); }
-.wm-e { display: block; font-size: 9.5px; font-weight: 600; letter-spacing: .34em; margin-right: -.34em; line-height: 1; color: var(--ink-4); text-transform: uppercase; position: relative; padding-bottom: 1px; }
+/* ECOSYSTEM is spread letter by letter across exactly the width of KANED. */
+.wm-e { display: flex; justify-content: space-between; font-size: 9px; font-weight: 600; line-height: 1; color: var(--ink-4); text-transform: uppercase; position: relative; padding-bottom: 1px; }
 .wm-e i { font-style: normal; transition: color .3s var(--ease); }
-.wm-e::after { content: ""; position: absolute; left: 0; right: .34em; bottom: -4px; height: 1.5px; background: var(--violet); transform: scaleX(0); transform-origin: left; transition: transform .45s var(--ease-out); }
+.wm-e::after { content: ""; position: absolute; left: 0; right: 0; bottom: -4px; height: 1.5px; background: var(--violet); transform: scaleX(0); transform-origin: left; transition: transform .45s var(--ease-out); }
 .brand:hover .wm-k i, .brand:focus-visible .wm-k i { color: var(--violet); }
 .brand:hover .wm-k i { transform: translateY(-2px); }
 .brand:hover .wm-e i { color: var(--violet-600); }
@@ -1554,6 +1555,7 @@ legend.label { padding: 0; margin-bottom: 8px; }
   .section { padding: 44px 0; }
   .section-head { flex-direction: column; align-items: flex-start; gap: 10px; }
   .nav-in { gap: 8px; }
+  .nav-actions { margin-left: auto; }
   .nav-search { display: none; }
   .nav-apps { display: none; }
   .nav-upload { display: none; }

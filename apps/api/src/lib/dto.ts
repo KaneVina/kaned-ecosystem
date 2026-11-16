@@ -76,6 +76,8 @@ interface DocumentLike {
   year: number;
   semester: DocumentSummaryDto['semester'];
   schoolYear: string | null;
+  lecturer?: string | null;
+  period?: string | null;
   language: string;
   downloads: number;
   views: number;
@@ -178,6 +180,8 @@ export function toDocumentSummary(
     year: row.year,
     semester: row.semester,
     schoolYear: row.schoolYear,
+    lecturer: row.lecturer ?? null,
+    period: row.period ?? null,
     language: row.language,
     downloads: row.downloads,
     views: row.views,
@@ -204,6 +208,7 @@ export function toUniversity(
     kind: string;
     foundedYear: number | null;
     description: string | null;
+    periods?: string[] | null;
   },
   documentCount?: number,
 ): UniversityDto {
@@ -218,6 +223,7 @@ export function toUniversity(
     foundedYear: row.foundedYear,
     color: row.color,
     description: row.description,
+    periods: row.periods ?? [],
     documentCount,
   };
 }

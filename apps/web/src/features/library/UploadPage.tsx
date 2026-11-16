@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { SearchSelect } from "@/components/ui/SearchSelect";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -53,6 +54,10 @@ const EXT_TO_FORMAT: Record<string, FileFormat> = {
   docx: "DOCX",
   pptx: "PPTX",
   xlsx: "XLSX",
+  html: "HTML",
+  htm: "HTML",
+  md: "MD",
+  markdown: "MD",
 };
 
 /** The form's own schema: the API's, minus what the upload fills in, plus the rights box. */
@@ -79,6 +84,11 @@ export function UploadPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
+  // Opened from a subject or one of its folders: that subject and folder are pre-filled.
+  const [params] = useSearchParams();
+  const ctxUniversity = params.get("university") ?? "";
+  const ctxSubject = params.get("subject") ?? "";
+  const ctxFolder = params.get("folder") ?? "";
   const input = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<{ file: File; format: FileFormat } | null>(
     null,
@@ -106,13 +116,15 @@ export function UploadPage() {
       title: "",
       description: "",
       type: undefined as never,
-      universityId: user?.universityId ?? "",
-      subjectId: "",
+      universityId: ctxUniversity || user?.university?.id || "",
+      subjectId: ctxSubject,
       year: user?.year ?? 2,
       semester: undefined as never,
       schoolYear: "2025–2026",
       academicTermId: "",
-      folderId: "",
+      folderId: ctxFolder,
+      lecturer: "",
+      period: "",
       tags: [],
       language: "Vietnamese",
       rights: false,
@@ -140,9 +152,17 @@ export function UploadPage() {
   const { data: terms = [] } = useTerms(v.universityId || undefined);
   const { data: folders = [] } = useFolders(v.subjectId || undefined);
   const folderOptions = flattenTree(buildFolderTree(folders));
+  // The school's current term is the most likely one; pick it unless one is set.
   useEffect(() => {
-    if (terms.length) form.setValue("academicTermId", form.getValues("academicTermId"));
-  }, [terms.length, form]);
+    if (!terms.length || form.getValues("academicTermId")) return;
+    const current = terms.find((t) => t.state === "current") ?? terms[terms.length - 1];
+    if (current) {
+      form.setValue("academicTermId", current.id);
+      pickTerm(current.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [terms.length]);
+  const periods = university?.periods ?? [];
   /** Picking one of the school's terms fills in semester and school year. */
   const pickTerm = (termId: string) => {
     const term = terms.find((t) => t.id === termId);
@@ -156,11 +176,11 @@ export function UploadPage() {
     const format = MIME_TO_FORMAT[f.type] ?? EXT_TO_FORMAT[ext];
     if (!format) {
       setFileError(
-        `“${f.name}” là file .${ext || "?"}. Hãy tải lên PDF, DOCX, PPTX hoặc XLSX.`,
+        `“${f.name}” là file .${ext || "?"}. Hãy tải lên PDF, Word, PowerPoint, Excel, HTML hoặc Markdown.`,
       );
       toast.error(
         "Định dạng không hỗ trợ",
-        "Kaned nhận PDF, DOCX, PPTX và XLSX.",
+        "Kaned nhận PDF, DOCX, PPTX, XLSX, HTML và MD.",
       );
       return;
     }
@@ -188,9 +208,12 @@ export function UploadPage() {
 
   const tags = v.tags ?? [];
   const addTag = (raw: string) => {
-    const t = raw.trim().slice(0, 30);
-    if (!t || tags.includes(t) || tags.length >= 8) return;
-    form.setValue("tags", [...tags, t]);
+    let next = [...tags];
+    for (const part of raw.split(/[,，\n]/)) {
+      const t = part.trim().slice(0, 30);
+      if (t && !next.includes(t) && next.length < 8) next.push(t);
+    }
+    if (next.length !== tags.length) form.setValue("tags", next);
     setTagDraft("");
   };
   const suggested = subject
@@ -335,7 +358,7 @@ export function UploadPage() {
                 <h2 className="t-h3">Tệp hoặc liên kết</h2>
                 <p>
                   {source === "file"
-                    ? `PDF, Word (DOCX), PowerPoint (PPTX) hoặc Excel (XLSX), tối đa ${fmtBytes(MAX_UPLOAD_BYTES)}.`
+                    ? `PDF, Word, PowerPoint, Excel, HTML hoặc Markdown (.md), tối đa ${fmtBytes(MAX_UPLOAD_BYTES)}.`
                     : "Google Slides, Docs, Drive, Canva, YouTube, Notion… hoặc bất kỳ trang nào."}
                 </p>
               </div>
@@ -406,7 +429,7 @@ export function UploadPage() {
                     ref={input}
                     type="file"
                     hidden
-                    accept=".pdf,.docx,.pptx,.xlsx"
+                    accept=".pdf,.docx,.pptx,.xlsx,.html,.htm,.md,.markdown"
                     onChange={(e) => {
                       const f = e.target.files?.[0];
                       if (f) accept(f);
@@ -563,7 +586,7 @@ export function UploadPage() {
             </fieldset>
             <div className="field">
               <label className="label" htmlFor="up-tag">
-                Thẻ <span className="opt">(không bắt buộc, tối đa 8)</span>
+                Thẻ <span className="opt">· tối đa 8, Enter hoặc dấu phẩy để tách</span>
               </label>
               <div
                 className="tag-input"
@@ -591,7 +614,14 @@ export function UploadPage() {
                   placeholder={tags.length ? "" : "Gõ từ khoá rồi nhấn Enter"}
                   maxLength={30}
                   value={tagDraft}
-                  onChange={(e) => setTagDraft(e.target.value)}
+                  enterKeyHint="enter"
+                  onChange={(e) => {
+                    // Phone keyboards do not report "," as a key press, so split on the text itself.
+                    const val = e.target.value;
+                    if (/[,，]/.test(val)) addTag(val);
+                    else setTagDraft(val);
+                  }}
+                  onBlur={() => tagDraft.trim() && addTag(tagDraft)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === ",") {
                       e.preventDefault();
@@ -641,20 +671,21 @@ export function UploadPage() {
                 <label className="label" htmlFor="up-uni">
                   Trường <span className="req">*</span>
                 </label>
-                <select
-                  className="select"
+                <SearchSelect
                   id="up-uni"
-                  {...form.register("universityId", {
-                    onChange: () => form.setValue("subjectId", ""),
-                  })}
-                >
-                  <option value="">Chọn trường</option>
-                  {universities.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name}
-                    </option>
-                  ))}
-                </select>
+                  value={v.universityId ?? ""}
+                  invalid={Boolean(errors.universityId)}
+                  placeholder="Chọn trường"
+                  searchPlaceholder="Gõ tên hoặc mã trường…"
+                  options={universities.map((u) => ({ value: u.id, code: u.code, label: u.nameVi, keywords: u.name }))}
+                  onChange={(id) => {
+                    form.setValue("universityId", id, { shouldValidate: submitted });
+                    form.setValue("subjectId", "");
+                    form.setValue("folderId", "");
+                    form.setValue("academicTermId", "");
+                    form.setValue("period", "");
+                  }}
+                />
                 <span className="error-text">
                   <CircleAlert className="ic ic-xs" />
                   <span>Chọn trường.</span>
@@ -664,26 +695,104 @@ export function UploadPage() {
                 <label className="label" htmlFor="up-subject">
                   Môn học <span className="req">*</span>
                 </label>
-                <select
-                  className="select"
+                <SearchSelect
                   id="up-subject"
+                  value={v.subjectId ?? ""}
                   disabled={!v.universityId}
-                  {...form.register("subjectId", { onChange: () => form.setValue("folderId", "") })}
-                >
-                  <option value="">
-                    {v.universityId ? "Chọn môn học" : "Chọn trường trước"}
-                  </option>
-                  {subjects.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.code} — {s.nameVi}
-                    </option>
-                  ))}
-                </select>
+                  invalid={Boolean(errors.subjectId)}
+                  placeholder={v.universityId ? "Chọn môn học" : "Chọn trường trước"}
+                  searchPlaceholder="Gõ mã môn hoặc tên, vd. CSD201, cấu trúc…"
+                  options={subjects.map((s) => ({ value: s.id, code: s.code, label: s.nameVi, keywords: s.name }))}
+                  onChange={(id) => {
+                    form.setValue("subjectId", id, { shouldValidate: submitted });
+                    form.setValue("folderId", "");
+                  }}
+                />
                 <span className="error-text">
                   <CircleAlert className="ic ic-xs" />
                   <span>Chọn môn mà tài liệu thuộc về.</span>
                 </span>
               </div>
+              {folderOptions.length > 0 && (
+                <div className="field">
+                  <label className="label" htmlFor="up-folder">
+                    Thư mục trong môn
+                  </label>
+                  <SearchSelect
+                    id="up-folder"
+                    value={v.folderId ?? ""}
+                    clearable
+                    placeholder="Không xếp vào thư mục"
+                    searchPlaceholder="Tìm thư mục…"
+                    options={folderOptions.map((f) => ({ value: f.id, label: f.name, depth: f.depth }))}
+                    onChange={(id) => form.setValue("folderId", id)}
+                  />
+                </div>
+              )}
+              {terms.length > 0 ? (
+                <div className={cn("field", errors.semester && "invalid")}>
+                  <label className="label" htmlFor="up-term">
+                    Học kỳ <span className="req">*</span>
+                  </label>
+                  <SearchSelect
+                    id="up-term"
+                    value={v.academicTermId ?? ""}
+                    invalid={Boolean(errors.semester)}
+                    placeholder="Chọn học kỳ"
+                    searchPlaceholder="Tìm học kỳ, vd. Fall 2026…"
+                    options={[...terms].reverse().map((t) => ({
+                      value: t.id,
+                      label: t.state === "current" ? `${t.name} — đang diễn ra` : t.name,
+                      keywords: t.code,
+                    }))}
+                    onChange={(id) => {
+                      form.setValue("academicTermId", id);
+                      pickTerm(id);
+                    }}
+                  />
+                  <span className="error-text">
+                    <CircleAlert className="ic ic-xs" />
+                    <span>Chọn học kỳ.</span>
+                  </span>
+                </div>
+              ) : (
+                <fieldset className={cn("field", errors.semester && "invalid")}>
+                  <legend className="label">
+                    Học kỳ <span className="req">*</span>
+                  </legend>
+                  <div className="pill-radios">
+                    {SEMESTERS.map((s) => (
+                      <label key={s} className="pill-radio">
+                        <input type="radio" value={s} {...form.register("semester")} />
+                        <span>{SEMESTER_LABELS[s].vi}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <span className="error-text">
+                    <CircleAlert className="ic ic-xs" />
+                    <span>Chọn học kỳ.</span>
+                  </span>
+                </fieldset>
+              )}
+              {periods.length > 0 && (
+                <fieldset className="field">
+                  <legend className="label">Block</legend>
+                  <div className="pill-radios">
+                    {periods.map((p) => (
+                      <label key={p} className="pill-radio">
+                        <input
+                          type="radio"
+                          name="up-period"
+                          checked={v.period === p}
+                          onChange={() => form.setValue("period", p)}
+                          onClick={() => v.period === p && form.setValue("period", "")}
+                        />
+                        <span>{p}</span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              )}
               <fieldset className={cn("field", errors.year && "invalid")}>
                 <legend className="label">
                   Năm học <span className="req">*</span>
@@ -691,92 +800,24 @@ export function UploadPage() {
                 <div className="pill-radios">
                   {STUDY_YEARS.map((y) => (
                     <label key={y} className="pill-radio">
-                      <input
-                        type="radio"
-                        value={y}
-                        {...form.register("year")}
-                      />
+                      <input type="radio" value={y} {...form.register("year")} />
                       <span>Năm {y}</span>
                     </label>
                   ))}
                 </div>
               </fieldset>
-              <fieldset className={cn("field", errors.semester && "invalid")}>
-                <legend className="label">
-                  Học kỳ <span className="req">*</span>
-                </legend>
-                <div className="pill-radios">
-                  {SEMESTERS.map((s) => (
-                    <label key={s} className="pill-radio">
-                      <input
-                        type="radio"
-                        value={s}
-                        {...form.register("semester")}
-                      />
-                      <span>{SEMESTER_LABELS[s].vi}</span>
-                    </label>
-                  ))}
-                </div>
-                <span className="error-text">
-                  <CircleAlert className="ic ic-xs" />
-                  <span>Chọn học kỳ.</span>
-                </span>
-              </fieldset>
-              {folderOptions.length > 0 && (
-                <div className="field">
-                  <label className="label" htmlFor="up-folder">
-                    Thư mục trong môn <span className="opt">(không bắt buộc)</span>
-                  </label>
-                  <select className="select" id="up-folder" {...form.register("folderId")}>
-                    <option value="">Không chọn</option>
-                    {folderOptions.map((f) => (
-                      <option key={f.id} value={f.id}>
-                        {"\u2003".repeat(f.depth)}
-                        {f.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              {terms.length > 0 && (
-                <div className="field">
-                  <label className="label" htmlFor="up-term">
-                    Kỳ học của trường <span className="opt">(điền sẵn học kỳ và niên khoá)</span>
-                  </label>
-                  <select
-                    className="select"
-                    id="up-term"
-                    {...form.register("academicTermId", { onChange: (e) => pickTerm(e.target.value) })}
-                  >
-                    <option value="">Không chọn</option>
-                    {terms.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                        {t.state === "current" ? " — đang diễn ra" : ""}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
               <div className="field">
-                <label className="label" htmlFor="up-ay">
-                  Niên khoá
+                <label className="label" htmlFor="up-lecturer">
+                  Giảng viên
                 </label>
-                <select
-                  className="select"
-                  id="up-ay"
-                  {...form.register("schoolYear")}
-                >
-                  {[
-                    "2026–2027",
-                    "2025–2026",
-                    "2024–2025",
-                    "2023–2024",
-                    "Cũ hơn",
-                  ].map((y) => (
-                    <option key={y}>{y}</option>
-                  ))}
-                </select>
+                <input
+                  id="up-lecturer"
+                  className="input"
+                  maxLength={120}
+                  placeholder="vd. Nguyễn Văn A"
+                  autoComplete="off"
+                  {...form.register("lecturer")}
+                />
               </div>
             </div>
           </section>

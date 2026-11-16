@@ -39,9 +39,11 @@ export const documentTypeEnum = pgEnum('document_type', [
   'ASSIGNMENT',
   'BOOK',
   'REPORT',
+  'PROJECT',
+  'TEXTBOOK',
 ]);
 /** LINK: the document is a URL (Google Slides, Canva, YouTube…) instead of an uploaded file. */
-export const fileFormatEnum = pgEnum('file_format', ['PDF', 'DOCX', 'PPTX', 'XLSX', 'LINK']);
+export const fileFormatEnum = pgEnum('file_format', ['PDF', 'DOCX', 'PPTX', 'XLSX', 'HTML', 'MD', 'LINK']);
 export const documentStatusEnum = pgEnum('document_status', [
   'PENDING',
   'PUBLISHED',
@@ -76,6 +78,8 @@ export const universities = pgTable('universities', {
   foundedYear: integer('founded_year'),
   color: varchar('color', { length: 9 }).notNull().default('#4433B4'),
   description: text('description'),
+  /** Teaching periods inside a term, e.g. FPT blocks; shown on the upload form. */
+  periods: jsonb('periods').$type<string[]>(),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
@@ -423,6 +427,8 @@ export const documents = pgTable(
     year: integer('year').notNull(),
     semester: semesterEnum('semester').notNull(),
     schoolYear: varchar('school_year', { length: 20 }),
+    lecturer: varchar('lecturer', { length: 120 }),
+    period: varchar('period', { length: 40 }),
     academicTermId: text('academic_term_id').references(() => academicTerms.id, { onDelete: 'set null' }),
     /** Optional folder inside the subject; deleting a folder moves its documents up (service) or out. */
     folderId: text('folder_id').references(() => subjectFolders.id, { onDelete: 'set null' }),

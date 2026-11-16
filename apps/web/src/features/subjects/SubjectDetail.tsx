@@ -235,12 +235,12 @@ export function SubjectDetail({
           Tài liệu cho {subject.code}
           <span className="sd-count">{detail?.documentCount ?? subject.documentCount ?? 0}</span>
         </h3>
-        <SubjectDocuments subjectId={subject.id} />
+        <SubjectDocuments subjectId={subject.id} universityId={subject.universityId} />
         <div className="sd-doc-actions">
           <Link className="btn btn-secondary btn-sm" to={`/app/library?subjectId=${subject.id}`}>
             Mở trong thư viện
           </Link>
-          <Link className="btn btn-ghost btn-sm" to="/app/upload">
+          <Link className="btn btn-ghost btn-sm" to={`/app/upload?university=${subject.universityId}&subject=${subject.id}`}>
             Chia sẻ tài liệu
           </Link>
         </div>

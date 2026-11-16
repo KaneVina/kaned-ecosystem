@@ -163,13 +163,16 @@ export function AppShell() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // Picking another subject in the workspace changes the URL but is the same
+  // page: it must not jump back to the top or replay the page animation.
+  const pageKey = location.pathname.startsWith('/app/subjects') ? '/app/subjects' : location.pathname;
   useEffect(() => {
     setDrawer(false);
     document.getElementById('app')?.classList.remove('page-in');
-    // Restart the page-in animation on every route change.
+    // Restart the page-in animation on every real page change.
     requestAnimationFrame(() => document.getElementById('app')?.classList.add('page-in'));
     window.scrollTo({ top: 0 });
-  }, [location.pathname]);
+  }, [pageKey]);
 
   useEffect(() => {
     document.body.classList.toggle('no-scroll', drawer);

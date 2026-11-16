@@ -249,7 +249,10 @@ export function LibraryPage() {
                       Xoá tìm kiếm và bộ lọc
                     </button>
                   )}
-                  <Link to="/app/upload" className="btn btn-secondary">
+                  <Link
+                    to={filters.subjectId?.length === 1 ? `/app/upload?subject=${filters.subjectId[0]}${filters.universityId?.length === 1 ? `&university=${filters.universityId[0]}` : ""}` : "/app/upload"}
+                    className="btn btn-secondary"
+                  >
                     Chia sẻ tài liệu đầu tiên
                   </Link>
                 </>

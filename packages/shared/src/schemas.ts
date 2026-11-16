@@ -106,6 +106,10 @@ export const createDocumentSchema = z.object({
   academicTermId: z.string().uuid().nullish(),
   /** Folder inside the subject, e.g. "Đề thi". */
   folderId: z.string().uuid().nullish(),
+  /** Lecturer who taught it, optional. */
+  lecturer: z.string().trim().max(120).nullish(),
+  /** The school's own teaching period, e.g. FPT "Block 10 - Half 1". */
+  period: z.string().trim().max(40).nullish(),
   // A file returned by Cloudinary after a direct browser upload, or, with
   // format LINK, the address of a document hosted elsewhere (no public id, 0 bytes).
   fileUrl: z.string().trim().url('Dán một liên kết hợp lệ, bắt đầu bằng https://').max(2000),

@@ -77,6 +77,8 @@ export const universityInputSchema = z.object({
   foundedYear: optionalInt(1800, 2100),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Màu dạng #RRGGBB.'),
   description: optionalText(1000),
+  /** FPT-style teaching periods, e.g. ["Block 10", "Block 3"]. */
+  periods: z.array(z.string().trim().min(1).max(40)).max(12).optional(),
 });
 export type UniversityInput = z.infer<typeof universityInputSchema>;
 export const universityUpdateSchema = universityInputSchema.partial();

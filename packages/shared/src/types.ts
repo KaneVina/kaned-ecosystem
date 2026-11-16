@@ -32,6 +32,8 @@ export interface UniversityDto {
   foundedYear: number | null;
   color: string;
   description: string | null;
+  /** Teaching periods inside a term (FPT blocks); empty when the school has none. */
+  periods: string[];
   documentCount?: number;
 }
 
@@ -139,6 +141,8 @@ export interface CurrentUserDto extends UserSummaryDto {
 }
 
 export interface DocumentSummaryDto {
+  lecturer?: string | null;
+  period?: string | null;
   id: string;
   title: string;
   description: string;
