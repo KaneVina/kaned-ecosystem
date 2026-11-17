@@ -1004,3 +1004,8 @@ a.dash-tool:hover .dash-tool-go { transform: translateX(3px); color: var(--viole
 .xr-rt thead th { font-size: 11.5px; font-weight: 600; color: var(--ink-4, #8B88A0); border-top: 0 !important; }
 .xr-rt td { font-variant-numeric: tabular-nums; }
 .xr-rt td b { color: var(--ink, #1C1A2B); font-weight: 600; }
+
+/* User-written text: their line breaks, clickable addresses that wrap. */
+.rich-text { overflow-wrap: anywhere; }
+.rich-text a { color: var(--violet-700, #3A2B9A); text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); text-underline-offset: 2px; }
+.rich-text a:hover { text-decoration-color: currentColor; }

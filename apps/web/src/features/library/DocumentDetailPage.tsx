@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { RichText } from '@/components/ui/RichText';
 import { Link, useParams } from 'react-router-dom';
 import {
   Bookmark,
@@ -99,8 +100,6 @@ export function DocumentDetailPage() {
   const maxDist = Math.max(1, ...dist);
   const myReview = data.reviews.find((r) => r.user.id === user?.id);
   const isMine = data.uploader.id === user?.id;
-  const pages = data.pages ?? 3;
-  const toc = profile.topics.slice(0, 5);
   const label = data.format === 'PPTX' ? 'Slide' : data.format === 'XLSX' ? 'Trang tính' : 'Số trang';
   const isLink = data.format === 'LINK';
 
@@ -203,19 +202,7 @@ export function DocumentDetailPage() {
 
             <section className="panel panel-pad dp-about">
               <h2 className="t-h3">Về tài liệu này</h2>
-              <p className="dp-desc">{data.description}</p>
-              <h3 className="t-h4" style={{ marginTop: 22 }}>
-                Bên trong có gì
-              </h3>
-              <ol className="dp-toc">
-                {toc.map((t, i) => (
-                  <li key={t}>
-                    <span>{t}</span>
-                    <i />
-                    <b>tr. {1 + i * Math.max(2, Math.floor(pages / 6))}</b>
-                  </li>
-                ))}
-              </ol>
+              <RichText className="dp-desc" text={data.description} />
               {data.tags.length > 0 && (
                 <>
                   <h3 className="t-h4" style={{ marginTop: 22 }}>
@@ -375,7 +362,7 @@ export function DocumentDetailPage() {
                           <span className="t-xs">{timeAgo(rv.createdAt)}</span>
                         </div>
                         <Stars value={rv.score} small />
-                        <p>{rv.comment}</p>
+                        <RichText as="p" text={rv.comment} />
                       </div>
                     </li>
                   ))}
@@ -429,12 +416,12 @@ export function DocumentDetailPage() {
                     <FileBadge format={data.format} bytes={data.fileBytes} linkUrl={data.linkUrl} />
                   </dd>
                 </div>
-                {!isLink && (
+                {!isLink && data.pages ? (
                   <div>
                     <dt>{label}</dt>
-                    <dd>{pages}</dd>
+                    <dd>{data.pages}</dd>
                   </div>
-                )}
+                ) : null}
                 {data.term && (
                   <div>
                     <dt>Kỳ học</dt>

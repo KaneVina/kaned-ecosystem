@@ -9,6 +9,7 @@ import { cn } from '@/lib/cn';
 import { RequirementList } from './RequirementList';
 import { PassCriteriaPanel } from './PassCriteriaPanel';
 import { AssessmentPanel } from './AssessmentPanel';
+import { RichText } from '@/components/ui/RichText';
 import { STATUS } from './status';
 import { SubjectDocuments } from './SubjectDocuments';
 
@@ -260,7 +261,7 @@ export function SubjectDetail({
                 </div>
               )}
             </dl>
-            {detail?.description ? <p className="sd-desc">{detail.description}</p> : <p className="sd-empty">Môn chưa có mô tả.</p>}
+            {detail?.description ? <RichText className="sd-desc" text={detail.description} /> : <p className="sd-empty">Môn chưa có mô tả.</p>}
             {detail?.topics && detail.topics.length > 0 && (
               <ol className="syl-list sd-syl">
                 {detail.topics.map((t, i) => (
