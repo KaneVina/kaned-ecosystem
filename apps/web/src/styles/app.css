@@ -716,23 +716,86 @@ a.dash-tool:hover .dash-tool-go { transform: translateX(3px); color: var(--viole
 @keyframes riseIn { from { opacity: 0; transform: translateY(10px); } }
 @media (prefers-reduced-motion: reduce) { .hi-name { animation: none; } }
 
-/* Subject pass conditions (FE ≥ 4, Coursera certificate…) */
-.pc-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.pc-item { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); transition: border-color .15s, background .15s; }
-.pc-item.is-ok { border-color: color-mix(in srgb, var(--green, #16a34a) 35%, var(--line)); background: color-mix(in srgb, var(--green, #16a34a) 6%, var(--paper)); }
-.pc-item.is-bad { border-color: color-mix(in srgb, var(--red, #dc2626) 35%, var(--line)); background: color-mix(in srgb, var(--red, #dc2626) 5%, var(--paper)); }
-.pc-mark { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--line); color: var(--ink-3); }
-.is-ok .pc-mark { background: var(--green, #16a34a); color: #fff; }
-.is-bad .pc-mark { background: var(--red, #dc2626); color: #fff; }
-.pc-text, .pc-task { flex: 1; min-width: 0; font-size: 14px; color: var(--ink-2); }
-.pc-task { display: flex; align-items: center; gap: 8px; cursor: pointer; }
-.pc-task input { width: 16px; height: 16px; accent-color: var(--violet); }
+/* Subject pass conditions: columns with parts and retakes, attendance, no-zero, tasks */
+.pc-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.pc-item { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; align-items: start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); transition: border-color .2s, background .2s, box-shadow .2s; }
+.pc-item:focus-within { box-shadow: 0 0 0 3px var(--violet-50, #EFECFB); border-color: var(--violet-200, #CFC8F3); }
+.pc-item.is-ok { border-color: color-mix(in srgb, var(--green, #16a34a) 30%, var(--line)); background: color-mix(in srgb, var(--green, #16a34a) 5%, var(--paper)); }
+.pc-item.is-bad { border-color: color-mix(in srgb, var(--red, #dc2626) 32%, var(--line)); background: color-mix(in srgb, var(--red, #dc2626) 4%, var(--paper)); }
+.pc-item.is-retake { border-color: #EBC27A; background: #FFFAF0; }
+.pc-mark { width: 22px; height: 22px; margin-top: 4px; border-radius: 50%; display: grid; place-items: center; background: var(--sunk, #EEEDF3); color: var(--ink-4); transition: background .25s, color .25s, transform .25s; }
+.pc-mark.sm { width: 18px; height: 18px; margin-top: 0; }
+.pc-mark.sm .ic { width: 11px; height: 11px; }
+.pc-mark.is-ok { background: var(--green, #16a34a); color: #fff; animation: pcPop .3s var(--ease-out, ease); }
+.pc-mark.is-bad { background: var(--red, #dc2626); color: #fff; animation: pcPop .3s var(--ease-out, ease); }
+.pc-mark.is-retake { background: #E8A33A; color: #fff; }
+@keyframes pcPop { 50% { transform: scale(1.18); } }
+.pc-body { min-width: 0; display: grid; gap: 6px; }
+.pc-main { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; min-height: 30px; }
+.pc-text { font-size: 14px; font-weight: 600; color: var(--ink); display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pc-task { cursor: pointer; }
+.pc-task input, .pc-confirm input { width: 18px; height: 18px; accent-color: var(--violet); cursor: pointer; }
+.pc-confirm { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 500; color: var(--ink-3); }
 .pc-hint { font-size: 12.5px; color: var(--ink-4); }
-.pc-score { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; color: var(--ink-4); }
-.pc-score input { width: 56px; height: 30px; border: 1px solid var(--line-2); border-radius: 7px; text-align: center; font: inherit; font-size: 14px; font-weight: 600; color: var(--ink); background: var(--paper); }
-.pc-score input:focus { outline: 2px solid var(--violet); outline-offset: 1px; }
-.pc-score.invalid input { border-color: var(--red, #dc2626); }
+.pc-badge { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 7px; border-radius: 999px; background: #FFF3DC; color: #8A5300; font-size: 11.5px; font-weight: 600; }
+.pc-badge.sm { width: 18px; height: 18px; padding: 0; justify-content: center; }
+.pc-badge .ic { width: 11px; height: 11px; }
+.pc-attempts { display: inline-flex; align-items: flex-end; gap: 6px; }
+.pc-num { display: inline-grid; justify-items: center; gap: 2px; }
+.pc-cap { font-size: 10.5px; font-weight: 600; letter-spacing: .02em; color: var(--ink-4); }
+.pc-num input { height: 32px; border: 1px solid var(--line-2); border-radius: 8px; text-align: center; font: inherit; font-size: 14px; font-weight: 700; color: var(--ink); background: var(--paper); font-variant-numeric: tabular-nums; transition: border-color .15s, box-shadow .15s; }
+.pc-num input:focus { outline: none; border-color: var(--violet); box-shadow: 0 0 0 3px var(--violet-50, #EFECFB); }
+.pc-num.invalid input { border-color: var(--red, #dc2626); }
+.pc-num.is-retake input { border-color: #E8A33A; background: #FFFAF0; }
+.pc-num.is-retake { animation: pcSlide .3s var(--ease-out, ease); }
+@keyframes pcSlide { from { opacity: 0; translate: -6px 0; } }
+.pc-computed { min-width: 56px; height: 32px; padding: 0 10px; display: inline-grid; place-items: center; border-radius: 8px; background: var(--sunk, #EEEDF3); font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.pc-computed.is-ok { background: color-mix(in srgb, var(--green, #16a34a) 14%, var(--paper)); color: #11743A; }
+.pc-computed.is-bad { background: color-mix(in srgb, var(--red, #dc2626) 12%, var(--paper)); color: #B42318; }
+.pc-formula { margin: 0; font-size: 12.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.pc-parts { list-style: none; margin: 2px 0 0; padding: 6px 8px; display: grid; gap: 4px; border-radius: 10px; background: color-mix(in srgb, var(--ink, #1C1A2B) 3%, transparent); }
+.pc-part { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 8px; align-items: center; min-height: 34px; }
+.pc-part-l { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 13.5px; color: var(--ink-2); }
+.pc-part-l i { font-style: normal; font-size: 11.5px; color: var(--ink-4); padding: 1px 6px; border-radius: 6px; background: var(--paper); border: 1px solid var(--line); }
+.pc-attend { display: inline-flex; align-items: flex-end; gap: 5px; }
+.pc-slash, .pc-unit { font-size: 13px; color: var(--ink-4); padding-bottom: 7px; }
+.pc-total { font-weight: 700; font-size: 14px; color: var(--ink-2); padding-bottom: 6px; }
+.pc-meter { position: relative; height: 6px; border-radius: 999px; background: var(--sunk, #EEEDF3); overflow: hidden; }
+.pc-meter i { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--paper); }
+.pc-meter-fill { position: absolute; inset: 0 auto 0 0; border-radius: inherit; transition: width .5s var(--ease-out, ease), background .3s; }
+.pc-meter-fill.is-ok { background: var(--green, #16a34a); }
+.pc-meter-fill.is-warn { background: #E8A33A; }
+.pc-meter-fill.is-bad { background: var(--red, #dc2626); }
+.pc-note { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--ink-3); }
+.pc-note.is-bad { color: #B42318; }
+.pc-note.is-retake, .pc-note.is-warn { color: #8A5300; }
+.pc-note.is-ok { color: #11743A; }
+.pc-banner { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; padding: 8px 12px; border-radius: 10px; background: #FFF6E6; color: #8A5300; font-size: 13px; font-weight: 500; }
+.pc-rules { margin-top: 10px; }
 .sd-count.is-ok { background: var(--green, #16a34a); color: #fff; }
+
+/* "ⓘ Quy định điểm thi" */
+.xr { border: 1px solid var(--line, #E6E4EE); border-radius: 12px; background: var(--paper, #fff); overflow: hidden; }
+.xr-head { width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px 12px; text-align: left; background: transparent; border: 0; cursor: pointer; color: inherit; font: inherit; }
+.xr-head:hover { background: color-mix(in srgb, var(--violet, #4433B4) 4%, transparent); }
+.xr-i { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; flex: none; background: var(--violet-50, #EFECFB); color: var(--violet, #4433B4); }
+.xr-title { font-size: 13.5px; font-weight: 700; color: var(--ink, #1C1A2B); }
+.xr-sub { flex: 1; min-width: 0; font-size: 12.5px; color: var(--ink-4, #8B88A0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.xr-chev { flex: none; color: var(--ink-4, #8B88A0); transition: transform .2s; }
+.xr.is-open .xr-chev { transform: rotate(180deg); }
+.xr-body { padding: 0 12px 12px; animation: xrIn .2s var(--ease-out, ease); }
+@keyframes xrIn { from { opacity: 0; translate: 0 -4px; } }
+.xr-table { width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.45; }
+.xr-table th, .xr-table td { padding: 7px 8px; border-top: 1px solid var(--line, #E6E4EE); text-align: left; vertical-align: top; }
+.xr-table thead th { border-top: 0; font-size: 11.5px; font-weight: 600; color: var(--ink-4, #8B88A0); }
+.xr-table tbody th { width: 56px; }
+.xr-key { display: inline-grid; place-items: center; min-width: 36px; height: 22px; padding: 0 6px; border-radius: 6px; background: var(--violet-50, #EFECFB); color: var(--violet-700, #3A2B9A); font-size: 12px; font-weight: 700; }
+.xr-name { width: 130px; font-weight: 600; color: var(--ink-2, #3C3950); white-space: nowrap; }
+.xr-mine { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--violet, #4433B4) 5%, transparent); font-size: 13px; }
+.xr-mine b { display: block; margin-bottom: 4px; font-size: 12.5px; color: var(--violet-700, #3A2B9A); }
+.xr-mine ul { margin: 0; padding-left: 18px; display: grid; gap: 3px; color: var(--ink-2, #3C3950); }
+@media (max-width: 560px) { .xr-name { display: none; } .xr-sub { display: none; } }
+@media (prefers-reduced-motion: reduce) { .pc-mark, .pc-num.is-retake, .xr-body { animation: none !important; } }
 
 /* Library search: suggestions typed into the empty box. */
 .ex-search-box .input.has-tw::placeholder { color: transparent; }

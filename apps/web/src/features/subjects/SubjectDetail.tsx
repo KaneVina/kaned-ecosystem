@@ -51,7 +51,7 @@ export function SubjectDetail({
   const known = new Set(statusByCode.keys());
   const criteria = subject.passCriteria ?? [];
   const crit = evaluatePassCriteria(criteria, entry?.inProgress ? null : score, entry?.criteria);
-  const unmet = crit.checks.filter((c) => c.ok !== true).map((c) => c.text);
+  const unmet = crit.checks.filter((c) => c.state !== 'ok').map((c) => (c.state === 'retake' ? `${c.text} (còn thi lại lần 2)` : c.text));
 
   return (
     <article className="sd" style={{ ['--tc' as string]: tone.c, ['--tt' as string]: tone.t }} aria-label={`Chi tiết ${subject.code}`}>
@@ -158,10 +158,10 @@ export function SubjectDetail({
             <ListChecks className="ic ic-sm" />
             Điều kiện qua môn
             <span className={cn('sd-count', crit.met && 'is-ok')}>
-              {crit.checks.filter((c) => c.ok === true).length}/{crit.checks.length}
+              {crit.checks.filter((c) => c.state === 'ok').length}/{crit.checks.length}
             </span>
           </h3>
-          <PassCriteriaPanel result={crit} values={entry?.criteria ?? {}} onChange={onCriteria} />
+          <PassCriteriaPanel result={crit} criteria={criteria} values={entry?.criteria ?? {}} onChange={onCriteria} />
         </section>
       )}
 
