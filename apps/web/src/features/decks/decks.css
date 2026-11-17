@@ -384,3 +384,25 @@
 
 .dk-browse .dk-bigsearch { margin: 0 0 16px; }
 .dk-list-tools:empty { display: none; }
+
+/* ── spaced repetition: how sure, and when it comes back ── */
+.dk-conf { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.dk-conf-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.dk-conf-q { font-weight: 600; color: var(--ink); margin-right: 4px; }
+.dk-conf-btn { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 13px 0 7px; border-radius: 9px; border: 1px solid var(--line); background: var(--paper); color: var(--ink-2); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; transition: border-color .15s, background .15s, color .15s; }
+.dk-conf-btn kbd { min-width: 20px; height: 20px; font-size: 11px; }
+.dk-conf-btn:hover { border-color: var(--ink-3); color: var(--ink); }
+.dk-conf-btn:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+.dk-conf-btn.is-sure[aria-pressed='true'] { border-color: var(--green); background: var(--green); color: #fff; }
+.dk-conf-btn.is-unsure[aria-pressed='true'] { border-color: #C98A1E; background: var(--amber-50); color: #8A5A0E; }
+.dk-conf-btn.is-guess[aria-pressed='true'] { border-color: var(--red); background: var(--red-50); color: #A3262A; }
+.dk-conf-btn[aria-pressed='true'] kbd { background: transparent; border-color: currentColor; color: inherit; }
+.dk-conf-next { margin: 8px 0 0; font-size: 13px; color: var(--ink-3); }
+.dk-fb > .dk-conf-next { margin-top: 6px; }
+.dk-bub.is-guess { background: var(--amber); border-color: var(--amber); color: #fff; }
+.dk-bub.is-cur.is-guess { color: #fff; }
+.dk-dot.is-guess { background: var(--amber); }
+.dk-plan { display: flex; align-items: flex-start; gap: 8px; margin: 10px 0 0; padding: 9px 12px; border-radius: 10px; background: var(--paper-2); border: 1px solid var(--line); font-size: 14px; color: var(--ink-2); max-width: 620px; }
+.dk-plan .ic { flex: none; margin-top: 2px; color: var(--violet); }
+.dk-plan b { color: var(--ink); }
+@media (max-width: 520px) { .dk-conf-q { width: 100%; } .dk-conf-btn { flex: 1; justify-content: center; } }

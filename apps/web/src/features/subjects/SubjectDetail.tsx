@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/Feedback';
 import { subjectTone } from '@/components/paper/profiles';
 import { useSubject } from '@/features/catalog/queries';
 import { useDecks } from '@/features/decks/api';
+import { srsOn, summaryCounts } from '@/features/decks/model';
 import { isInvalidScore, parseScore, type DraftEntry } from '@/features/grades/queries';
 import { cn } from '@/lib/cn';
 import { RequirementList } from './RequirementList';
@@ -90,7 +91,7 @@ export function SubjectDetail({
                 <b>{d.title}</b>
                 <small>
                   {d.questionCount} câu{d.tipCount ? ` · ${d.tipCount} mẹo` : ''}
-                  {d.progress?.seen ? ` · đã thuộc ${Math.round((d.progress.ok / Math.max(1, d.questionCount)) * 100)}%` : ''}
+                  {d.progress?.seen ? ` · đã thuộc ${Math.round((summaryCounts(d.progress, srsOn()).ok / Math.max(1, d.questionCount)) * 100)}%` : ''}
                 </small>
               </span>
               <em>{d.progress?.seen ? 'Ôn tiếp' : 'Ôn thi'}</em>

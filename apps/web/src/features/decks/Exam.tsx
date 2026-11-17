@@ -28,10 +28,10 @@ export function Exam() {
 
 function ExamSetup() {
   const { m, state, settings, setSetting, exam: E, setExam } = useDeckCtx();
-  const avail = poolOf(m, state, E.ch, 'all').length;
+  const avail = poolOf(m, state, E.ch, 'all', false).length;
 
   const start = () => {
-    let ids = shuffle(poolOf(m, state, E.ch, 'all'));
+    let ids = shuffle(poolOf(m, state, E.ch, 'all', false));
     if (E.n) ids = ids.slice(0, E.n);
     const perm = Object.fromEntries(ids.map((id) => [id, makePerm(m.QI.get(id)!, settings.shuf)]));
     const t0 = Date.now();
@@ -51,7 +51,7 @@ function ExamSetup() {
               value={E.ch}
               onChange={(e) => {
                 const ch = Number(e.target.value);
-                const av = poolOf(m, state, ch, 'all').length;
+                const av = poolOf(m, state, ch, 'all', false).length;
                 setExam({ ...E, ch, n: E.n > av ? 0 : E.n });
               }}
             >
@@ -376,7 +376,7 @@ function ExamResult() {
   useEffect(() => {
     if (!r.fresh || recorded.current) return;
     recorded.current = true;
-    for (const x of r.items) if (x.sel.length) progress.record(x.id, x.ok, false);
+    for (const x of r.items) if (x.sel.length) progress.record(x.id, x.ok, { streak: false });
     progress.addExam({ d: Date.now(), n: r.items.length, ok: r.okN, score: r.score, dur: r.dur, ch: E.ch });
     setExam((s) => (s.res ? { ...s, res: { ...s.res, fresh: false } } : s));
     window.scrollTo({ top: 0 });

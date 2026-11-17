@@ -481,8 +481,22 @@ export type DeckListQuery = z.infer<typeof deckListQuerySchema>;
 
 /** One learner's progress in one deck: what the study screens remember. */
 export const deckProgressSchema = z.object({
-  /** Per question: correct count, wrong count, last answer right (1) or wrong (0), when. */
-  st: z.record(z.object({ c: z.number().int().min(0), w: z.number().int().min(0), l: z.union([z.literal(0), z.literal(1)]), t: z.number().optional() })),
+  /**
+   * Per question: correct count, wrong count, last answer right (1) or wrong (0), when,
+   * and the review schedule (stability, difficulty, due date, last grade; see srs.ts).
+   */
+  st: z.record(
+    z.object({
+      c: z.number().int().min(0),
+      w: z.number().int().min(0),
+      l: z.union([z.literal(0), z.literal(1)]),
+      t: z.number().optional(),
+      s: z.number().min(0).max(10_000).optional(),
+      d: z.number().min(1).max(10).optional(),
+      n: z.number().optional(),
+      g: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).optional(),
+    }),
+  ),
   /** Starred questions. */
   mk: z.record(z.literal(1)),
   streak: z.number().int().min(0),
@@ -505,8 +519,12 @@ export interface DeckSubjectRef {
 
 export interface DeckProgressSummary {
   seen: number;
+  /** By last answer. */
   ok: number;
   bad: number;
+  /** By review schedule, as of the request: remembered now, and wrong, guessed or due. */
+  srsOk: number;
+  srsBad: number;
   marked: number;
   updatedAt: string;
 }

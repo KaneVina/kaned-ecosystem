@@ -3,7 +3,8 @@ import { Check, ChevronLeft, ChevronRight, Flame, RotateCcw, Star, Timer, X } fr
 import { cn } from '@/lib/cn';
 import { fmtInt } from '@/lib/format';
 import { useDeckCtx } from './context';
-import { beep, LET, makePerm, qLabel, sameSet } from './model';
+import type { Grade } from '@kaned/shared';
+import { beep, CONFIDENCE, fmtWait, LET, makePerm, qLabel, sameSet } from './model';
 import { Banner, FilterBar, Inline, Notes, QText, StudyAids, StudyEmpty, HintToggle } from './parts';
 
 export function Practice() {
@@ -54,10 +55,13 @@ export function Practice() {
     (chosen: number[]) => {
       if (!q || P.res[q.id]) return;
       const ok = sameSet(chosen, q.answers);
-      setPractice((s) => ({ ...s, res: { ...s.res, [q.id]: { sel: chosen, ok } } }));
-      progress.record(q.id, ok);
+      // With scheduling on, a right answer counts as "unsure" until the learner says otherwise.
+      const g: Grade = !ok ? 1 : settings.srs ? 2 : 3;
+      const base = progress.state.st[q.id] ?? null;
+      setPractice((s) => ({ ...s, res: { ...s.res, [q.id]: { sel: chosen, ok, g, base } } }));
+      progress.record(q.id, ok, { grade: g });
       if (settings.sound) beep(ok);
-      if (ok && settings.auto) {
+      if (ok && settings.auto && !settings.srs) {
         const at = P.idx;
         autoTimer.current = window.setTimeout(() => {
           setPractice((s) => (s.idx === at ? (s.idx + 1 >= s.ids.length ? { ...s, finished: true } : { ...s, idx: s.idx + 1 }) : s));
@@ -66,7 +70,29 @@ export function Practice() {
         }, 1100);
       }
     },
-    [q, P.res, P.idx, setPractice, progress, settings.sound, settings.auto],
+    [q, P.res, P.idx, setPractice, progress, settings.sound, settings.auto, settings.srs],
+  );
+
+  /** How sure the learner was about a right answer: changes when it comes back. */
+  const confide = useCallback(
+    (g: Grade) => {
+      const r = q && P.res[q.id];
+      if (!q || !r?.ok) return;
+      if (r.g !== g) {
+        setPractice((s) => ({ ...s, res: { ...s.res, [q.id]: { ...r, g } } }));
+        progress.record(q.id, true, { grade: g, base: r.base ?? null });
+      }
+      if (settings.auto) {
+        window.clearTimeout(autoTimer.current);
+        const at = P.idx;
+        autoTimer.current = window.setTimeout(() => {
+          setPractice((s) => (s.idx === at ? (s.idx + 1 >= s.ids.length ? { ...s, finished: true } : { ...s, idx: s.idx + 1 }) : s));
+          setSel([]);
+          setDir(1);
+        }, 550);
+      }
+    },
+    [q, P.res, P.idx, setPractice, progress, settings.auto],
   );
 
   const choose = useCallback(
@@ -86,6 +112,12 @@ export function Practice() {
       const t = e.target as HTMLElement;
       if (t.closest('input,select,textarea,[role="dialog"]') || e.metaKey || e.ctrlKey || e.altKey) return;
       const key = e.key.length === 1 ? e.key.toUpperCase() : e.key;
+      const conf = res?.ok && settings.srs ? CONFIDENCE.find((c) => c.key === key) : undefined;
+      if (conf) {
+        e.preventDefault();
+        confide(conf.g);
+        return;
+      }
       let p = LET.indexOf(key);
       if (p < 0) p = '12345678'.indexOf(key);
       if (p >= 0 && p < perm.length) {
@@ -126,8 +158,11 @@ export function Practice() {
 
   if (P.finished || !q) {
     const wrong = Object.entries(P.res)
-      .filter(([, r]) => !r.ok)
+      .filter(([, r]) => !r.ok || r.g === 1)
       .map(([k]) => k);
+    const guessed = Object.values(P.res).filter((r) => r.ok && r.g === 1).length;
+    const missed = wrong.length - guessed;
+    const again = guessed ? (missed ? 'câu sai và câu đoán' : 'câu đoán') : 'câu sai';
     return (
       <>
         {header}
@@ -136,13 +171,15 @@ export function Practice() {
             Xong {fmtInt(done)} / {fmtInt(P.ids.length)} câu
           </h3>
           <p>
-            Bạn trả lời đúng {fmtInt(okN)} câu{wrong.length ? `, sai ${fmtInt(wrong.length)} câu. Luyện lại ngay các câu sai để nhớ lâu hơn.` : '. Làm tốt lắm.'}
+            Bạn trả lời đúng {fmtInt(okN)} câu{guessed ? ` (${fmtInt(guessed)} câu đoán)` : ''}
+            {missed ? `, sai ${fmtInt(missed)} câu` : ''}
+            {wrong.length ? `. Luyện lại ngay các ${again} để nhớ lâu hơn.` : '. Làm tốt lắm.'}
           </p>
           <div className="dk-row-center">
             {wrong.length > 0 && (
-              <button type="button" className="btn btn-primary" onClick={() => startPractice({ custom: { ids: wrong, label: `Đang luyện lại ${wrong.length} câu sai của lượt trước` } })}>
+              <button type="button" className="btn btn-primary" onClick={() => startPractice({ custom: { ids: wrong, label: `Đang luyện lại ${wrong.length} ${again} của lượt trước` } })}>
                 <RotateCcw className="ic ic-sm" />
-                Luyện lại {fmtInt(wrong.length)} câu sai
+                Luyện lại {fmtInt(wrong.length)} {again}
               </button>
             )}
             <button type="button" className="btn btn-secondary" onClick={() => startPractice({ ch: P.ch, scope: P.scope, order: P.order, custom: P.custom })}>
@@ -235,6 +272,7 @@ export function Practice() {
                     </>
                   )}
                 </p>
+                {settings.srs && <Confidence res={res} due={state.st[q.id]?.n} onPick={confide} />}
                 <Notes q={q} />
               </div>
             )}
@@ -296,7 +334,7 @@ export function Practice() {
           <AnswerSheet
             ids={P.ids}
             current={P.idx}
-            cls={(x) => (P.res[x] ? (P.res[x].ok ? 'is-ok' : 'is-bad') : '')}
+            cls={(x) => (P.res[x] ? (P.res[x].ok ? (settings.srs && P.res[x].g === 1 ? 'is-guess' : 'is-ok') : 'is-bad') : '')}
             flagged={(x) => Boolean(state.mk[x])}
             onGo={(i) => {
               setSel([]);
@@ -305,6 +343,7 @@ export function Practice() {
             }}
             legend={[
               ['is-ok', 'Đúng'],
+              ...(settings.srs ? [['is-guess', 'Đoán'] as [string, string]] : []),
               ['is-bad', 'Sai'],
               ['is-flag', 'Đánh dấu'],
             ]}
@@ -328,6 +367,14 @@ export function Practice() {
                 <kbd>←</kbd> <kbd>→</kbd>
               </span>
             </div>
+            {settings.srs && (
+              <div>
+                <span>Chắc, phân vân, đoán</span>
+                <span>
+                  <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd>
+                </span>
+              </div>
+            )}
             <div>
               <span>Đánh dấu</span>
               <kbd>M</kbd>
@@ -336,6 +383,33 @@ export function Practice() {
         </aside>
       </div>
     </>
+  );
+}
+
+/**
+ * After a right answer: how sure was it? Sure answers come back later and
+ * later; guesses come back soon, as if they had been wrong.
+ */
+function Confidence({ res, due, onPick }: { res: { ok: boolean; g?: Grade }; due?: number; onPick: (g: Grade) => void }) {
+  const wait = due ? fmtWait(due - Date.now()) : '';
+  if (!res.ok) {
+    return <p className="dk-conf-next">Câu này vào mục Cần ôn và sẽ quay lại sau {wait}.</p>;
+  }
+  return (
+    <div className="dk-conf">
+      <div className="dk-conf-row" role="group" aria-label="Bạn chắc đến đâu?">
+        <span className="dk-conf-q">Bạn chắc đến đâu?</span>
+        {CONFIDENCE.map((c) => (
+          <button key={c.g} type="button" className={cn('dk-conf-btn', c.tone)} aria-pressed={res.g === c.g} onClick={() => onPick(c.g)}>
+            <kbd>{c.key}</kbd>
+            {c.label}
+          </button>
+        ))}
+      </div>
+      <p className="dk-conf-next">
+        {res.g === 1 ? `Câu đoán được tính như chưa thuộc, sẽ quay lại sau ${wait}.` : `Hẹn ôn lại sau ${wait}.`} Càng chắc, lịch ôn càng giãn ra.
+      </p>
+    </div>
   );
 }
 

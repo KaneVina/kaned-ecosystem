@@ -7,6 +7,7 @@ import { EmptyState, ErrorState, Skeleton } from '@/components/ui/Feedback';
 import { useAuth } from '@/providers/AuthProvider';
 import { fmtInt, timeAgo } from '@/lib/format';
 import { useDecks } from './api';
+import { summaryCounts, useStudySettings } from './model';
 import { BigSearch } from './parts';
 import './decks.css';
 
@@ -122,8 +123,10 @@ export function DecksPage() {
 
 function DeckCard({ d }: { d: DeckSummaryDto }) {
   const p = d.progress;
-  const okp = p && d.questionCount ? (p.ok / d.questionCount) * 100 : 0;
-  const badp = p && d.questionCount ? (p.bad / d.questionCount) * 100 : 0;
+  const [settings] = useStudySettings();
+  const k = p ? summaryCounts(p, settings.srs) : { ok: 0, bad: 0 };
+  const okp = d.questionCount ? (k.ok / d.questionCount) * 100 : 0;
+  const badp = d.questionCount ? (k.bad / d.questionCount) * 100 : 0;
   return (
     <Link to={`/app/flashcards/${d.id}`} className="dk-deck" style={{ ['--uni' as string]: d.subject.university.color }}>
       <div className="dk-deck-top">
@@ -147,7 +150,7 @@ function DeckCard({ d }: { d: DeckSummaryDto }) {
           <i className="is-bad" style={{ width: `${badp}%` }} />
         </div>
         <div className="dk-deck-foot">
-          <span>{p && p.seen ? `${Math.round(okp)}% đã thuộc${p.bad ? ` · ${fmtInt(p.bad)} cần ôn` : ''}` : 'Chưa học'}</span>
+          <span>{p && p.seen ? `${Math.round(okp)}% đã thuộc${k.bad ? ` · ${fmtInt(k.bad)} cần ôn` : ''}` : 'Chưa học'}</span>
           <b>{p && p.seen ? 'Học tiếp' : 'Bắt đầu'}</b>
         </div>
         {p && p.seen > 0 && <small className="dk-deck-when">Học lần cuối {timeAgo(p.updatedAt)}</small>}

@@ -4,7 +4,7 @@ import { foldVi } from '@kaned/shared';
 import { cn } from '@/lib/cn';
 import { fmtInt } from '@/lib/format';
 import { useDeckCtx, type BrowseState } from './context';
-import { countsOf, LET, makeStatus, qLabel } from './model';
+import { countsOf, fmtWait, LET, makeStatus, qLabel } from './model';
 import { BigSearch, Inline, Notes, QText, StudyAids, hasAids } from './parts';
 
 export function Browse() {
@@ -16,7 +16,8 @@ export function Browse() {
     return () => window.clearTimeout(t);
   }, [text, setBrowse]);
 
-  const { status, marked } = makeStatus(state);
+  const now = Date.now();
+  const { status, marked } = makeStatus(state, settings.srs, now);
   // Examples from this deck: chapter names, words in `code`, a question number.
   const hints = useMemo(() => {
     const out: string[] = [];
@@ -46,7 +47,7 @@ export function Browse() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [m, state, B.q, B.ch, B.scope, terms]);
 
-  const k = countsOf(m, state, B.ch);
+  const k = countsOf(m, state, settings.srs, B.ch);
   const multiN = m.Q.filter((q) => (!B.ch || q.chapter === B.ch) && q.answers.length > 1).length;
   const set = (patch: Partial<BrowseState>) => setBrowse((b) => ({ ...b, ...patch, limit: 40 }));
   const scopes: Array<[BrowseState['scope'], string, number]> = [
@@ -120,6 +121,7 @@ export function Browse() {
                   <span className="dk-tag">
                     <i className={cn('dk-dot', s === 'ok' ? 'is-ok' : 'is-bad')} />
                     {s === 'ok' ? 'Đã thuộc' : 'Cần ôn'}
+                    {settings.srs && s === 'ok' && state.st[q.id]?.n ? ` · ôn lại sau ${fmtWait(state.st[q.id].n! - now)}` : ''}
                   </span>
                 )}
                 <span className="spacer" />

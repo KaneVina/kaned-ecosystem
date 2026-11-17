@@ -78,12 +78,12 @@ function DeckStudy({ deck, mode }: { deck: DeckDetailDto; mode: Mode }) {
       const scope = o.scope ?? 'all';
       const order = o.order ?? 'seq';
       const custom = o.custom ?? null;
-      const ids = custom ? custom.ids.slice() : poolOf(m, progress.state, ch, scope);
+      const ids = custom ? custom.ids.slice() : poolOf(m, progress.state, ch, scope, settings.srs);
       if (order === 'rand') shuffle(ids);
       const idx = o.startId && ids.includes(o.startId) ? ids.indexOf(o.startId) : 0;
       return { ch, scope, order, ids, idx, perm: {}, res: {}, custom, finished: false };
     },
-    [m, progress.state],
+    [m, progress.state, settings.srs],
   );
   const buildFlip = useCallback(
     (o: StartOptions = {}): FlipSession => {
@@ -91,11 +91,11 @@ function DeckStudy({ deck, mode }: { deck: DeckDetailDto; mode: Mode }) {
       const scope = o.scope ?? 'all';
       const order = o.order ?? 'rand';
       const custom = o.custom ?? null;
-      const ids = custom ? custom.ids.slice() : poolOf(m, progress.state, ch, scope);
+      const ids = custom ? custom.ids.slice() : poolOf(m, progress.state, ch, scope, settings.srs);
       if (order === 'rand') shuffle(ids);
       return { ch, scope, order, ids, idx: 0, know: [], again: [], perm: {}, custom };
     },
-    [m, progress.state],
+    [m, progress.state, settings.srs],
   );
 
   // Practice picks up where it stopped last time.
@@ -150,7 +150,7 @@ function DeckStudy({ deck, mode }: { deck: DeckDetailDto; mode: Mode }) {
     go,
   };
 
-  const counts = useMemo(() => countsOf(m, state), [m, state]);
+  const counts = useMemo(() => countsOf(m, state, settings.srs), [m, state, settings.srs]);
   const staff = user && STAFF_ROLES.includes(user.role);
   const tipTotal = m.tips.size + m.warnings.length;
   const subject = deck.subject;
@@ -220,10 +220,15 @@ function DeckStudy({ deck, mode }: { deck: DeckDetailDto; mode: Mode }) {
         <div className="dk-settings">
           {(
             [
+              [
+                'srs',
+                'Ôn lặp ngắt quãng',
+                'Giúp nhớ lâu với ít lần ôn nhất. Sau mỗi câu đúng, bạn chọn Chắc, Phân vân hoặc Đoán: câu chắc được hẹn ôn lại thưa dần (vài ngày rồi vài tuần), câu đoán hoặc sai quay lại sau 10 phút. Câu tới hạn chuyển sang mục Cần ôn, nên % đã thuộc là số câu bạn còn nhớ hôm nay. Khi tắt, câu đúng ở lần làm gần nhất được tính là đã thuộc.',
+              ],
               ['tips', 'Hiện mẹo nhớ sau đáp án', 'Mẹo ghi nhớ và cách nhận ra đáp án qua từ khoá. "Lưu ý đáp án" luôn hiện.'],
               ['sim', 'Hiện câu dễ nhầm', 'Các câu gần giống kèm đáp án để so sánh.'],
               ['shuf', 'Xáo thứ tự đáp án', 'Cho luyện tập, lật thẻ và thi thử. Câu có "Tất cả các phương án trên" giữ nguyên.'],
-              ['auto', 'Tự chuyển câu khi trả lời đúng', 'Trong chế độ luyện tập.'],
+              ['auto', 'Tự chuyển câu khi trả lời đúng', 'Trong chế độ luyện tập. Khi bật ôn lặp ngắt quãng, chuyển câu sau khi bạn chọn độ chắc chắn.'],
               ['sound', 'Âm thanh khi trả lời', 'Tiếng báo nhỏ khi đúng hoặc sai.'],
             ] as const
           ).map(([k, t, d]) => (

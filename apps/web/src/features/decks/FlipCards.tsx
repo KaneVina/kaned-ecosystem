@@ -37,7 +37,7 @@ export function FlipCards() {
   const rate = useCallback(
     (ok: boolean, from = 0) => {
       if (!q || leaving) return;
-      progress.record(q.id, ok, false);
+      progress.record(q.id, ok, { streak: false });
       if (settings.sound) beep(ok);
       const finish = () => {
         setLeaving(null);

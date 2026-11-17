@@ -234,7 +234,7 @@ export function FilterBar({
   onChange: (next: { ch: number; scope: Scope; order: 'seq' | 'rand' }) => void;
 }) {
   const { m, state, settings, setSetting } = useDeckCtx();
-  const k = countsOf(m, state, ch);
+  const k = countsOf(m, state, settings.srs, ch);
   return (
     <div className="dk-filters">
       {m.chapters.length > 0 && (
@@ -271,9 +271,12 @@ export function FilterBar({
 }
 
 export function StudyEmpty({ scope, onAll, custom }: { scope: Scope; onAll: () => void; custom?: boolean }) {
+  const { settings } = useDeckCtx();
   const msg: Record<Scope, [string, string]> = {
     new: ['Bạn đã làm hết câu ở mục này', 'Chọn Cần ôn để luyện lại câu sai, hoặc Tất cả để làm lại từ đầu.'],
-    bad: ['Không còn câu nào cần ôn', 'Câu bạn trả lời sai sẽ xuất hiện ở đây để luyện lại.'],
+    bad: settings.srs
+      ? ['Hôm nay không còn câu nào cần ôn', 'Câu sai, câu đoán và câu tới hạn ôn sẽ xuất hiện ở đây. Quay lại vào ngày mai nhé.']
+      : ['Không còn câu nào cần ôn', 'Câu bạn trả lời sai sẽ xuất hiện ở đây để luyện lại.'],
     mk: ['Chưa có câu đánh dấu', 'Bấm ngôi sao trên câu hỏi để lưu lại những câu khó.'],
     all: ['Không có câu hỏi', 'Thử chọn chương khác.'],
   };

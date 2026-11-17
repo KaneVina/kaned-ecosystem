@@ -1,18 +1,20 @@
 import { useMemo } from 'react';
-import { Bookmark, CircleCheckBig, Flame, Layers, Lightbulb, Play, RotateCcw, Timer } from 'lucide-react';
+import { Bookmark, CalendarClock, CircleCheckBig, Flame, Layers, Lightbulb, Play, RotateCcw, Timer } from 'lucide-react';
 import { CountUp } from '@/components/ui/CountUp';
 import { fmtInt } from '@/lib/format';
 import { useDeckCtx } from './context';
-import { countsOf } from './model';
+import { countsOf, forecastOf } from './model';
 import { Ring } from './parts';
 
 export function Overview() {
-  const { m, state, deck, practice, startPractice, startFlip, setExam, setBrowse, go } = useDeckCtx();
-  const c = useMemo(() => countsOf(m, state), [m, state]);
+  const { m, state, deck, settings, practice, startPractice, startFlip, setExam, setBrowse, go } = useDeckCtx();
+  const c = useMemo(() => countsOf(m, state, settings.srs), [m, state, settings.srs]);
   const pct = c.all ? (c.ok / c.all) * 100 : 0;
   const resumeId = practice.ids[practice.idx];
   const resuming = Boolean(state.pr && resumeId && practice.idx > 0);
   const variants = m.Q.length - m.base;
+  const week = useMemo(() => (settings.srs ? forecastOf(m, state) : []), [m, state, settings.srs]);
+  const soon = week.reduce((a, b) => a + b, 0);
   const tipTotal = m.tips.size;
 
   return (
@@ -33,6 +35,26 @@ export function Overview() {
             {fmtInt(m.base)} câu trắc nghiệm{variants > 0 ? `, thêm ${fmtInt(variants)} câu kiểu hỏi khác` : ''}
             {tipTotal ? `, ${fmtInt(tipTotal)} mẹo nhớ` : ''}. Luyện từng câu để biết ngay đúng sai, lật thẻ để tự nhớ, hoặc làm đề thi thử có tính giờ.
           </p>
+          {settings.srs && c.seen > 0 && (
+            <p className="dk-plan">
+              <CalendarClock className="ic ic-sm" />
+              <span>
+                {c.bad ? (
+                  <>
+                    Hôm nay cần ôn <b>{fmtInt(c.bad)} câu</b>
+                  </>
+                ) : (
+                  'Hôm nay không còn câu nào cần ôn'
+                )}
+                {week[0]
+                  ? `. Trong 24 giờ tới có thêm ${fmtInt(week[0])} câu tới hạn ôn`
+                  : soon
+                    ? `. 7 ngày tới có thêm ${fmtInt(soon)} câu tới hạn ôn`
+                    : ''}
+                .
+              </span>
+            </p>
+          )}
           <div className="dk-hero-actions">
             <button type="button" className="btn btn-primary btn-lg" onClick={() => go('practice')}>
               <Play className="ic ic-sm" />
@@ -135,12 +157,12 @@ export function Overview() {
           <div className="dk-sec-head">
             <div>
               <h2 className="t-h3">Theo chương</h2>
-              <p>Tiến độ từng chương. Câu sai sẽ hiện ở mục “Cần ôn” để luyện lại.</p>
+              <p>Tiến độ từng chương. {settings.srs ? 'Câu sai, câu đoán và câu tới hạn ôn' : 'Câu sai'} sẽ hiện ở mục “Cần ôn” để luyện lại.</p>
             </div>
           </div>
           <div className="panel dk-ledger">
             {m.chapters.map((ch) => {
-              const k = countsOf(m, state, ch.n);
+              const k = countsOf(m, state, settings.srs, ch.n);
               const okp = k.all ? (k.ok / k.all) * 100 : 0;
               const badp = k.all ? (k.bad / k.all) * 100 : 0;
               return (

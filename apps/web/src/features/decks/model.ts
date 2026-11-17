@@ -4,7 +4,13 @@ import {
   canShuffleOptions,
   emptyDeckProgress,
   foldVi,
+  memoryOf,
+  memoryStatus,
   OPTION_LETTERS,
+  review,
+  urgency,
+  type Grade,
+  type MemoryRecord,
   type DeckChapter,
   type DeckDetailDto,
   type DeckProgress,
@@ -54,10 +60,25 @@ export interface StudySettings {
   /** Go to the next question after a right answer. */
   auto: boolean;
   sound: boolean;
+  /**
+   * Spaced repetition: after a right answer the learner says how sure they
+   * were, and questions come back for review on a schedule.
+   */
+  srs: boolean;
 }
 
 const SETTINGS_KEY = 'kaned.decks.settings';
-const DEFAULT_SETTINGS: StudySettings = { tips: true, sim: true, shuf: false, auto: false, sound: false };
+const DEFAULT_SETTINGS: StudySettings = { tips: true, sim: true, shuf: false, auto: false, sound: false, srs: true };
+
+/** The saved settings, read once (for pages outside a deck). */
+export function readStudySettings(): StudySettings {
+  try {
+    return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') };
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
+}
+export const srsOn = () => readStudySettings().srs;
 
 export function useStudySettings() {
   const [settings, setSettings] = useState<StudySettings>(() => {
@@ -168,17 +189,24 @@ export function useDeckProgress(deck: DeckDetailDto) {
     };
   }, [flush]);
 
+  /**
+   * Records an answer. `grade` is how sure the learner was (3 sure, 2 unsure,
+   * 1 guessed); a wrong answer is always 1. Pass `base`, the record from
+   * before this answer, to change the grade of an answer already recorded.
+   */
   const record = useCallback(
-    (id: string, ok: boolean, streak = true) =>
+    (id: string, ok: boolean, o: { grade?: Grade; streak?: boolean; base?: MemoryRecord | null } = {}) =>
       update((s) => {
-        const r = s.st[id] ?? { c: 0, w: 0, l: 0 as const };
+        const again = o.base !== undefined;
+        const prev = again ? (o.base ?? undefined) : s.st[id];
         let run = s.streak;
         let best = s.best;
-        if (streak) {
+        if (o.streak !== false && !again) {
           run = ok ? run + 1 : 0;
           best = Math.max(best, run);
         }
-        return { ...s, streak: run, best, st: { ...s.st, [id]: { c: r.c + (ok ? 1 : 0), w: r.w + (ok ? 0 : 1), l: ok ? 1 : 0, t: Date.now() } } };
+        const at = again ? (s.st[id]?.t ?? Date.now()) : Date.now();
+        return { ...s, streak: run, best, st: { ...s.st, [id]: review(prev, ok, o.grade ?? 3, at) } };
       }),
     [update],
   );
@@ -250,17 +278,14 @@ export function useDeckModel(deck: DeckDetailDto): DeckModel {
   }, [deck.content]);
 }
 
-export function makeStatus(state: DeckProgress) {
-  const status = (id: string): Status => {
-    const r = state.st[id];
-    return !r ? 'new' : r.l ? 'ok' : 'bad';
-  };
+export function makeStatus(state: DeckProgress, srs: boolean, now = Date.now()) {
+  const status = (id: string): Status => memoryStatus(state.st[id], srs, now);
   const marked = (id: string) => Boolean(state.mk[id]);
   return { status, marked };
 }
 
-export function countsOf(m: DeckModel, state: DeckProgress, ch = 0): Counts {
-  const { status, marked } = makeStatus(state);
+export function countsOf(m: DeckModel, state: DeckProgress, srs: boolean, ch = 0): Counts {
+  const { status, marked } = makeStatus(state, srs);
   const c: Counts = { all: 0, ok: 0, bad: 0, mk: 0, nw: 0, seen: 0 };
   for (const q of m.Q) {
     if (ch && q.chapter !== ch) continue;
@@ -275,14 +300,53 @@ export function countsOf(m: DeckModel, state: DeckProgress, ch = 0): Counts {
   return c;
 }
 
-export function poolOf(m: DeckModel, state: DeckProgress, ch: number, scope: Scope) {
-  const { status, marked } = makeStatus(state);
-  return m.Q.filter(
+/** Questions for a session. With scheduling on, "Cần ôn" puts the closest to forgotten first. */
+export function poolOf(m: DeckModel, state: DeckProgress, ch: number, scope: Scope, srs: boolean) {
+  const now = Date.now();
+  const { status, marked } = makeStatus(state, srs, now);
+  const ids = m.Q.filter(
     (q) =>
       (!ch || q.chapter === ch) &&
       (scope === 'all' || (scope === 'new' && status(q.id) === 'new') || (scope === 'bad' && status(q.id) === 'bad') || (scope === 'mk' && marked(q.id))),
   ).map((q) => q.id);
+  if (srs && scope === 'bad') ids.sort((a, b) => urgency(state.st[a], now) - urgency(state.st[b], now));
+  return ids;
 }
+
+/** Review dates coming up, for the overview. */
+export function forecastOf(m: DeckModel, state: DeckProgress, now = Date.now()) {
+  const DAY = 86_400_000;
+  const days = Array.from({ length: 7 }, () => 0);
+  for (const q of m.Q) {
+    const r = state.st[q.id];
+    if (!r || memoryStatus(r, true, now) !== 'ok') continue;
+    const i = Math.floor((memoryOf(r).due - now) / DAY);
+    if (i < 7) days[Math.max(0, i)]++;
+  }
+  return days;
+}
+
+/** "10 phút", "5 giờ", "3 ngày", "2 tháng". */
+export function fmtWait(ms: number) {
+  const min = Math.max(1, Math.round(ms / 60_000));
+  if (min < 60) return `${min} phút`;
+  const h = Math.round(min / 60);
+  if (h < 24) return `${h} giờ`;
+  const d = Math.round(h / 24);
+  if (d < 45) return `${d} ngày`;
+  return `${Math.round(d / 30)} tháng`;
+}
+
+/** A deck summary's remembered and to-review counts under the learner's setting. */
+export function summaryCounts(p: { ok: number; bad: number; srsOk?: number; srsBad?: number }, srs: boolean) {
+  return srs && p.srsOk !== undefined ? { ok: p.srsOk, bad: p.srsBad ?? 0 } : { ok: p.ok, bad: p.bad };
+}
+
+export const CONFIDENCE: Array<{ g: Grade; label: string; key: string; tone: string }> = [
+  { g: 3, label: 'Chắc', key: '1', tone: 'is-sure' },
+  { g: 2, label: 'Phân vân', key: '2', tone: 'is-unsure' },
+  { g: 1, label: 'Đoán', key: '3', tone: 'is-guess' },
+];
 
 /* ─────────────────────────────── sessions ─────────────────────────────── */
 
@@ -298,7 +362,8 @@ export interface PracticeSession {
   ids: string[];
   idx: number;
   perm: Record<string, number[]>;
-  res: Record<string, { sel: number[]; ok: boolean }>;
+  /** Per answered question: picks, right or not, how sure (when asked), and the record from before. */
+  res: Record<string, { sel: number[]; ok: boolean; g?: Grade; base?: MemoryRecord | null }>;
   custom: Custom | null;
   finished: boolean;
 }

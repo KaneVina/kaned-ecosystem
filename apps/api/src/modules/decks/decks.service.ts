@@ -1,5 +1,6 @@
 import { and, asc, count, desc, eq, ilike, inArray, or, type SQL } from 'drizzle-orm';
 import {
+  memoryCounts,
   parseDeck,
   type AdminDeckDetailDto,
   type AdminDeckDto,
@@ -85,13 +86,19 @@ function filters(query: DeckListQuery, publishedOnly: boolean): SQL | undefined 
   return where.length ? and(...where) : undefined;
 }
 
-const progressSummary = (p: { seen: number; ok: number; bad: number; marked: number; updatedAt: Date }): DeckProgressSummary => ({
-  seen: p.seen,
-  ok: p.ok,
-  bad: p.bad,
-  marked: p.marked,
-  updatedAt: p.updatedAt.toISOString(),
-});
+/** Schedule counts are worked out on every read, because questions fall due as time passes. */
+const progressSummary = (p: { state: DeckProgress; seen: number; ok: number; bad: number; marked: number; updatedAt: Date }): DeckProgressSummary => {
+  const k = memoryCounts(p.state.st);
+  return {
+    seen: p.seen,
+    ok: p.ok,
+    bad: p.bad,
+    srsOk: k.srsOk,
+    srsBad: k.srsBad,
+    marked: p.marked,
+    updatedAt: p.updatedAt.toISOString(),
+  };
+};
 
 /* ─────────────────────────────── learners ─────────────────────────────── */
 
@@ -105,7 +112,7 @@ export async function listDecks(userId: string, query: DeckListQuery): Promise<D
     .orderBy(asc(subjects.code), asc(decks.title))) as ListRow[];
   if (!rows.length) return [];
   const mine = await db
-    .select({ deckId: deckProgress.deckId, seen: deckProgress.seen, ok: deckProgress.ok, bad: deckProgress.bad, marked: deckProgress.marked, updatedAt: deckProgress.updatedAt })
+    .select({ deckId: deckProgress.deckId, state: deckProgress.state, seen: deckProgress.seen, ok: deckProgress.ok, bad: deckProgress.bad, marked: deckProgress.marked, updatedAt: deckProgress.updatedAt })
     .from(deckProgress)
     .where(and(eq(deckProgress.userId, userId), inArray(deckProgress.deckId, rows.map((r) => r.id))));
   const byDeck = new Map(mine.map((p) => [p.deckId, p]));
