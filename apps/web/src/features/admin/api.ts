@@ -38,6 +38,9 @@ import type {
   TrackedKind,
   UserEventDto,
   UserEventType,
+  AdminGradesOverviewDto,
+  AdminGradesQuery,
+  AdminUserGradesDto,
 } from '@kaned/shared';
 import { http, withKey } from '@/lib/api';
 import { useIdempotencyKey } from '@/lib/useIdempotencyKey';
@@ -69,7 +72,15 @@ export const adminKeys = {
   userViews: (id: string, p: object) => ['admin', 'user-views', id, p] as const,
   userTopDocuments: (id: string) => ['admin', 'user-top-docs', id] as const,
   userEvents: (id: string, p: object) => ['admin', 'user-events', id, p] as const,
+  grades: (p: object) => ['admin', 'grades', p] as const,
+  userGrades: (id: string) => ['admin', 'user-grades', id] as const,
 };
+
+/* student grades: admins only */
+export const useGradesOverview = (q: Partial<AdminGradesQuery>) =>
+  useQuery({ queryKey: adminKeys.grades(q), queryFn: () => get<AdminGradesOverviewDto>('/grades', q), placeholderData: keepPreviousData });
+export const useUserGrades = (id?: string) =>
+  useQuery({ queryKey: adminKeys.userGrades(id ?? ''), queryFn: () => get<AdminUserGradesDto>(`/users/${id}/grades`), enabled: Boolean(id) });
 
 /* activity: refreshed every 30 s, the same rhythm as the tabs' check-ins */
 const LIVE = 30_000;

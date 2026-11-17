@@ -16,6 +16,7 @@ import {
   Search,
   Users,
   type LucideIcon,
+  GraduationCap,
 } from 'lucide-react';
 import { ROLE_LABELS } from '@kaned/shared';
 import { Wordmark } from '@/components/ui/Wordmark';
@@ -74,6 +75,7 @@ const NAV: Array<{ title: string; items: Item[] }> = [
     title: 'Hệ thống',
     items: [
       { to: '/admin/users', label: 'Người dùng', icon: Users, adminOnly: true },
+      { to: '/admin/grades', label: 'Điểm sinh viên', icon: GraduationCap, adminOnly: true },
       { to: '/admin/activity', label: 'Nhật ký thay đổi', icon: History },
     ],
   },

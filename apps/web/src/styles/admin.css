@@ -730,3 +730,41 @@ p.pce-sub { margin: 0; }
   .pce-part { grid-template-columns: 1fr 80px 80px; }
   .pce-part-head { display: none; }
 }
+
+/* Student grades (admins only) */
+.gpa-pill { display: inline-grid; place-items: center; min-width: 46px; height: 24px; padding: 0 8px; border-radius: 7px; font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; background: var(--a-hover); color: var(--a-ink-2); }
+.gpa-pill.is-good { background: #E6F6EC; color: #11743A; }
+.gpa-pill.is-ok { background: var(--a-accent-50); color: var(--a-accent-2); }
+.gpa-pill.is-low { background: #FDECEC; color: #B42318; }
+.cred-cell { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--a-ink-2); }
+.cred-bar { width: 64px; height: 6px; border-radius: 999px; background: var(--a-hover); overflow: hidden; }
+.cred-bar i { display: block; height: 100%; background: #22A35A; border-radius: inherit; }
+.fail-n { color: #B42318; }
+.ug-sum { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; padding: 14px 16px 6px; }
+.ug-sum > div { display: grid; gap: 4px; padding: 12px 14px; border: 1px solid var(--a-border); border-radius: 12px; background: var(--a-surface, #fff); }
+.ug-sum span { font-size: 12.5px; color: var(--a-ink-3); }
+.ug-sum b { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; justify-self: start; }
+.ug-sum b.gpa-pill { font-size: 18px; height: 30px; }
+.ug-sum b small { font-size: 13px; color: var(--a-ink-3); font-weight: 500; }
+.ug-sum > div > small { font-size: 12px; color: var(--a-ink-4); }
+.ug-term td { background: var(--a-hover); font-size: 12.5px; padding-top: 8px !important; padding-bottom: 8px !important; }
+.ug-term b { margin-right: 10px; color: var(--a-ink); }
+.ug-term span { color: var(--a-ink-3); font-variant-numeric: tabular-nums; }
+.adm-table tr.ug-term { cursor: default; }
+.adm-table tr.no-expand { cursor: default; }
+.ug-code { display: inline-block; min-width: 64px; font-weight: 700; color: var(--a-accent-2); }
+.ug-out { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+.ug-out.t-green { background: #E6F6EC; color: #11743A; }
+.ug-out.t-red { background: #FDECEC; color: #B42318; }
+.ug-out.t-amber { background: #FFF3DC; color: #8A5300; }
+.ug-break { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; padding: 6px 4px 10px 32px; }
+.ug-break h4 { margin: 0 0 6px; font-size: 12.5px; color: var(--a-ink-3); font-weight: 600; }
+.ug-break ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.ug-break li { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 6px 10px; border-radius: 8px; background: var(--a-surface, #fff); border: 1px solid var(--a-border); font-size: 13px; }
+.ug-break li i { font-style: normal; color: var(--a-ink-4); font-size: 12px; margin-left: 4px; }
+.ug-break li.is-bad { border-color: #F3C2C2; background: #FFF7F7; }
+.ug-break li.is-retake { border-color: #EBC27A; background: #FFFAF0; }
+.ug-break li.is-ok b { color: #11743A; }
+.ug-break li.is-bad b { color: #B42318; }
+.ug-parts { color: var(--a-ink-3); font-variant-numeric: tabular-nums; font-size: 12.5px; }
+.ug-break p { margin: 8px 0 0; font-size: 12.5px; color: var(--a-ink-3); }

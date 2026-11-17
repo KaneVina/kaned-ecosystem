@@ -7,6 +7,7 @@ import {
   adminDocumentQuerySchema,
   adminDocumentUpdateSchema,
   adminUserQuerySchema,
+  adminGradesQuerySchema,
   createDocumentSchema,
   curriculumAddSchema,
   curriculumEntryUpdateSchema,
@@ -31,12 +32,14 @@ import {
   type ActivityQuery,
   type AdminDocumentQuery,
   type AdminUserQuery,
+  type AdminGradesQuery,
 } from '@kaned/shared';
 import { requireAuth, requireRole } from '../../middleware/auth.js';
 import { idempotentWrites } from '../../middleware/idempotency.js';
 import { parsedQuery, validateBody, validateQuery } from '../../middleware/validate.js';
 import * as institutions from './institutions.service.js';
 import * as monitoring from './monitoring.service.js';
+import * as gradeAdmin from './grades.service.js';
 import * as subjects from './subjects.service.js';
 import * as docs from './documents.service.js';
 import * as people from './people.service.js';
@@ -203,6 +206,15 @@ adminRouter.get('/users', adminOnly, validateQuery(adminUserQuerySchema), async 
 adminRouter.patch('/users/:id/role', adminOnly, validateBody(userRoleSchema), async (req, res) =>
   res.json(await people.setRole(actor(req), req.params.id, req.body.role)),
 );
+
+/* student grades: admins only, never moderators */
+adminRouter.get('/grades', adminOnly, validateQuery(adminGradesQuerySchema), async (_req, res) =>
+  res.json(await gradeAdmin.gradesOverview(parsedQuery<AdminGradesQuery>(res))),
+);
+adminRouter.get('/users/:id/grades', adminOnly, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json(await gradeAdmin.userGrades(req.params.id));
+});
 
 /* activity: who is online, what they use (admins only) */
 const sessionPage = z.object({

@@ -31,6 +31,7 @@ const AdminSubjectDetailPage = lazy(() => admin().then((m) => ({ default: m.Subj
 const CurriculumPage = lazy(() => admin().then((m) => ({ default: m.CurriculumPage })));
 const UsersPage = lazy(() => admin().then((m) => ({ default: m.UsersPage })));
 const UserDetailPage = lazy(() => admin().then((m) => ({ default: m.UserDetailPage })));
+const GradesPage = lazy(() => admin().then((m) => ({ default: m.GradesPage })));
 const ActivityPage = lazy(() => admin().then((m) => ({ default: m.ActivityPage })));
 
 /** Shown while the refresh cookie is exchanged for a session. */
@@ -121,6 +122,7 @@ export default function App() {
         <Route path="curriculum/:majorId" element={<RequireStaff adminOnly><CurriculumPage /></RequireStaff>} />
         <Route path="users" element={<RequireStaff adminOnly><UsersPage /></RequireStaff>} />
         <Route path="users/:id" element={<RequireStaff adminOnly><UserDetailPage /></RequireStaff>} />
+        <Route path="grades" element={<RequireStaff adminOnly><GradesPage /></RequireStaff>} />
         <Route path="activity" element={<ActivityPage />} />
         <Route path="*" element={<NotFoundPage inShell />} />
       </Route>

@@ -1,27 +1,6 @@
 import { Fragment, useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import {
-  Activity,
-  CalendarClock,
-  ChevronRight,
-  Clock,
-  Download,
-  Eye,
-  FileText,
-  History,
-  KeyRound,
-  Link2,
-  LogIn,
-  LogOut,
-  MonitorSmartphone,
-  Search,
-  ShieldOff,
-  Star,
-  Bookmark,
-  Upload,
-  UserPlus,
-  type LucideIcon,
-} from 'lucide-react';
+import { Activity, CalendarClock, ChevronRight, Clock, Download, Eye, FileText, History, KeyRound, Link2, LogIn, LogOut, MonitorSmartphone, Search, ShieldOff, Star, Bookmark, Upload, UserPlus, type LucideIcon, GraduationCap } from 'lucide-react';
 import {
   OAUTH_PROVIDER_LABELS,
   ROLE_LABELS,
@@ -45,9 +24,11 @@ import { useSessionViews, useSignOutEverywhere, useUserActivity, useUserEvents, 
 import { useAdminCrumbs } from './AdminShell';
 import { ActionMenu, ConfirmDialog, EmptyBlock, EmptyRow, Pager, RoleBadge, TableSkeleton, type ConfirmState } from './ui';
 import { DeviceLine, KIND_LABEL, KindIcon, methodLabel, Presence } from './presence';
+import { UserGradesTab } from './UserGradesTab';
 
-type Tab = 'sessions' | 'views' | 'documents' | 'events';
+type Tab = 'grades' | 'sessions' | 'views' | 'documents' | 'events';
 const TABS: Array<{ id: Tab; label: string; icon: LucideIcon }> = [
+  { id: 'grades', label: 'Điểm số', icon: GraduationCap },
   { id: 'sessions', label: 'Phiên truy cập', icon: MonitorSmartphone },
   { id: 'views', label: 'Lịch sử xem', icon: Eye },
   { id: 'documents', label: 'Tài liệu xem nhiều', icon: FileText },
@@ -643,7 +624,7 @@ export function UserDetailPage() {
       </div>
 
       <section className="adm-panel">
-        <div className="adm-tabs" role="tablist" aria-label="Chi tiết hoạt động">
+        <div className="adm-tabs" role="tablist" aria-label="Chi tiết người dùng">
           {TABS.map((t) => (
             <button key={t.id} type="button" role="tab" className="adm-tab" aria-selected={tab === t.id} onClick={() => setParams({ tab: t.id }, { replace: true })}>
               <t.icon className="ic" />
@@ -653,6 +634,7 @@ export function UserDetailPage() {
         </div>
         {!isLoading && id && (
           <>
+            {tab === 'grades' && <UserGradesTab userId={id} />}
             {tab === 'sessions' && <SessionsTab userId={id} />}
             {tab === 'views' && <ViewsTab userId={id} />}
             {tab === 'documents' && <DocumentsTab userId={id} />}

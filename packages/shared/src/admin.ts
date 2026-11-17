@@ -413,3 +413,64 @@ export interface AdminOverviewDto {
   pending: AdminDocumentDto[];
   recentActivity: ActivityDto[];
 }
+
+/* ──────────────────────────── student grades ─────────────────────────────
+ * Admins only: moderators review documents and never see anyone's scores. */
+
+export const adminGradesQuerySchema = z.object({
+  q: z.string().trim().max(120).optional(),
+  universityId: z.string().uuid().optional(),
+  majorId: z.string().uuid().optional(),
+  standing: z.enum(['all', 'failing', 'warning', 'good']).default('all'),
+  sort: z.enum(['updated', 'gpa_desc', 'gpa_asc', 'name']).default('updated'),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
+});
+export type AdminGradesQuery = z.infer<typeof adminGradesQuerySchema>;
+
+export interface AdminStudentGradeRowDto {
+  user: { id: string; name: string; email: string; avatarUrl: string | null };
+  university: { id: string; code: string } | null;
+  major: { id: string; code: string; nameVi: string } | null;
+  year: number | null;
+  gpa4: number;
+  gpa10: number;
+  classification: string;
+  earnedCredits: number;
+  totalCredits: number;
+  gradedCount: number;
+  failedCount: number;
+  inProgressCount: number;
+  updatedAt: string;
+}
+
+export interface AdminGradesOverviewDto {
+  items: AdminStudentGradeRowDto[];
+  total: number;
+  page: number;
+  totalPages: number;
+  /** Across every student with grades, not just this page. */
+  stats: { students: number; avgGpa4: number; failing: number; gradedSubjects: number };
+}
+
+export interface AdminUserGradeDto {
+  subject: { id: string; code: string; name: string; nameVi: string; credits: number };
+  score10: number | null;
+  termNo: number | null;
+  inProgress: boolean;
+  letter: string | null;
+  gpa4: number | null;
+  /** passed / failed / in_progress / blocked_by_conditions */
+  outcome: 'passed' | 'failed' | 'in_progress' | 'conditions';
+  criteria: Record<string, number | boolean>;
+  passCriteria: import('./passCriteria.js').PassCriterion[];
+  assessmentScheme: import('./assessment.js').AssessmentItem[];
+  updatedAt: string;
+}
+
+export interface AdminUserGradesDto {
+  summary: import('./grading.js').GpaSummary;
+  passMark: number;
+  major: { id: string; code: string; nameVi: string } | null;
+  grades: AdminUserGradeDto[];
+}
