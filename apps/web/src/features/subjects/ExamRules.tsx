@@ -58,21 +58,16 @@ export function ExamRules({ criteria, defaultOpen = false, className }: { criter
       </button>
       <div className="xr-body" id={body} hidden={!open}>
         <table className="xr-table">
-          <thead>
-            <tr>
-              <th scope="col">Cột</th>
-              <th scope="col">Tên</th>
-              <th scope="col">Quy định</th>
-            </tr>
-          </thead>
           <tbody>
             {GLOSSARY.map(([k, name, rule]) => (
               <tr key={k}>
                 <th scope="row">
                   <span className="xr-key">{k}</span>
                 </th>
-                <td className="xr-name">{name}</td>
-                <td>{rule}</td>
+                <td>
+                  <b className="xr-name">{name}</b>
+                  {rule}
+                </td>
               </tr>
             ))}
           </tbody>

@@ -165,6 +165,8 @@ export interface CriterionCheck {
   score?: ScoreLine;
   parts?: ScoreLine[];
   formula?: string | null;
+  /** Parts whose second attempt could still lift a computed column that falls short. */
+  liftable?: string[];
   /** Attendance. */
   attendance?: { absent: number | null; sessions: number | null; askSessions: boolean; limit: number | null; left: number | null };
   /** No-zero rule: the columns that are 0. */
@@ -244,6 +246,9 @@ export function evaluatePassCriteria(
           computedFirst = ready && sumW > 0 ? Math.round((parts.reduce((s, p) => s + p.effective! * (p.weight ?? 0), 0) / sumW) * 100) / 100 : null;
         }
         const main = scoreLine(v, criterionKey.first(c.id), c.label, c.min, computed ? false : c.retake, null, computedFirst);
+        // A computed column that falls short can still be lifted by retaking one of its parts.
+        const liftable = computed ? parts.filter((p) => p.retake && p.second === null) : [];
+        if (main.state === 'bad' && liftable.length) main.state = 'retake';
         // A part without its own floor only matters when it feeds the computed column.
         const counted = parts.filter((p) => computed || p.min !== null);
         scoreLines.push(...(computed ? parts : [main, ...parts]));
@@ -258,7 +263,12 @@ export function evaluatePassCriteria(
           score: main,
           parts,
           formula: formulaOf(c),
-          detail: failing ? lineDetail(failing) : undefined,
+          detail: failing === main && main.state === 'retake' && computed
+            ? `${c.label} được ${fmt(main.effective!)} < ${fmt(c.min)} — còn thi lại lần 2 (${liftable.map((p) => p.label).join(', ')})`
+            : failing
+              ? lineDetail(failing)
+              : undefined,
+          liftable: liftable.map((p) => p.key),
         };
       }
       case 'attendance': {

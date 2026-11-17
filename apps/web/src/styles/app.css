@@ -751,6 +751,7 @@ a.dash-tool:hover .dash-tool-go { transform: translateX(3px); color: var(--viole
 @keyframes pcSlide { from { opacity: 0; translate: -6px 0; } }
 .pc-computed { min-width: 56px; height: 32px; padding: 0 10px; display: inline-grid; place-items: center; border-radius: 8px; background: var(--sunk, #EEEDF3); font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink-2); }
 .pc-computed.is-ok { background: color-mix(in srgb, var(--green, #16a34a) 14%, var(--paper)); color: #11743A; }
+.pc-computed.is-retake { background: #FFF3DC; color: #8A5300; }
 .pc-computed.is-bad { background: color-mix(in srgb, var(--red, #dc2626) 12%, var(--paper)); color: #B42318; }
 .pc-formula { margin: 0; font-size: 12.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .pc-parts { list-style: none; margin: 2px 0 0; padding: 6px 8px; display: grid; gap: 4px; border-radius: 10px; background: color-mix(in srgb, var(--ink, #1C1A2B) 3%, transparent); }
@@ -787,14 +788,14 @@ a.dash-tool:hover .dash-tool-go { transform: translateX(3px); color: var(--viole
 @keyframes xrIn { from { opacity: 0; translate: 0 -4px; } }
 .xr-table { width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.45; }
 .xr-table th, .xr-table td { padding: 7px 8px; border-top: 1px solid var(--line, #E6E4EE); text-align: left; vertical-align: top; }
-.xr-table thead th { border-top: 0; font-size: 11.5px; font-weight: 600; color: var(--ink-4, #8B88A0); }
+.xr-table tr:first-child > * { border-top: 0; }
 .xr-table tbody th { width: 56px; }
 .xr-key { display: inline-grid; place-items: center; min-width: 36px; height: 22px; padding: 0 6px; border-radius: 6px; background: var(--violet-50, #EFECFB); color: var(--violet-700, #3A2B9A); font-size: 12px; font-weight: 700; }
-.xr-name { width: 130px; font-weight: 600; color: var(--ink-2, #3C3950); white-space: nowrap; }
+.xr-name { display: block; font-weight: 600; color: var(--ink, #1C1A2B); }
 .xr-mine { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--violet, #4433B4) 5%, transparent); font-size: 13px; }
 .xr-mine b { display: block; margin-bottom: 4px; font-size: 12.5px; color: var(--violet-700, #3A2B9A); }
 .xr-mine ul { margin: 0; padding-left: 18px; display: grid; gap: 3px; color: var(--ink-2, #3C3950); }
-@media (max-width: 560px) { .xr-name { display: none; } .xr-sub { display: none; } }
+@media (max-width: 560px) { .xr-sub { display: none; } }
 @media (prefers-reduced-motion: reduce) { .pc-mark, .pc-num.is-retake, .xr-body { animation: none !important; } }
 
 /* Library search: suggestions typed into the empty box. */

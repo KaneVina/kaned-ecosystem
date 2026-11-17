@@ -78,8 +78,9 @@ function NumBox({
 }
 
 /** Lần 1, and lần 2 once lần 1 falls short (or was already filled in). */
-function Attempts({ line, set }: { line: ScoreLine; set: (key: string, v: number | undefined) => void }) {
-  const showSecond = line.retake && (line.second !== null || (line.first !== null && line.min !== null && line.first < line.min));
+function Attempts({ line, set, open }: { line: ScoreLine; set: (key: string, v: number | undefined) => void; open?: boolean }) {
+  const showSecond =
+    line.retake && (open || line.second !== null || line.first === 0 || (line.first !== null && line.min !== null && line.first < line.min));
   return (
     <span className="pc-attempts">
       <NumBox value={line.first} label={`${line.label} lần 1`} caption={line.retake ? 'Lần 1' : undefined} onChange={(v) => set(line.key, v)} />
@@ -131,7 +132,7 @@ function ComponentItem({ check, set }: { check: CriterionCheck; set: (key: strin
                   </span>
                 )}
               </span>
-              <Attempts line={p} set={set} />
+              <Attempts line={p} set={set} open={check.liftable?.includes(p.key)} />
             </li>
           ))}
         </ul>
