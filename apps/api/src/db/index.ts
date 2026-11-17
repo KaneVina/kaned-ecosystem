@@ -44,13 +44,26 @@ function isTransactionPooler(url: string): boolean {
 
 const pooled = isTransactionPooler(env.DATABASE_URL);
 
+const serverless = Boolean(process.env.VERCEL);
+
 const client =
   globalForDb.sql ??
   postgres(env.DATABASE_URL, {
-    // A pooler already multiplexes, so a big local pool only wastes its slots.
-    max: pooled || process.env.VERCEL ? 1 : env.isProd ? 10 : 5,
-    idle_timeout: 20,
-    connect_timeout: 15,
+    /*
+     * A serverless instance serves several requests at once, so one slot
+     * makes every request wait behind the slowest one. The transaction
+     * pooler shares backends, so a few client slots cost Supabase nothing.
+     */
+    max: serverless ? 4 : pooled ? 4 : env.isProd ? 10 : 5,
+    /*
+     * A frozen serverless instance cannot run idle timers, and the pooler
+     * drops its sockets meanwhile. Short idle time and a hard lifetime keep
+     * requests from waiting on a socket that is already dead.
+     */
+    idle_timeout: serverless ? 5 : 20,
+    max_lifetime: serverless ? 60 : 60 * 30,
+    connect_timeout: 10,
+    keep_alive: 15,
     ssl: needsTls(env.DATABASE_URL) ? 'require' : false,
     prepare: !pooled,
     // "already exists, skipping" notices from re-run migrations are not news.
