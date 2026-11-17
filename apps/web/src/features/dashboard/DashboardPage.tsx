@@ -6,6 +6,7 @@ import { DocCard, DocCardSkeleton } from '@/components/library/DocCard';
 import { QuickPreview } from '@/components/library/QuickPreview';
 import { SectionHead } from '@/components/ui/Panel';
 import { Typewriter } from '@/components/ui/Typewriter';
+import { CountUp } from '@/components/ui/CountUp';
 import { Progress } from '@/components/ui/Feedback';
 import { FileIcon } from '@/components/ui/FileBadge';
 import { TOOLS } from '@/components/layout/AppShell';
@@ -74,7 +75,7 @@ export function DashboardPage() {
             <div className="sw-stat sw-progress">
               <span className="sw-stat-l">Tiến độ chương trình</span>
               <b>
-                {summary?.progressPercent ?? 0}
+                <CountUp value={summary?.progressPercent ?? 0} />
                 <small>%</small>
               </b>
               <Progress value={summary?.progressPercent ?? 0} tone="green" />
@@ -84,22 +85,22 @@ export function DashboardPage() {
             </div>
             <Link to="/app/tools/gpa" className="sw-stat sw-stat-btn st-available">
               <span className="sw-stat-l">GPA hệ 4</span>
-              <b>{gpa?.gradedCount ? gpa.gpa4.toFixed(2) : '—'}</b>
+              <b>{gpa?.gradedCount ? <CountUp value={gpa.gpa4} decimals={2} /> : '—'}</b>
               <span className="sw-stat-s">{gpa?.gradedCount ? gpa.classification.vi : 'Chưa có điểm'}</span>
             </Link>
             <Link to="/app/subjects" className="sw-stat sw-stat-btn st-passed">
               <span className="sw-stat-l">Học được kỳ tới</span>
-              <b>{summary?.available.length ?? '—'}</b>
+              <b>{summary ? <CountUp value={summary.available.length} /> : '—'}</b>
               <span className="sw-stat-s">{summary ? `${summary.availableCredits} tín chỉ đủ điều kiện` : '—'}</span>
             </Link>
             <Link to="/app/subjects" className="sw-stat sw-stat-btn st-blocked">
               <span className="sw-stat-l">Đang bị chặn</span>
-              <b>{summary?.blocked.length ?? '—'}</b>
+              <b>{summary ? <CountUp value={summary.blocked.length} /> : '—'}</b>
               <span className="sw-stat-s">Thiếu điều kiện tiên quyết</span>
             </Link>
             <Link to="/app/saved" className="sw-stat sw-stat-btn st-in_progress">
               <span className="sw-stat-l">Đã lưu</span>
-              <b>{saved?.length ?? 0}</b>
+              <b><CountUp value={saved?.length ?? 0} /></b>
               <span className="sw-stat-s">tài liệu để đọc lại</span>
             </Link>
           </div>

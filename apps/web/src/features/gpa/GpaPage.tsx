@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Download, Info, RotateCcw, Save, Target } from 'lucide-react';
 import { computeGpa, criteriaBlockPass, gradeBandFor, GRADE_SCALE, requiredAverage, type GradeEntryInput } from '@kaned/shared';
+import { CountUp } from '@/components/ui/CountUp';
 import { PageHead } from '@/components/ui/Panel';
 import { EmptyState, Skeleton } from '@/components/ui/Feedback';
 import { useCurriculum } from '@/features/catalog/queries';
@@ -122,14 +123,14 @@ export function GpaPage() {
           <div className="gpa-main">
             <span className="sw-stat-l">GPA tích luỹ</span>
             <div className="gpa-figure">
-              <b>{summary.gradedCount ? summary.gpa4.toFixed(2) : '—'}</b>
+              <b>{summary.gradedCount ? <CountUp value={summary.gpa4} decimals={2} /> : '—'}</b>
               <span>/ 4.0</span>
             </div>
             <p>
               {summary.gradedCount ? (
                 <>
                   Xếp loại <span className="badge badge-violet">{summary.classification.vi}</span> · điểm TB hệ 10{' '}
-                  <b>{summary.gpa10.toFixed(2)}</b>
+                  <b><CountUp value={summary.gpa10} decimals={2} /></b>
                 </>
               ) : (
                 'Nhập điểm bên dưới để bắt đầu.'

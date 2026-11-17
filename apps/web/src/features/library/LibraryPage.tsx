@@ -23,6 +23,8 @@ import { useSubjects, useTerms, useUniversities } from '@/features/catalog/queri
 import { useToast } from '@/providers/ToastProvider';
 import { toApiError } from '@/lib/api';
 import { fmtInt } from '@/lib/format';
+import { cn } from '@/lib/cn';
+import { Typewriter } from '@/components/ui/Typewriter';
 
 type View = 'grid' | 'list';
 
@@ -34,12 +36,15 @@ function readView(): View {
   }
 }
 
+const SEARCH_HINTS = ['“đề thi MLN122”', '“slide CSD201”', '“giáo trình Java”', '“PRF192 có lời giải”'];
+
 export function LibraryPage() {
   const { filters, setFilters, clear, activeCount } = useLibraryFilters();
   const toast = useToast();
   const [panelOpen, setPanelOpen] = useState(false);
   const [view, setView] = useState<View>(readView);
   const [search, setSearch] = useState(filters.q ?? '');
+  const [searchFocus, setSearchFocus] = useState(false);
   const [preview, setPreview] = useState<DocumentSummaryDto | null>(null);
 
   const sort = filters.sort ?? (filters.q ? 'relevance' : 'downloads');
@@ -151,13 +156,20 @@ export function LibraryPage() {
             </label>
             <input
               id="lib-q"
-              className="input input-lg"
               type="search"
               placeholder="Tìm theo tên tài liệu, mã môn, tên môn, trường hoặc người đăng"
+              className={cn('input input-lg', !search && !searchFocus && 'has-tw')}
               value={search}
+              onFocus={() => setSearchFocus(true)}
+              onBlur={() => setSearchFocus(false)}
               onChange={(e) => setSearch(e.target.value)}
               autoComplete="off"
             />
+            {!search && !searchFocus && (
+              <span className="ex-tw" aria-hidden>
+                Thử tìm <Typewriter phrases={SEARCH_HINTS} typeMs={45} holdMs={1800} />
+              </span>
+            )}
             <kbd className="ex-kbd">/</kbd>
           </div>
         </div>

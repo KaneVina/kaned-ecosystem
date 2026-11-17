@@ -733,3 +733,55 @@ a.dash-tool:hover .dash-tool-go { transform: translateX(3px); color: var(--viole
 .pc-score input:focus { outline: 2px solid var(--violet); outline-offset: 1px; }
 .pc-score.invalid input { border-color: var(--red, #dc2626); }
 .sd-count.is-ok { background: var(--green, #16a34a); color: #fff; }
+
+/* Library search: suggestions typed into the empty box. */
+.ex-search-box .input.has-tw::placeholder { color: transparent; }
+.ex-tw { position: absolute; left: 44px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--ink-4); font-size: 15.5px; white-space: nowrap; overflow: hidden; max-width: calc(100% - 90px); }
+.ex-tw .tw { color: var(--ink-2); }
+.ex-tw .tw-caret { height: 1.05em; }
+
+/* ── Motion: one quiet system ───────────────────────────────────────────
+ * Uses `translate` (not `transform`) so it never fights hover lifts. */
+
+/* Numbers settle in place rather than popping. */
+.countup { font-variant-numeric: tabular-nums; }
+
+/* Progress bars fill from the left the first time they appear. */
+.progress > span { transform-origin: left center; animation: fillIn .9s var(--ease-out, cubic-bezier(.2,.8,.2,1)) both; }
+@keyframes fillIn { from { transform: scaleX(0); } }
+
+/* Document grids: cards arrive in a short cascade. */
+.grid-docs > *, .list-docs > * { animation: cardRise .45s var(--ease-out, cubic-bezier(.2,.8,.2,1)) both; }
+.grid-docs > :nth-child(2), .list-docs > :nth-child(2) { animation-delay: .04s; }
+.grid-docs > :nth-child(3), .list-docs > :nth-child(3) { animation-delay: .08s; }
+.grid-docs > :nth-child(4), .list-docs > :nth-child(4) { animation-delay: .12s; }
+.grid-docs > :nth-child(5), .list-docs > :nth-child(5) { animation-delay: .16s; }
+.grid-docs > :nth-child(6), .list-docs > :nth-child(6) { animation-delay: .2s; }
+.grid-docs > :nth-child(n+7), .list-docs > :nth-child(n+7) { animation-delay: .24s; }
+@keyframes cardRise { from { opacity: 0; translate: 0 14px; } }
+
+/* Sections further down the page rise into view as you scroll to them. */
+@supports (animation-timeline: view()) {
+  .container > .section, .panel, .sd-sec {
+    animation: viewRise linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 35%;
+  }
+  @keyframes viewRise { from { opacity: 0; translate: 0 18px; } }
+}
+
+/* Links in the top nav: a soft underline that grows on hover. */
+.nav-links a { position: relative; }
+.nav-links a::after { content: ""; position: absolute; left: 11px; right: 11px; bottom: 2px; height: 2px; border-radius: 2px; background: var(--violet); transform: scaleX(0); transition: transform .22s var(--ease-out, ease); }
+.nav-links a:hover::after { transform: scaleX(1); }
+.nav-links a.active::after { transform: scaleX(0); }
+
+/* Icons in buttons nudge forward on hover. */
+.btn:hover .ic-arrow, .link:hover .ic, .btn:hover > svg.lucide-arrow-right, .btn:hover > svg.lucide-chevron-right { translate: 2px 0; transition: translate .18s; }
+
+/* Saved: the bookmark pops. */
+.bm-btn[aria-pressed="true"] .ic, [data-tip="Đã lưu"] .ic { animation: pop .35s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  .progress > span, .grid-docs > *, .list-docs > *, .container > .section, .panel, .sd-sec { animation: none !important; }
+}
