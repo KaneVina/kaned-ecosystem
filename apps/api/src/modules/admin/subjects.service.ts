@@ -212,8 +212,9 @@ export async function updateCurriculumEntry(
   });
   if (!row) notFound('môn trong chương trình');
 
-  const { passCriteria, ...entryInput } = input;
-  if (passCriteria) await db.update(subjects).set({ passCriteria }).where(eq(subjects.id, subjectId));
+  const { passCriteria, assessmentScheme, ...entryInput } = input;
+  const subjectPatch = { ...(passCriteria ? { passCriteria } : {}), ...(assessmentScheme ? { assessmentScheme } : {}) };
+  if (Object.keys(subjectPatch).length) await db.update(subjects).set(subjectPatch).where(eq(subjects.id, subjectId));
   if (Object.keys(entryInput).length)
     await db
     .update(majorSubjects)

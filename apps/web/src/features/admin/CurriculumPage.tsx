@@ -4,9 +4,11 @@ import { ArrowRight, BookPlus, CalendarMinus, CalendarPlus, GripVertical, Pencil
 import {
   describeRequirement,
   requirementCodes,
+  assessmentItemSchema,
   passCriterionSchema,
   requirementSchema,
   type CurriculumSubjectDto,
+  type AssessmentItem,
   type PassCriterion,
   type Requirement,
 } from '@kaned/shared';
@@ -30,6 +32,7 @@ import { MajorForm } from './forms';
 import { SubjectForm } from './SubjectsPage';
 import { RequirementList, type CodeOption } from './RequirementEditor';
 import { PassCriteriaEditor } from './PassCriteriaEditor';
+import { AssessmentEditor } from './AssessmentEditor';
 import { useAdminCrumbs } from './AdminShell';
 
 /** Heavier than this per term is worth a second look. */
@@ -60,6 +63,7 @@ function EntrySheet({
   const [choiceGroup, setChoiceGroup] = useState('');
   const [rules, setRules] = useState<Requirement[]>([]);
   const [passCriteria, setPassCriteria] = useState<PassCriterion[]>([]);
+  const [scheme, setScheme] = useState<AssessmentItem[]>([]);
   const [error, setError] = useState('');
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
 
@@ -70,6 +74,7 @@ function EntrySheet({
     setChoiceGroup(entry.choiceGroup ?? '');
     setRules(structuredClone(entry.requirements));
     setPassCriteria(structuredClone(entry.passCriteria ?? []));
+    setScheme(structuredClone(entry.assessmentScheme ?? []));
     setError('');
   }, [entry]);
 
@@ -78,6 +83,13 @@ function EntrySheet({
       const parsed = requirementSchema.safeParse(r);
       if (!parsed.success) {
         setError(`“${describeRequirement(r, passMark)}”: ${parsed.error.issues[0]?.message ?? 'chưa đủ thông tin'}`);
+        return;
+      }
+    }
+    for (const it of scheme) {
+      const parsed = assessmentItemSchema.safeParse(it);
+      if (!parsed.success) {
+        setError(`Cơ cấu điểm: ${parsed.error.issues[0]?.message ?? 'chưa đủ thông tin'}`);
         return;
       }
     }
@@ -93,7 +105,7 @@ function EntrySheet({
       await update.mutateAsync({
         majorId,
         subjectId: entry!.id,
-        input: { termNo: termNo ? Number(termNo) : null, isRequired, choiceGroup: choiceGroup || null, requirements: rules, passCriteria },
+        input: { termNo: termNo ? Number(termNo) : null, isRequired, choiceGroup: choiceGroup || null, requirements: rules, passCriteria, assessmentScheme: scheme },
       });
       toast.success('Đã lưu', `${entry!.code}: ${rules.length} điều kiện đăng ký, ${passCriteria.length} điều kiện qua môn`);
       onClose();
@@ -176,6 +188,11 @@ function EntrySheet({
           <h3>Điều kiện để đăng ký môn</h3>
           <p>Tất cả điều kiện dưới đây phải thoả. Mã màu vàng là môn không có trong chương trình (thường là môn thay thế của khoá cũ).</p>
           <RequirementList value={rules} onChange={setRules} options={options.filter((o) => o.code !== entry?.code)} termCount={termCount} passMark={passMark} />
+        </section>
+        <section className="sheet-section">
+          <h3>Cơ cấu điểm</h3>
+          <p>Các cột điểm, tỉ trọng và điều kiện hoàn thành như bảng Assessment trên FLM. Sinh viên nhập điểm từng cột, Kaned tự tính điểm tổng. Áp dụng cho môn ở mọi chương trình.</p>
+          <AssessmentEditor value={scheme} onChange={setScheme} />
         </section>
         <section className="sheet-section">
           <h3>Điều kiện qua môn</h3>

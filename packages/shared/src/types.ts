@@ -1,4 +1,5 @@
 import type { PassCriteriaValues, PassCriterion } from './passCriteria.js';
+import type { AssessmentItem } from './assessment.js';
 /**
  * Shapes the API returns. The web app imports these instead of redeclaring
  * them, so a change to a response is a compile error on both sides.
@@ -93,6 +94,7 @@ export interface CurriculumSubjectDto extends SubjectSummaryDto {
   choiceGroup: string | null;
   requirements: Requirement[];
   passCriteria: PassCriterion[];
+  assessmentScheme: AssessmentItem[];
 }
 
 export interface CurriculumDto {
@@ -106,6 +108,7 @@ export interface SubjectDetailDto extends SubjectSummaryDto {
   topics: string[];
   assessment: string | null;
   passCriteria: PassCriterion[];
+  assessmentScheme: AssessmentItem[];
   prerequisites: SubjectPrereqDto[];
   /** Subjects that list this one as a requirement. */
   unlocks: SubjectPrereqDto[];

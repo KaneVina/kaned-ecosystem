@@ -6,5 +6,6 @@ export * from './tracking.js';
 export * from './admin.js';
 export * from './planner.js';
 export * from './passCriteria.js';
+export * from './assessment.js';
 export * from './schemas.js';
 export * from './types.js';

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { BookOpen, ChevronRight, ClipboardList, FileText, KeyRound, ListChecks, Target, X } from 'lucide-react';
+import { BookOpen, ChevronRight, ClipboardList, FileText, KeyRound, ListChecks, PieChart, Target, X } from 'lucide-react';
 import { evaluatePassCriteria, gradeBandFor, type CurriculumSubjectDto, type PassCriteriaValues, type PlannerResult, type SubjectStatus } from '@kaned/shared';
 import { Skeleton } from '@/components/ui/Feedback';
 import { subjectTone } from '@/components/paper/profiles';
@@ -8,6 +8,7 @@ import { isInvalidScore, parseScore, type DraftEntry } from '@/features/grades/q
 import { cn } from '@/lib/cn';
 import { RequirementList } from './RequirementList';
 import { PassCriteriaPanel } from './PassCriteriaPanel';
+import { AssessmentPanel } from './AssessmentPanel';
 import { STATUS } from './status';
 import { SubjectDocuments } from './SubjectDocuments';
 
@@ -50,7 +51,8 @@ export function SubjectDetail({
   const band = score !== null && !entry?.inProgress ? gradeBandFor(score) : null;
   const known = new Set(statusByCode.keys());
   const criteria = subject.passCriteria ?? [];
-  const crit = evaluatePassCriteria(criteria, entry?.inProgress ? null : score, entry?.criteria);
+  const scheme = subject.assessmentScheme ?? [];
+  const crit = evaluatePassCriteria(criteria, entry?.inProgress ? null : score, entry?.criteria, scheme);
   const unmet = crit.checks.filter((c) => c.state !== 'ok').map((c) => (c.state === 'retake' ? `${c.text} (còn thi lại lần 2)` : c.text));
 
   return (
@@ -152,6 +154,23 @@ export function SubjectDetail({
         </div>
       </section>
 
+      {scheme.length > 0 && (
+        <section className="sd-sec">
+          <h3 className="sd-h">
+            <PieChart className="ic ic-sm" />
+            Cơ cấu điểm
+          </h3>
+          <AssessmentPanel
+            scheme={scheme}
+            values={entry?.criteria ?? {}}
+            onChange={onCriteria}
+            passMark={passMark}
+            score={entry?.inProgress ? null : score}
+            onUseTotal={(t) => onScore(String(t))}
+          />
+        </section>
+      )}
+
       {criteria.length > 0 && (
         <section className="sd-sec">
           <h3 className="sd-h">
@@ -211,7 +230,37 @@ export function SubjectDetail({
           </>
         ) : (
           <>
-            {detail?.description && <p className="sd-desc">{detail.description}</p>}
+            <dl className="sd-facts">
+              <div>
+                <dt>Mã môn</dt>
+                <dd>{subject.code}</dd>
+              </div>
+              <div>
+                <dt>Tín chỉ</dt>
+                <dd>{subject.credits}</dd>
+              </div>
+              <div>
+                <dt>Kỳ</dt>
+                <dd>{subject.termNo ? `Kỳ ${subject.termNo}` : 'Tự chọn'}</dd>
+              </div>
+              <div>
+                <dt>Loại</dt>
+                <dd>{subject.choiceGroup ? 'Chọn 1 trong nhóm' : subject.isRequired ? 'Bắt buộc' : 'Tự chọn'}</dd>
+              </div>
+              {detail?.university && (
+                <div>
+                  <dt>Trường</dt>
+                  <dd>{detail.university.code}</dd>
+                </div>
+              )}
+              {detail?.majors && detail.majors.length > 0 && (
+                <div className="wide">
+                  <dt>Thuộc ngành</dt>
+                  <dd>{detail.majors.map((m) => `${m.major.code ?? m.major.name}${m.termNo ? ` (kỳ ${m.termNo})` : ''}`).join(', ')}</dd>
+                </div>
+              )}
+            </dl>
+            {detail?.description ? <p className="sd-desc">{detail.description}</p> : <p className="sd-empty">Môn chưa có mô tả.</p>}
             {detail?.topics && detail.topics.length > 0 && (
               <ol className="syl-list sd-syl">
                 {detail.topics.map((t, i) => (

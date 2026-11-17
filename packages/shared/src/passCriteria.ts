@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { evaluateAssessment, type AssessmentItem } from './assessment.js';
 
 /**
  * What it takes to pass a subject, beyond the programme's pass mark.
@@ -224,6 +225,8 @@ export function evaluatePassCriteria(
   criteria: PassCriterion[] | null | undefined,
   score10: number | null,
   values: PassCriteriaValues | null | undefined,
+  /** The subject's assessment scheme, so the no-zero rule also sees its parts. */
+  scheme?: AssessmentItem[] | null,
 ): PassCriteriaResult {
   const list = criteria ?? [];
   const v = values ?? {};
@@ -307,7 +310,16 @@ export function evaluatePassCriteria(
   // The no-zero rule looks at every score recorded above, so it is settled last.
   for (const check of checks) {
     if (check.criterion.kind !== 'noZero') continue;
-    const zeroLines = scoreLines.filter((l) => l.effective === 0);
+    const schemeLines: ScoreLine[] = (scheme ?? []).flatMap((item) =>
+      Array.from({ length: item.parts }, (_, p) => {
+        const key = `as:${item.id}:${p}`;
+        const first = num(v[key]);
+        const second = item.retake ? num(v[`${key}#2`]) : null;
+        const effective = second ?? first;
+        return { key, label: item.parts > 1 ? `${item.name} ${p + 1}` : item.name, min: null, weight: null, retake: Boolean(item.retake), first, second, effective, state: 'ok' as CheckState };
+      }),
+    );
+    const zeroLines = [...scoreLines, ...schemeLines].filter((l) => l.effective === 0);
     const zeros = zeroLines.map((l) => l.label);
     const confirmed = v[check.criterion.id] === true;
     check.zeros = zeros;
@@ -330,12 +342,18 @@ export function evaluatePassCriteria(
   };
 }
 
-/** True when the subject has criteria and they are not all met yet. */
+/**
+ * True when something other than the total keeps the subject from passing:
+ * a pass condition not met yet, or an assessment category that missed its
+ * completion rule (a category with no score yet does not count against it).
+ */
 export function criteriaBlockPass(
   criteria: PassCriterion[] | null | undefined,
   score10: number | null,
   values: PassCriteriaValues | null | undefined,
+  scheme?: AssessmentItem[] | null,
 ) {
-  if (!criteria?.length) return false;
-  return !evaluatePassCriteria(criteria, score10, values).met;
+  const byCriteria = criteria?.length ? !evaluatePassCriteria(criteria, score10, values, scheme).met : false;
+  const byScheme = scheme?.length ? !evaluateAssessment(scheme, values).completionOk : false;
+  return byCriteria || byScheme;
 }

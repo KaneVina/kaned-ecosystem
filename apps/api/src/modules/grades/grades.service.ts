@@ -90,7 +90,7 @@ export async function gradeSummary(userId: string): Promise<GpaSummary> {
       credits: g.subject.credits,
       score10: g.score10,
       termNo: g.termNo,
-      criteriaMet: !criteriaBlockPass(g.subject.passCriteria, g.score10, g.criteria),
+      criteriaMet: !criteriaBlockPass(g.subject.passCriteria, g.score10, g.criteria, g.subject.assessmentScheme),
     })),
     user?.major?.passMark,
   );
@@ -103,7 +103,7 @@ export async function plan(userId: string, query: PlannerQuery) {
     db.query.grades.findMany({ where: eq(grades.userId, userId) }),
   ]);
 
-  const criteriaById = new Map(curriculum.map((s) => [s.id, s.passCriteria]));
+  const criteriaById = new Map(curriculum.map((s) => [s.id, s]));
 
   const plannerSubjects: PlannerSubject[] = curriculum.map((s) => ({
     id: s.id,
@@ -123,7 +123,7 @@ export async function plan(userId: string, query: PlannerQuery) {
       subjectId: g.subjectId,
       score10: g.score10,
       inProgress: g.inProgress,
-      criteriaMet: !criteriaBlockPass(criteriaById.get(g.subjectId), g.score10, g.criteria),
+      criteriaMet: !criteriaBlockPass(criteriaById.get(g.subjectId)?.passCriteria, g.score10, g.criteria, criteriaById.get(g.subjectId)?.assessmentScheme),
     })),
     { passMark: query.passMark ?? major.passMark },
   );

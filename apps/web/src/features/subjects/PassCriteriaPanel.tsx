@@ -26,7 +26,7 @@ function Mark({ state, small }: { state: CheckState; small?: boolean }) {
 }
 
 /** A number box: free text while typing, a number once it reads right. */
-function NumBox({
+export function NumBox({
   value,
   onChange,
   label,

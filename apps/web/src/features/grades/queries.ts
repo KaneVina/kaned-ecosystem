@@ -10,6 +10,7 @@ import type {
   PlannerSummary,
   PassCriteriaValues,
   PassCriterion,
+  AssessmentItem,
   SaveGradesInput,
 } from '@kaned/shared';
 import { criteriaBlockPass } from '@kaned/shared';
@@ -85,7 +86,7 @@ export const isInvalidScore = (raw: string) => raw.trim() !== '' && parseScore(r
  * Saving sends the whole set the API keeps (it replaces), including grades for
  * subjects outside the curriculum on screen, which are left untouched.
  */
-export function useGradeDraft(criteriaFor?: (subjectId: string) => PassCriterion[] | undefined) {
+export function useGradeDraft(criteriaFor?: (subjectId: string) => { passCriteria?: PassCriterion[]; assessmentScheme?: AssessmentItem[] } | undefined) {
   const { data: saved, isLoading } = useGrades();
   const save = useSaveGrades();
   const [draft, setDraft] = useState<Record<string, DraftEntry>>({});
@@ -141,8 +142,8 @@ export function useGradeDraft(criteriaFor?: (subjectId: string) => PassCriterion
       Object.entries(draft)
         .map(([subjectId, e]) => {
           const score10 = parseScore(e.score);
-          const criteria = criteriaFor?.(subjectId);
-          return { subjectId, score10, inProgress: e.inProgress, criteriaMet: !criteriaBlockPass(criteria, score10, e.criteria) };
+          const rules = criteriaFor?.(subjectId);
+          return { subjectId, score10, inProgress: e.inProgress, criteriaMet: !criteriaBlockPass(rules?.passCriteria, score10, e.criteria, rules?.assessmentScheme) };
         })
         .filter((g) => g.score10 !== null || g.inProgress),
     [draft, criteriaFor],

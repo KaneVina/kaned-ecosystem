@@ -72,7 +72,7 @@ export function SubjectsWorkspace() {
 
   const { data: majors = [] } = useMajors(user?.universityId ?? undefined);
   const { data: curriculum, isLoading, isError, refetch } = useCurriculum(majorId || undefined);
-  const criteriaById = useMemo(() => new Map((curriculum?.subjects ?? []).map((s) => [s.id, s.passCriteria])), [curriculum]);
+  const criteriaById = useMemo(() => new Map((curriculum?.subjects ?? []).map((s) => [s.id, s])), [curriculum]);
   const criteriaFor = useCallback((id: string) => criteriaById.get(id), [criteriaById]);
   const grades = useGradeDraft(criteriaFor);
 
