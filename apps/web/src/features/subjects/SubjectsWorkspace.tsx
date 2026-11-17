@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { GraduationCap, Info, Lightbulb, RotateCcw, Save, Search } from 'lucide-react';
 import {
@@ -35,7 +35,9 @@ export function SubjectsWorkspace() {
 
   const { data: majors = [] } = useMajors(user?.universityId ?? undefined);
   const { data: curriculum, isLoading, isError, refetch } = useCurriculum(majorId || undefined);
-  const grades = useGradeDraft();
+  const criteriaById = useMemo(() => new Map((curriculum?.subjects ?? []).map((s) => [s.id, s.passCriteria])), [curriculum]);
+  const criteriaFor = useCallback((id: string) => criteriaById.get(id), [criteriaById]);
+  const grades = useGradeDraft(criteriaFor);
 
   const passMark = curriculum?.major.passMark ?? 5;
   const subjects = curriculum?.subjects ?? [];
@@ -380,6 +382,7 @@ export function SubjectsWorkspace() {
               softUnlocks={softUnlocks(selected.code, parseScore(selectedEntry?.score ?? ''))}
               onScore={(v) => grades.setEntry(selected.id, { score: v, termNo: selected.termNo })}
               onInProgress={(v) => grades.setEntry(selected.id, { inProgress: v, termNo: selected.termNo })}
+              onCriteria={(criteria) => grades.setEntry(selected.id, { criteria, termNo: selected.termNo })}
               onPick={pick}
               onClose={() => setMobileOpen(false)}
             />

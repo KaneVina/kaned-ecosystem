@@ -1,3 +1,4 @@
+import { passCriteriaValuesSchema } from './passCriteria.js';
 import { z } from 'zod';
 import {
   DOCUMENT_SORTS,
@@ -149,6 +150,8 @@ export const gradeEntrySchema = z.object({
   score10: z.coerce.number().min(0).max(10).nullable(),
   termNo: z.coerce.number().int().min(1).max(16).nullable().optional(),
   inProgress: z.boolean().optional().default(false),
+  /** Component scores and ticked tasks, keyed by the subject's pass criterion id. */
+  criteria: passCriteriaValuesSchema.optional(),
 });
 export type GradeEntryInputDto = z.infer<typeof gradeEntrySchema>;
 

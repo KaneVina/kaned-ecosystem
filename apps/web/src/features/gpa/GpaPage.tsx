@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Download, Info, RotateCcw, Save, Target } from 'lucide-react';
-import { computeGpa, gradeBandFor, GRADE_SCALE, requiredAverage, type GradeEntryInput } from '@kaned/shared';
+import { computeGpa, criteriaBlockPass, gradeBandFor, GRADE_SCALE, requiredAverage, type GradeEntryInput } from '@kaned/shared';
 import { PageHead } from '@/components/ui/Panel';
 import { EmptyState, Skeleton } from '@/components/ui/Feedback';
 import { useCurriculum } from '@/features/catalog/queries';
@@ -31,7 +31,7 @@ export function GpaPage() {
         .map((s) => {
           const e = grades.draft[s.id];
           const score = e && !e.inProgress ? parseScore(e.score) : null;
-          return { subjectId: s.id, subjectCode: s.code, subjectName: s.nameVi, credits: s.credits, score10: score, termNo: s.termNo };
+          return { subjectId: s.id, subjectCode: s.code, subjectName: s.nameVi, credits: s.credits, score10: score, termNo: s.termNo, criteriaMet: !criteriaBlockPass(s.passCriteria, score, e?.criteria) };
         })
         .filter((e) => e.score10 !== null),
     [subjects, grades.draft],

@@ -50,6 +50,8 @@ export interface PlannerGrade {
   score10: number | null;
   /** True while the subject is being taken this term. */
   inProgress?: boolean;
+  /** False when another pass condition of the subject (FE ≥ 4, a certificate…) is not met. */
+  criteriaMet?: boolean;
 }
 
 export type SubjectStatus = 'passed' | 'failed' | 'in_progress' | 'available' | 'blocked';
@@ -171,7 +173,7 @@ function standingOf(ctx: Context, code: string): Standing {
     taken: true,
     inProgress: false,
     score: grade.score10,
-    passed: grade.score10 >= ctx.passMark,
+    passed: grade.score10 >= ctx.passMark && grade.criteriaMet !== false,
   };
 }
 
@@ -201,8 +203,19 @@ function check(ctx: Context, req: Requirement): RequirementCheck {
       if (!standing.taken || standing.score === null) {
         return { ok: false, pending: false, text, detail: 'chưa học', codes: req.codes };
       }
-      const ok = standing.score >= floor;
       const who = req.codes.length > 1 ? `${code} ` : '';
+      if (req.min === 'pass') {
+        // "Pass" also needs the subject's own conditions (FE ≥ 4, a certificate…).
+        const passedCode = req.codes.find((c) => standingOf(ctx, c).passed);
+        if (passedCode) {
+          const s = standingOf(ctx, passedCode);
+          return { ok: true, pending: false, text, detail: `${req.codes.length > 1 ? `${passedCode} ` : ''}đạt ${fmt(s.score ?? 0)}`, codes: req.codes };
+        }
+        if (standing.score >= floor) {
+          return { ok: false, pending: false, text, detail: `${who}chưa đủ điều kiện qua môn`, codes: req.codes };
+        }
+      }
+      const ok = standing.score >= floor;
       return {
         ok,
         pending: false,

@@ -8,7 +8,7 @@
  * is a new table pointing at users and subjects; nothing here has to change.
  */
 import { relations, sql } from 'drizzle-orm';
-import type { Requirement } from '@kaned/shared';
+import type { PassCriteriaValues, PassCriterion, Requirement } from '@kaned/shared';
 import {
   type AnyPgColumn,
   boolean,
@@ -166,6 +166,8 @@ export const subjects = pgTable(
       .array()
       .notNull()
       .default(sql`'{}'::text[]`),
+    /** Extra pass conditions (FE ≥ 4, a Coursera certificate…), evaluated by @kaned/shared. */
+    passCriteria: jsonb('pass_criteria').$type<PassCriterion[]>().notNull().default(sql`'[]'::jsonb`),
     typicalYear: integer('typical_year'),
     typicalSemester: semesterEnum('typical_semester'),
     universityId: text('university_id')
@@ -567,6 +569,8 @@ export const grades = pgTable(
     score10: doublePrecision('score_10'),
     termNo: integer('term_no'),
     inProgress: boolean('in_progress').notNull().default(false),
+    /** Component scores and ticked tasks, keyed by the subject's pass criterion id. */
+    criteria: jsonb('criteria').$type<PassCriteriaValues>().notNull().default(sql`'{}'::jsonb`),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

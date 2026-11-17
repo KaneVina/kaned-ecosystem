@@ -81,6 +81,8 @@ export interface GradeEntryInput {
   termNo?: number | null;
   /** Subjects flagged as not counting toward the GPA (physical education, defence education…). */
   excludeFromGpa?: boolean;
+  /** False when the score clears the mark but another pass condition (FE ≥ 4, a certificate…) is not met. */
+  criteriaMet?: boolean;
 }
 
 export interface TermSummary {
@@ -142,7 +144,7 @@ export function computeGpa(entries: GradeEntryInput[], passMark: number = DEFAUL
     const letter = toLetter(score);
     letterCounts[letter] = (letterCounts[letter] ?? 0) + 1;
 
-    if (isPassing(score, passMark)) {
+    if (isPassing(score, passMark) && entry.criteriaMet !== false) {
       earnedCredits += credits;
       if (isWeakPass(score, passMark)) weakPassCount += 1;
     } else {

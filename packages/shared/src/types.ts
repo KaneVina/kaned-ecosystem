@@ -1,3 +1,4 @@
+import type { PassCriteriaValues, PassCriterion } from './passCriteria.js';
 /**
  * Shapes the API returns. The web app imports these instead of redeclaring
  * them, so a change to a response is a compile error on both sides.
@@ -91,6 +92,7 @@ export interface CurriculumSubjectDto extends SubjectSummaryDto {
   /** Subjects sharing a group are alternatives, e.g. thesis or capstone project. */
   choiceGroup: string | null;
   requirements: Requirement[];
+  passCriteria: PassCriterion[];
 }
 
 export interface CurriculumDto {
@@ -103,6 +105,7 @@ export interface SubjectDetailDto extends SubjectSummaryDto {
   outcomes: string[];
   topics: string[];
   assessment: string | null;
+  passCriteria: PassCriterion[];
   prerequisites: SubjectPrereqDto[];
   /** Subjects that list this one as a requirement. */
   unlocks: SubjectPrereqDto[];
@@ -201,6 +204,7 @@ export interface GradeDto {
   score10: number | null;
   termNo: number | null;
   inProgress: boolean;
+  criteria: PassCriteriaValues;
   subject: SubjectSummaryDto;
 }
 

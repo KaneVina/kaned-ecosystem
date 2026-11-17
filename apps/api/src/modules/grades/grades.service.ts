@@ -1,6 +1,7 @@
 import { and, eq, notInArray, sql } from 'drizzle-orm';
 import {
   computeGpa,
+  criteriaBlockPass,
   evaluatePlan,
   suggestNextTerm,
   type GpaSummary,
@@ -52,6 +53,7 @@ export async function saveGrades(userId: string, input: SaveGradesInput) {
             score10: entry.score10,
             termNo: entry.termNo ?? null,
             inProgress: entry.inProgress ?? false,
+            criteria: entry.criteria ?? {},
           })),
         )
         .onConflictDoUpdate({
@@ -60,6 +62,7 @@ export async function saveGrades(userId: string, input: SaveGradesInput) {
             score10: sql`excluded.score_10`,
             termNo: sql`excluded.term_no`,
             inProgress: sql`excluded.in_progress`,
+            criteria: sql`excluded.criteria`,
             updatedAt: new Date(),
           },
         });
@@ -87,6 +90,7 @@ export async function gradeSummary(userId: string): Promise<GpaSummary> {
       credits: g.subject.credits,
       score10: g.score10,
       termNo: g.termNo,
+      criteriaMet: !criteriaBlockPass(g.subject.passCriteria, g.score10, g.criteria),
     })),
     user?.major?.passMark,
   );
@@ -98,6 +102,8 @@ export async function plan(userId: string, query: PlannerQuery) {
     getCurriculum(query.majorId),
     db.query.grades.findMany({ where: eq(grades.userId, userId) }),
   ]);
+
+  const criteriaById = new Map(curriculum.map((s) => [s.id, s.passCriteria]));
 
   const plannerSubjects: PlannerSubject[] = curriculum.map((s) => ({
     id: s.id,
@@ -113,7 +119,12 @@ export async function plan(userId: string, query: PlannerQuery) {
 
   const summary = evaluatePlan(
     plannerSubjects,
-    gradeRows.map((g) => ({ subjectId: g.subjectId, score10: g.score10, inProgress: g.inProgress })),
+    gradeRows.map((g) => ({
+      subjectId: g.subjectId,
+      score10: g.score10,
+      inProgress: g.inProgress,
+      criteriaMet: !criteriaBlockPass(criteriaById.get(g.subjectId), g.score10, g.criteria),
+    })),
     { passMark: query.passMark ?? major.passMark },
   );
 

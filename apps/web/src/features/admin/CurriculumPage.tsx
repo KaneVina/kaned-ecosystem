@@ -4,8 +4,10 @@ import { ArrowRight, BookPlus, CalendarMinus, CalendarPlus, GripVertical, Pencil
 import {
   describeRequirement,
   requirementCodes,
+  passCriterionSchema,
   requirementSchema,
   type CurriculumSubjectDto,
+  type PassCriterion,
   type Requirement,
 } from '@kaned/shared';
 import { Field } from '@/components/ui/Field';
@@ -27,6 +29,7 @@ import { AdminHead, ConfirmDialog, EmptyBlock, SearchBox, Sheet, Swatch, useDebo
 import { MajorForm } from './forms';
 import { SubjectForm } from './SubjectsPage';
 import { RequirementList, type CodeOption } from './RequirementEditor';
+import { PassCriteriaEditor } from './PassCriteriaEditor';
 import { useAdminCrumbs } from './AdminShell';
 
 /** Heavier than this per term is worth a second look. */
@@ -56,6 +59,7 @@ function EntrySheet({
   const [isRequired, setIsRequired] = useState(true);
   const [choiceGroup, setChoiceGroup] = useState('');
   const [rules, setRules] = useState<Requirement[]>([]);
+  const [passCriteria, setPassCriteria] = useState<PassCriterion[]>([]);
   const [error, setError] = useState('');
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
 
@@ -65,6 +69,7 @@ function EntrySheet({
     setIsRequired(entry.isRequired);
     setChoiceGroup(entry.choiceGroup ?? '');
     setRules(structuredClone(entry.requirements));
+    setPassCriteria(structuredClone(entry.passCriteria ?? []));
     setError('');
   }, [entry]);
 
@@ -76,14 +81,21 @@ function EntrySheet({
         return;
       }
     }
+    for (const c of passCriteria) {
+      const parsed = passCriterionSchema.safeParse(c);
+      if (!parsed.success) {
+        setError(`Điều kiện qua môn: ${parsed.error.issues[0]?.message ?? 'chưa đủ thông tin'}`);
+        return;
+      }
+    }
     setError('');
     try {
       await update.mutateAsync({
         majorId,
         subjectId: entry!.id,
-        input: { termNo: termNo ? Number(termNo) : null, isRequired, choiceGroup: choiceGroup || null, requirements: rules },
+        input: { termNo: termNo ? Number(termNo) : null, isRequired, choiceGroup: choiceGroup || null, requirements: rules, passCriteria },
       });
-      toast.success('Đã lưu', `${entry!.code}: ${rules.length} điều kiện`);
+      toast.success('Đã lưu', `${entry!.code}: ${rules.length} điều kiện đăng ký, ${passCriteria.length} điều kiện qua môn`);
       onClose();
     } catch (e) {
       toast.error('Không lưu được', toApiError(e).message);
@@ -164,6 +176,11 @@ function EntrySheet({
           <h3>Điều kiện để đăng ký môn</h3>
           <p>Tất cả điều kiện dưới đây phải thoả. Mã màu vàng là môn không có trong chương trình (thường là môn thay thế của khoá cũ).</p>
           <RequirementList value={rules} onChange={setRules} options={options.filter((o) => o.code !== entry?.code)} termCount={termCount} passMark={passMark} />
+        </section>
+        <section className="sheet-section">
+          <h3>Điều kiện qua môn</h3>
+          <p>Ngoài điểm qua môn {passMark.toFixed(1)}, sinh viên phải đạt hết các điều kiện này mới tính là qua. Áp dụng cho môn ở mọi chương trình.</p>
+          <PassCriteriaEditor value={passCriteria} onChange={setPassCriteria} />
           {error && (
             <p className="error-text" style={{ display: 'flex' }} role="alert">
               {error}

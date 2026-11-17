@@ -715,3 +715,21 @@ a.dash-tool:hover .dash-tool-go { transform: translateX(3px); color: var(--viole
 .dash-stats > a:hover { transform: translateY(-2px); box-shadow: var(--sh-2); }
 @keyframes riseIn { from { opacity: 0; transform: translateY(10px); } }
 @media (prefers-reduced-motion: reduce) { .hi-name { animation: none; } }
+
+/* Subject pass conditions (FE ≥ 4, Coursera certificate…) */
+.pc-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.pc-item { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); transition: border-color .15s, background .15s; }
+.pc-item.is-ok { border-color: color-mix(in srgb, var(--green, #16a34a) 35%, var(--line)); background: color-mix(in srgb, var(--green, #16a34a) 6%, var(--paper)); }
+.pc-item.is-bad { border-color: color-mix(in srgb, var(--red, #dc2626) 35%, var(--line)); background: color-mix(in srgb, var(--red, #dc2626) 5%, var(--paper)); }
+.pc-mark { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--line); color: var(--ink-3); }
+.is-ok .pc-mark { background: var(--green, #16a34a); color: #fff; }
+.is-bad .pc-mark { background: var(--red, #dc2626); color: #fff; }
+.pc-text, .pc-task { flex: 1; min-width: 0; font-size: 14px; color: var(--ink-2); }
+.pc-task { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.pc-task input { width: 16px; height: 16px; accent-color: var(--violet); }
+.pc-hint { font-size: 12.5px; color: var(--ink-4); }
+.pc-score { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; color: var(--ink-4); }
+.pc-score input { width: 56px; height: 30px; border: 1px solid var(--line-2); border-radius: 7px; text-align: center; font: inherit; font-size: 14px; font-weight: 600; color: var(--ink); background: var(--paper); }
+.pc-score input:focus { outline: 2px solid var(--violet); outline-offset: 1px; }
+.pc-score.invalid input { border-color: var(--red, #dc2626); }
+.sd-count.is-ok { background: var(--green, #16a34a); color: #fff; }

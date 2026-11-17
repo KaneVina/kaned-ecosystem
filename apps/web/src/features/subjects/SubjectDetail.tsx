@@ -1,12 +1,13 @@
 import { Link } from 'react-router-dom';
-import { BookOpen, ChevronRight, ClipboardList, FileText, KeyRound, Target, X } from 'lucide-react';
-import { gradeBandFor, type CurriculumSubjectDto, type PlannerResult, type SubjectStatus } from '@kaned/shared';
+import { BookOpen, ChevronRight, ClipboardList, FileText, KeyRound, ListChecks, Target, X } from 'lucide-react';
+import { evaluatePassCriteria, gradeBandFor, type CurriculumSubjectDto, type PassCriteriaValues, type PlannerResult, type SubjectStatus } from '@kaned/shared';
 import { Skeleton } from '@/components/ui/Feedback';
 import { subjectTone } from '@/components/paper/profiles';
 import { useSubject } from '@/features/catalog/queries';
 import { isInvalidScore, parseScore, type DraftEntry } from '@/features/grades/queries';
 import { cn } from '@/lib/cn';
 import { RequirementList } from './RequirementList';
+import { PassCriteriaPanel } from './PassCriteriaPanel';
 import { STATUS } from './status';
 import { SubjectDocuments } from './SubjectDocuments';
 
@@ -23,6 +24,7 @@ export function SubjectDetail({
   softUnlocks,
   onScore,
   onInProgress,
+  onCriteria,
   onPick,
   onClose,
 }: {
@@ -35,6 +37,7 @@ export function SubjectDetail({
   softUnlocks: string[];
   onScore: (value: string) => void;
   onInProgress: (value: boolean) => void;
+  onCriteria: (value: PassCriteriaValues) => void;
   onPick: (code: string) => void;
   onClose?: () => void;
 }) {
@@ -46,6 +49,9 @@ export function SubjectDetail({
   const invalid = isInvalidScore(raw);
   const band = score !== null && !entry?.inProgress ? gradeBandFor(score) : null;
   const known = new Set(statusByCode.keys());
+  const criteria = subject.passCriteria ?? [];
+  const crit = evaluatePassCriteria(criteria, entry?.inProgress ? null : score, entry?.criteria);
+  const unmet = crit.checks.filter((c) => c.ok !== true).map((c) => c.text);
 
   return (
     <article className="sd" style={{ ['--tc' as string]: tone.c, ['--tt' as string]: tone.t }} aria-label={`Chi tiết ${subject.code}`}>
@@ -115,8 +121,10 @@ export function SubjectDetail({
                   <b>{band.gpa4.toFixed(1)}</b> hệ 4
                 </span>
               </div>
-              {score! >= passMark ? (
-                <p className="sd-verdict is-ok">Qua môn (cần ≥ {passMark.toFixed(1)}).</p>
+              {score! >= passMark && criteria.length > 0 && !crit.met ? (
+                <p className="sd-verdict is-wait">Điểm đủ nhưng chưa qua môn: còn thiếu {unmet.join(', ')}.</p>
+              ) : score! >= passMark ? (
+                <p className="sd-verdict is-ok">Qua môn (cần ≥ {passMark.toFixed(1)}{criteria.length ? ' và đủ điều kiện bên dưới' : ''}).</p>
               ) : (
                 <p className="sd-verdict is-bad">
                   Chưa qua môn (cần ≥ {passMark.toFixed(1)}).
@@ -143,6 +151,19 @@ export function SubjectDetail({
           )}
         </div>
       </section>
+
+      {criteria.length > 0 && (
+        <section className="sd-sec">
+          <h3 className="sd-h">
+            <ListChecks className="ic ic-sm" />
+            Điều kiện qua môn
+            <span className={cn('sd-count', crit.met && 'is-ok')}>
+              {crit.checks.filter((c) => c.ok === true).length}/{crit.checks.length}
+            </span>
+          </h3>
+          <PassCriteriaPanel result={crit} values={entry?.criteria ?? {}} onChange={onCriteria} />
+        </section>
+      )}
 
       {/* Requirements */}
       <section className="sd-sec">

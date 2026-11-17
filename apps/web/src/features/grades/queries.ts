@@ -8,8 +8,11 @@ import type {
   PlannerGrade,
   PlannerResult,
   PlannerSummary,
+  PassCriteriaValues,
+  PassCriterion,
   SaveGradesInput,
 } from '@kaned/shared';
+import { criteriaBlockPass } from '@kaned/shared';
 import { http } from '@/lib/api';
 import { queryKeys } from '@/lib/queryClient';
 
@@ -61,6 +64,8 @@ export interface DraftEntry {
   score: string;
   inProgress: boolean;
   termNo: number | null;
+  /** Component scores and ticked tasks for the subject's pass conditions. */
+  criteria?: PassCriteriaValues;
 }
 
 /** A valid score on the 10-point scale, or null. */
@@ -80,7 +85,7 @@ export const isInvalidScore = (raw: string) => raw.trim() !== '' && parseScore(r
  * Saving sends the whole set the API keeps (it replaces), including grades for
  * subjects outside the curriculum on screen, which are left untouched.
  */
-export function useGradeDraft() {
+export function useGradeDraft(criteriaFor?: (subjectId: string) => PassCriterion[] | undefined) {
   const { data: saved, isLoading } = useGrades();
   const save = useSaveGrades();
   const [draft, setDraft] = useState<Record<string, DraftEntry>>({});
@@ -93,6 +98,7 @@ export function useGradeDraft() {
         score: g.score10 === null ? '' : String(g.score10),
         inProgress: g.inProgress,
         termNo: g.termNo,
+        criteria: g.criteria ?? {},
       };
     }
     return next;
@@ -122,7 +128,9 @@ export function useGradeDraft() {
       const b = savedMap[id];
       const sa = a ? parseScore(a.score) : null;
       const sb = b ? parseScore(b.score) : null;
-      if (sa !== sb || Boolean(a?.inProgress) !== Boolean(b?.inProgress)) n += 1;
+      const ca = JSON.stringify(a?.criteria ?? {});
+      const cb = JSON.stringify(b?.criteria ?? {});
+      if (sa !== sb || Boolean(a?.inProgress) !== Boolean(b?.inProgress) || ca !== cb) n += 1;
     }
     return n;
   }, [draft, savedMap]);
@@ -131,9 +139,13 @@ export function useGradeDraft() {
   const plannerGrades = useMemo<PlannerGrade[]>(
     () =>
       Object.entries(draft)
-        .map(([subjectId, e]) => ({ subjectId, score10: parseScore(e.score), inProgress: e.inProgress }))
+        .map(([subjectId, e]) => {
+          const score10 = parseScore(e.score);
+          const criteria = criteriaFor?.(subjectId);
+          return { subjectId, score10, inProgress: e.inProgress, criteriaMet: !criteriaBlockPass(criteria, score10, e.criteria) };
+        })
         .filter((g) => g.score10 !== null || g.inProgress),
-    [draft],
+    [draft, criteriaFor],
   );
 
   const reset = useCallback(() => setDraft(savedMap), [savedMap]);
@@ -154,8 +166,9 @@ export function useGradeDraft() {
           score10: e.inProgress ? null : parseScore(e.score),
           termNo: e.termNo ?? termFor?.(subjectId) ?? null,
           inProgress: e.inProgress,
+          criteria: e.criteria ?? {},
         }))
-        .filter((e) => e.score10 !== null || e.inProgress);
+        .filter((e) => e.score10 !== null || e.inProgress || Object.keys(e.criteria).length > 0);
       const result = await save.mutateAsync({ entries });
       setDraft(fromSaved(result));
       return result;

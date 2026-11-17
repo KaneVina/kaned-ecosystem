@@ -1,3 +1,4 @@
+import { passCriteriaSchema } from './passCriteria.js';
 /**
  * Admin area: input schemas and response shapes. The API validates with the
  * schemas and the dashboard's forms use the very same ones, so a rule like
@@ -157,6 +158,7 @@ export const subjectInputSchema = z.object({
   assessment: optionalText(1000),
   topics: lines(60),
   outcomes: lines(30),
+  passCriteria: passCriteriaSchema.optional(),
 });
 export type SubjectInput = z.infer<typeof subjectInputSchema>;
 export const subjectUpdateSchema = subjectInputSchema.omit({ universityId: true }).partial();
@@ -206,6 +208,8 @@ export const curriculumEntrySchema = z.object({
     .nullish()
     .transform((v) => (v ? v : null)),
   requirements: z.array(requirementSchema).max(24).default([]),
+  /** Pass conditions belong to the subject itself, so they apply in every programme. */
+  passCriteria: passCriteriaSchema.optional(),
 });
 export type CurriculumEntryInput = z.infer<typeof curriculumEntrySchema>;
 export const curriculumEntryUpdateSchema = curriculumEntrySchema.partial();

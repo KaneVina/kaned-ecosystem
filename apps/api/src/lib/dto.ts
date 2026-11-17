@@ -1,4 +1,5 @@
 import type {
+  PassCriteriaValues,
   CurrentUserDto,
   DocumentSummaryDto,
   GradeDto,
@@ -277,6 +278,7 @@ export function toGrade(row: {
   score10: number | null;
   termNo: number | null;
   inProgress: boolean;
+  criteria?: PassCriteriaValues | null;
   subject: SubjectLike;
 }): GradeDto {
   return {
@@ -284,6 +286,7 @@ export function toGrade(row: {
     score10: row.score10,
     termNo: row.termNo,
     inProgress: row.inProgress,
+    criteria: row.criteria ?? {},
     subject: toSubjectSummary(row.subject),
   };
 }

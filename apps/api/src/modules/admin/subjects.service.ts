@@ -212,9 +212,12 @@ export async function updateCurriculumEntry(
   });
   if (!row) notFound('môn trong chương trình');
 
-  await db
+  const { passCriteria, ...entryInput } = input;
+  if (passCriteria) await db.update(subjects).set({ passCriteria }).where(eq(subjects.id, subjectId));
+  if (Object.keys(entryInput).length)
+    await db
     .update(majorSubjects)
-    .set(input)
+    .set(entryInput)
     .where(and(eq(majorSubjects.majorId, majorId), eq(majorSubjects.subjectId, subjectId)));
   if (input.requirements) await rebuildPrerequisiteEdges([subjectId]);
 

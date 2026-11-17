@@ -5,5 +5,6 @@ export * from './oauth.js';
 export * from './tracking.js';
 export * from './admin.js';
 export * from './planner.js';
+export * from './passCriteria.js';
 export * from './schemas.js';
 export * from './types.js';

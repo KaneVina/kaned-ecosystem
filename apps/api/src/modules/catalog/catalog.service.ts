@@ -194,6 +194,7 @@ export async function getSubject(idOrCode: string): Promise<SubjectDetailDto> {
     ...toSubjectSummary(subject, counts.get(subject.id) ?? 0),
     description: subject.description,
     assessment: subject.assessment,
+    passCriteria: subject.passCriteria ?? [],
     outcomes: subject.outcomes,
     topics: subject.topics,
     documentCount: counts.get(subject.id) ?? 0,
@@ -239,6 +240,7 @@ export async function getCurriculum(majorId: string) {
       isRequired: row.isRequired,
       choiceGroup: row.choiceGroup,
       requirements: row.requirements,
+      passCriteria: row.subject.passCriteria ?? [],
     }))
     .sort((a, b) => (a.termNo ?? 99) - (b.termNo ?? 99) || a.code.localeCompare(b.code));
 
