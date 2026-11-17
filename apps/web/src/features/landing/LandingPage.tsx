@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { SiteFooter } from '@/components/layout/SiteFooter';
 import { ArrowRight, ChevronRight, Download, Flame, Search, Star } from 'lucide-react';
 import { DOCUMENT_TYPES, DOCUMENT_TYPE_LABELS, SEMESTERS, SEMESTER_LABELS, STUDY_YEARS } from '@kaned/shared';
 import { Wordmark } from '@/components/ui/Wordmark';
@@ -323,14 +324,7 @@ export function LandingPage() {
         </div>
       </section>
 
-      <footer className="footer">
-        <div className="container">
-          <div className="footer-bottom" style={{ borderTop: 0 }}>
-            <Wordmark />
-            <p>© {new Date().getFullYear()} Kaned. Tài liệu thuộc về sinh viên đã viết ra chúng.</p>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter compact />
     </div>
   );
 }

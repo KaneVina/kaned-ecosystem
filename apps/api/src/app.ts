@@ -5,7 +5,7 @@ import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 import { env } from './env.js';
-import { beginDbWork, resetDb } from './db/index.js';
+import { beginDbWork, resetDb, sqlClient } from './db/index.js';
 import { api } from './routes.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
 import { apiLimiter } from './middleware/rateLimit.js';
@@ -64,8 +64,21 @@ export function createApp() {
   if (!env.isProd) app.use(morgan('dev'));
 
   // Both paths answer, so a platform health check works either way.
-  const health = (_req: Request, res: Response) => {
-    res.json({ status: 'ok', env: env.NODE_ENV, time: new Date().toISOString() });
+  const health = async (req: Request, res: Response) => {
+    const body: Record<string, unknown> = { status: 'ok', env: env.NODE_ENV, time: new Date().toISOString() };
+    // ?db=1 also round-trips to the database, for the status line in the footer.
+    if (req.query.db) {
+      const t = Date.now();
+      const ping = sqlClient`select 1`.then(() => 'ok' as const);
+      const timeout = new Promise<'down'>((resolve) => setTimeout(() => resolve('down'), 4000));
+      body.db = await Promise.race([ping, timeout]).catch(() => 'down' as const);
+      body.dbMs = Date.now() - t;
+      if (body.db === 'down') {
+        body.status = 'degraded';
+        resetDb('health check could not reach the database');
+      }
+    }
+    res.set('Cache-Control', 'no-store').status(body.status === 'ok' ? 200 : 503).json(body);
   };
   app.get('/health', health);
   app.get('/api/health', health);

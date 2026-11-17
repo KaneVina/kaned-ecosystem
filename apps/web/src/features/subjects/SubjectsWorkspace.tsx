@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { GraduationCap, Info, Lightbulb, RotateCcw, Save, Search } from 'lucide-react';
+import { Columns3, GraduationCap, Info, Lightbulb, ListTree, RotateCcw, Save, Search } from 'lucide-react';
 import {
   evaluatePlan,
   suggestNextTerm,
@@ -16,9 +16,36 @@ import { useToast } from '@/providers/ToastProvider';
 import { toApiError } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { SubjectDetail } from './SubjectDetail';
+import { KanbanBoard } from './KanbanBoard';
 import { STATUS, STATUS_ORDER } from './status';
 
 type Filter = 'all' | SubjectStatus;
+type View = 'list' | 'kanban';
+
+const VIEW_KEY = 'kaned.subjects.view';
+const readView = (): View => {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'kanban' ? 'kanban' : 'list';
+  } catch {
+    return 'list';
+  }
+};
+
+/** Lộ trình (term by term) or Kanban (by status); remembered per browser. */
+function ViewSwitch({ view, onChange }: { view: View; onChange: (v: View) => void }) {
+  return (
+    <div className="seg view-switch" role="group" aria-label="Kiểu xem">
+      <button type="button" aria-pressed={view === 'list'} onClick={() => onChange('list')}>
+        <ListTree className="ic ic-sm" />
+        Lộ trình
+      </button>
+      <button type="button" aria-pressed={view === 'kanban'} onClick={() => onChange('kanban')}>
+        <Columns3 className="ic ic-sm" />
+        Kanban
+      </button>
+    </div>
+  );
+}
 
 const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').toLowerCase();
 
@@ -31,6 +58,16 @@ export function SubjectsWorkspace() {
   const [filter, setFilter] = useState<Filter>('all');
   const [query, setQuery] = useState('');
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [view, setViewState] = useState<View>(readView);
+  const setView = (v: View) => {
+    setViewState(v);
+    setMobileOpen(false);
+    try {
+      localStorage.setItem(VIEW_KEY, v);
+    } catch {
+      /* private mode: the choice just isn't remembered */
+    }
+  };
   const detailRef = useRef<HTMLDivElement>(null);
 
   const { data: majors = [] } = useMajors(user?.universityId ?? undefined);
@@ -87,8 +124,15 @@ export function SubjectsWorkspace() {
   }, [grades.changed]);
 
   useEffect(() => {
-    document.body.classList.toggle('no-scroll', mobileOpen && window.innerWidth <= 1000);
+    if (!mobileOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setMobileOpen(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, [mobileOpen]);
+
+  useEffect(() => {
+    document.body.classList.toggle('no-scroll', mobileOpen && (view === 'kanban' || window.innerWidth <= 1000));
+  }, [mobileOpen, view]);
 
   const save = async () => {
     try {
@@ -233,10 +277,88 @@ export function SubjectsWorkspace() {
         </div>
       </PageHead>
 
+      {view === 'kanban' ? (
+        <div className="container kb-wrap">
+          <div className="kb-toolbar">
+            <ViewSwitch view={view} onChange={setView} />
+            <div className="input-group">
+              <Search className="ic ic-sm" />
+              <input className="input input-sm" type="search" placeholder="Tìm mã môn hoặc tên môn" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Tìm môn" />
+            </div>
+            {suggestion.length > 0 && (
+              <p className="kb-suggest">
+                <Lightbulb className="ic ic-sm" />
+                Gợi ý kỳ tới:
+                {suggestion.map((s) => (
+                  <button key={s.subjectId} type="button" className={cn('unlock', `st-${s.status}`)} onClick={() => pick(s.code)}>
+                    {s.code}
+                  </button>
+                ))}
+              </p>
+            )}
+          </div>
+          {isLoading || !grades.ready ? (
+            <div className="kb">
+              {Array.from({ length: 5 }, (_, i) => (
+                <div key={i} className="kb-col">
+                  <Skeleton style={{ height: 16, width: 110, margin: '4px 4px 12px' }} />
+                  {Array.from({ length: 3 }, (_, j) => (
+                    <Skeleton key={j} style={{ height: 92, marginBottom: 8, borderRadius: 12 }} />
+                  ))}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <KanbanBoard
+              subjects={subjects}
+              resultById={resultById}
+              draft={grades.draft}
+              statusByCode={statusByCode}
+              visible={(s) => !query || fold(`${s.code} ${s.name} ${s.nameVi}`).includes(fold(query))}
+              selectedId={mobileOpen ? selected?.id : undefined}
+              onOpen={pick}
+              onStart={(s) => {
+                grades.setEntry(s.id, { inProgress: true, termNo: s.termNo });
+                toast.info(`${s.code} → Đang học`, 'Nhớ bấm “Lưu điểm” ở thanh dưới để giữ thay đổi.');
+              }}
+              onStop={(s) => grades.setEntry(s.id, { inProgress: false, termNo: s.termNo })}
+              onNeedScore={(s) => {
+                grades.setEntry(s.id, { inProgress: false, termNo: s.termNo });
+                pick(s.code);
+                window.setTimeout(() => document.getElementById('sd-score')?.focus(), 380);
+              }}
+            />
+          )}
+          <p className="sw-note">
+            <Info className="ic ic-xs" />
+            Kéo thẻ giữa “Học được” và “Đang học”; thả vào “Đã qua” hoặc “Chưa qua” để nhập điểm. Cột do điểm và điều kiện tiên quyết quyết định.
+          </p>
+          <div className={cn('kb-drawer', mobileOpen && 'open')} ref={detailRef} aria-hidden={!mobileOpen}>
+            {mobileOpen && selected && selectedResult && (
+              <SubjectDetail
+                key={selected.id}
+                subject={selected}
+                result={selectedResult}
+                entry={selectedEntry}
+                passMark={passMark}
+                statusByCode={statusByCode}
+                softUnlocks={softUnlocks(selected.code, parseScore(selectedEntry?.score ?? ''))}
+                onScore={(v) => grades.setEntry(selected.id, { score: v, termNo: selected.termNo })}
+                onInProgress={(v) => grades.setEntry(selected.id, { inProgress: v, termNo: selected.termNo })}
+                onCriteria={(criteria) => grades.setEntry(selected.id, { criteria, termNo: selected.termNo })}
+                onPick={pick}
+                onClose={() => setMobileOpen(false)}
+              />
+            )}
+          </div>
+          <div className={cn('kb-scrim', mobileOpen && 'open')} onClick={() => setMobileOpen(false)} />
+        </div>
+      ) : (
       <div className="container sw-layout">
         {/* ───────────── curriculum ───────────── */}
         <section className="panel sw-list" aria-label="Lộ trình">
           <div className="sw-toolbar">
+            <ViewSwitch view={view} onChange={setView} />
             <div className="input-group">
               <Search className="ic ic-sm" />
               <input
@@ -396,6 +518,7 @@ export function SubjectsWorkspace() {
         </div>
         <div className={cn('sw-scrim', mobileOpen && 'open')} onClick={() => setMobileOpen(false)} />
       </div>
+      )}
 
       {/* Unsaved changes */}
       <div className={cn('sw-savebar', grades.changed > 0 && 'show')} role="status" aria-live="polite">

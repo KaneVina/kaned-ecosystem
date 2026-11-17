@@ -26,6 +26,7 @@ import { useAuth } from '@/providers/AuthProvider';
 import { useActivityTracker } from '@/lib/activity';
 import { STAFF_ROLES } from '@kaned/shared';
 import { useToast } from '@/providers/ToastProvider';
+import { SiteFooter } from './SiteFooter';
 import { Wordmark } from '@/components/ui/Wordmark';
 import { Avatar } from '@/components/ui/Avatar';
 import { Dropdown, MenuButton, MenuLink, MenuSeparator } from '@/components/ui/Dropdown';
@@ -350,53 +351,38 @@ export function AppShell() {
         <Outlet />
       </main>
 
-      <footer className="footer">
-        <div className="container">
-          <div className="footer-top">
-            <div className="footer-brand">
-              <Link to="/app" aria-label="Kaned — trang chủ">
-                <Wordmark />
-              </Link>
-              <p>Hệ sinh thái học tập cho sinh viên Việt Nam: tài liệu, điểm số và kế hoạch học trên một tài khoản.</p>
-            </div>
-            <div className="footer-cols">
-              <div>
-                <h3>Thư viện</h3>
-                <ul>
-                  <li><Link to="/app/library">Tất cả tài liệu</Link></li>
-                  <li><Link to="/app/library?type=EXAM">Đề thi các năm</Link></li>
-                  <li><Link to="/app/library?type=NOTES">Ghi chép bài giảng</Link></li>
-                  <li><Link to="/app/library?type=SLIDES">Slide</Link></li>
-                </ul>
-              </div>
-              <div>
-                <h3>Công cụ</h3>
-                <ul>
-                  <li><Link to="/app/tools/gpa">Tính GPA</Link></li>
-                  <li><Link to="/app/subjects">Môn học & điều kiện</Link></li>
-                  <li><Link to="/app/upload">Chia sẻ tài liệu</Link></li>
-                </ul>
-              </div>
-              <div>
-                <h3>Tài khoản</h3>
-                <ul>
-                  <li><Link to="/app/profile">Hồ sơ</Link></li>
-                  <li><Link to="/app/saved">Đã lưu</Link></li>
-                  <li>
-                    <button type="button" className="footer-link" onClick={signOut}>
-                      Đăng xuất
-                    </button>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-          <div className="footer-bottom">
-            <p>© {new Date().getFullYear()} Kaned. Tài liệu thuộc về sinh viên đã viết ra chúng.</p>
-            <p>Điểm và kế hoạch chỉ mang tính tham khảo, hãy đối chiếu với phòng đào tạo.</p>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter
+        columns={[
+          {
+            title: 'Thư viện',
+            links: [
+              { label: 'Tất cả tài liệu', to: '/app/library' },
+              { label: 'Đề thi các năm', to: '/app/library?type=EXAM' },
+              { label: 'Ghi chép bài giảng', to: '/app/library?type=NOTES' },
+              { label: 'Slide', to: '/app/library?type=SLIDES' },
+              { label: 'Giáo trình', to: '/app/library?type=TEXTBOOK' },
+            ],
+          },
+          {
+            title: 'Học tập',
+            links: [
+              { label: 'Môn học & điều kiện', to: '/app/subjects' },
+              { label: 'Tính GPA', to: '/app/tools/gpa' },
+              { label: 'Đã lưu', to: '/app/saved' },
+              { label: 'Chia sẻ tài liệu', to: '/app/upload' },
+            ],
+          },
+          {
+            title: 'Tài khoản',
+            links: [
+              { label: 'Hồ sơ', to: '/app/profile' },
+              { label: 'Bảo mật & đăng nhập', to: '/app/settings' },
+              ...(user && STAFF_ROLES.includes(user.role) ? [{ label: 'Trang quản trị', to: '/admin' }] : []),
+              { label: 'Đăng xuất', onClick: signOut },
+            ],
+          },
+        ]}
+      />
 
       <SearchPalette open={palette} onClose={() => setPalette(false)} />
     </>
