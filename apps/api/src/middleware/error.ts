@@ -16,7 +16,7 @@ interface PgError {
   detail?: string;
 }
 
-export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
+export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   // The request already got an answer (e.g. the slow-request guard); nothing more to send.
   if (res.headersSent) return;
 
@@ -54,9 +54,12 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
   }
 
   console.error('[api] unhandled error', err);
+  // Admins get the underlying reason, so a failure can be diagnosed from the browser.
+  const detail = req.user?.role === 'ADMIN' ? `${(err as Error)?.name ?? 'Error'}: ${(err as Error)?.message ?? String(err)}`.slice(0, 500) : undefined;
   res.status(500).json({
     error: {
       code: 'INTERNAL',
+      ...(detail ? { detail } : {}),
       message: env.isProd
         ? 'Something went wrong on our side.'
         : String((err as Error)?.message ?? err),

@@ -632,7 +632,7 @@ export function UserDetailPage() {
             </button>
           ))}
         </div>
-        {!isLoading && id && (
+        {id && (
           <>
             {tab === 'grades' && <UserGradesTab userId={id} />}
             {tab === 'sessions' && <SessionsTab userId={id} />}
