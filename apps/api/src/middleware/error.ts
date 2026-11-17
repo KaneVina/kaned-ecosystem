@@ -17,6 +17,9 @@ interface PgError {
 }
 
 export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
+  // The request already got an answer (e.g. the slow-request guard); nothing more to send.
+  if (res.headersSent) return;
+
   if (err instanceof ApiError) {
     res.status(err.status).json({
       error: { code: err.code, message: err.message, fields: err.fields },

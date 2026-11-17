@@ -46,20 +46,14 @@ const pooled = isTransactionPooler(env.DATABASE_URL);
 
 const serverless = Boolean(process.env.VERCEL);
 
-const client =
-  globalForDb.sql ??
-  postgres(env.DATABASE_URL, {
+function createClient() {
+  return postgres(env.DATABASE_URL, {
     /*
      * A serverless instance serves several requests at once, so one slot
      * makes every request wait behind the slowest one. The transaction
      * pooler shares backends, so a few client slots cost Supabase nothing.
      */
     max: serverless ? 4 : pooled ? 4 : env.isProd ? 10 : 5,
-    /*
-     * A frozen serverless instance cannot run idle timers, and the pooler
-     * drops its sockets meanwhile. Short idle time and a hard lifetime keep
-     * requests from waiting on a socket that is already dead.
-     */
     idle_timeout: serverless ? 5 : 20,
     max_lifetime: serverless ? 60 : 60 * 30,
     connect_timeout: 10,
@@ -69,10 +63,51 @@ const client =
     // "already exists, skipping" notices from re-run migrations are not news.
     onnotice: () => {},
   });
+}
 
+let client = globalForDb.sql ?? createClient();
 if (!env.isProd) globalForDb.sql = client;
 
-export const db = drizzle(client, { schema, logger: false });
-export { client as sqlClient };
+/*
+ * Live bindings: `resetDb` swaps these, and every module that imported them
+ * sees the new client on its next call.
+ */
+export let db = drizzle(client, { schema, logger: false });
+export let sqlClient = client;
 export * as schema from './schema.js';
 export type Db = typeof db;
+
+/** Throws the pool away and starts a new one; old sockets are closed in the background. */
+export function resetDb(reason: string) {
+  const old = client;
+  client = createClient();
+  if (!env.isProd) globalForDb.sql = client;
+  db = drizzle(client, { schema, logger: false });
+  sqlClient = client;
+  console.warn(`[db] new connection pool (${reason})`);
+  old.end({ timeout: 2 }).catch(() => undefined);
+}
+
+/*
+ * Vercel freezes an idle instance; meanwhile the Supabase pooler drops its
+ * sockets, and timers that would have noticed cannot run. The next request
+ * would then wait on a dead socket until the 30 s limit. So after a quiet
+ * spell, with nothing in flight, start from fresh connections.
+ */
+const IDLE_RESET_MS = 8_000;
+let lastActivity = Date.now();
+let inFlight = 0;
+
+export function beginDbWork() {
+  const now = Date.now();
+  if (serverless && inFlight === 0 && now - lastActivity > IDLE_RESET_MS) resetDb(`idle ${Math.round((now - lastActivity) / 1000)}s`);
+  inFlight += 1;
+  lastActivity = now;
+  let done = false;
+  return () => {
+    if (done) return;
+    done = true;
+    inFlight = Math.max(0, inFlight - 1);
+    lastActivity = Date.now();
+  };
+}
