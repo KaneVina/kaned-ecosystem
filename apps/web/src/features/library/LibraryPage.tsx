@@ -128,7 +128,7 @@ export function LibraryPage() {
   for (const t of filters.type ?? [])
     chips.push({ key: `t${t}`, k: 'Loại', label: DOCUMENT_TYPE_LABELS[t as DocumentType].vi, remove: () => setFilters({ ...filters, type: without(filters.type, t), page: 1 }) });
   for (const f of filters.format ?? [])
-    chips.push({ key: `f${f}`, k: 'Định dạng', label: f === 'LINK' ? 'Liên kết' : f, remove: () => setFilters({ ...filters, format: without(filters.format, f), page: 1 }) });
+    chips.push({ key: `f${f}`, k: 'Định dạng', label: f === 'LINK' ? 'Liên kết' : f === 'GITHUB' ? 'GitHub' : f, remove: () => setFilters({ ...filters, format: without(filters.format, f), page: 1 }) });
   if (filters.minRating)
     chips.push({ key: 'r', k: 'Đánh giá', label: `${filters.minRating}+`, remove: () => setFilters({ ...filters, minRating: undefined, page: 1 }) });
 

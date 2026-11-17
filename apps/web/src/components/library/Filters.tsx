@@ -235,7 +235,7 @@ export function Filters({
                   onClick={() => set({ format: toggle(filters.format, f) })}
                 >
                   <i className={`fdot fdot-${f.toLowerCase()}`} />
-                  {f === 'LINK' ? FILE_FORMAT_LABELS.LINK : f}
+                  {f === 'LINK' || f === 'GITHUB' ? FILE_FORMAT_LABELS[f] : f}
                   <span className="count">{n(facets?.format, f)}</span>
                 </button>
               ))}

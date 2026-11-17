@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { RichText } from '@/components/ui/RichText';
 import { Link, useParams } from 'react-router-dom';
 import {
@@ -24,6 +24,8 @@ import { ErrorState, Skeleton } from '@/components/ui/Feedback';
 import { SectionHead } from '@/components/ui/Panel';
 import { Viewer } from '@/components/paper/Paper';
 import { LinkViewer } from '@/components/library/LinkViewer';
+import { GithubGetPanel, GithubViewer } from '@/components/library/GithubViewer';
+import { useGithubDocument } from '@/components/library/useGithubDocument';
 import { FileViewer, fileEmbedUrl } from '@/components/library/FileViewer';
 import { profileFor, subjectTone } from '@/components/paper/profiles';
 import { DocCard } from '@/components/library/DocCard';
@@ -61,6 +63,13 @@ export function DocumentDetailPage() {
   const [fullscreen, setFullscreen] = useState(false);
   const [preview, setPreview] = useState<DocumentSummaryDto | null>(null);
   const [dlState, setDlState] = useState<'idle' | 'progress' | 'done'>('idle');
+  // GitHub documents download straight from GitHub; Kaned only counts the download.
+  const countMutate = download.mutate;
+  const docId = data?.id;
+  const countDownload = useCallback(() => {
+    if (docId) countMutate(docId);
+  }, [docId, countMutate]);
+  const gh = useGithubDocument(data, countDownload);
 
   const dist = useMemo(
     () => (data ? distribution(data.ratingAvg, data.ratingCount, data.reviews.map((r) => r.score)) : []),
@@ -101,9 +110,11 @@ export function DocumentDetailPage() {
   const myReview = data.reviews.find((r) => r.user.id === user?.id);
   const isMine = data.uploader.id === user?.id;
   const label = data.format === 'PPTX' ? 'Slide' : data.format === 'XLSX' ? 'Trang tính' : 'Số trang';
-  const isLink = data.format === 'LINK';
+  const isGithub = Boolean(gh.target);
+  const isLink = data.format === 'LINK' && !isGithub;
 
   const startDownload = () => {
+    if (isGithub) return gh.primary?.run();
     setDlState('progress');
     download.mutate(data.id, {
       onSuccess: ({ fileUrl }) => {
@@ -135,6 +146,7 @@ export function DocumentDetailPage() {
   };
 
   const BookmarkIcon = data.isBookmarked ? BookmarkCheck : Bookmark;
+  const ghBusy = Boolean(gh.job && gh.target && gh.job.path === gh.target.path);
 
   return (
     <>
@@ -192,7 +204,12 @@ export function DocumentDetailPage() {
 
         <div className="dp-layout">
           <div className="dp-main">
-            {isLink ? (
+            {isGithub ? (
+              <>
+                <GithubViewer gh={gh} />
+                <GithubGetPanel doc={data} gh={gh} />
+              </>
+            ) : isLink ? (
               <LinkViewer doc={data} onOpen={startDownload} />
             ) : fileEmbedUrl(data) ? (
               <FileViewer doc={data} embedUrl={fileEmbedUrl(data)!} onDownload={startDownload} />
@@ -373,6 +390,22 @@ export function DocumentDetailPage() {
 
           <aside className="dp-side">
             <div className="panel panel-pad dp-actions">
+              {isGithub && gh.primary ? (
+                <button
+                  type="button"
+                  className={cn('btn btn-primary btn-lg btn-block dl-btn', ghBusy && 'is-progress')}
+                  style={{ ['--p' as string]: ghBusy ? `${Math.round((gh.job?.share ?? 0) * 100)}%` : '0%' }}
+                  onClick={gh.primary.run}
+                  disabled={Boolean(gh.job)}
+                >
+                  <span className="dl-fill" />
+                  <span className="dl-label">
+                    <Download className="ic ic-sm" />
+                    {ghBusy ? `Đang gom tệp… ${Math.round((gh.job?.share ?? 0) * 100)}%` : gh.primary.label}
+                    {!ghBusy && gh.primary.sub && <small>{gh.primary.sub}</small>}
+                  </span>
+                </button>
+              ) : (
               <button
                 type="button"
                 className={cn('btn btn-primary btn-lg btn-block dl-btn', dlState === 'progress' && 'is-progress', dlState === 'done' && 'is-done')}
@@ -387,6 +420,7 @@ export function DocumentDetailPage() {
                   {!isLink && <small>{(data.fileBytes / 1024 / 1024).toFixed(1)} MB</small>}
                 </span>
               </button>
+              )}
               <div className="dp-act-row">
                 <button
                   type="button"
@@ -416,7 +450,25 @@ export function DocumentDetailPage() {
                     <FileBadge format={data.format} bytes={data.fileBytes} linkUrl={data.linkUrl} />
                   </dd>
                 </div>
-                {!isLink && data.pages ? (
+                {isGithub && gh.target && (
+                  <>
+                    <div>
+                      <dt>Repo</dt>
+                      <dd>
+                        <a className="link-inline" href={`https://github.com/${gh.target.owner}/${gh.target.repo}`} target="_blank" rel="noopener noreferrer">
+                          {gh.target.owner}/{gh.target.repo}
+                        </a>
+                      </dd>
+                    </div>
+                    {gh.ref && gh.target.kind !== 'release' && (
+                      <div>
+                        <dt>Nhánh</dt>
+                        <dd className="dd-mono">{gh.ref}</dd>
+                      </div>
+                    )}
+                  </>
+                )}
+                {!isLink && !isGithub && data.pages ? (
                   <div>
                     <dt>{label}</dt>
                     <dd>{data.pages}</dd>
@@ -536,11 +588,11 @@ export function DocumentDetailPage() {
         >
           <BookmarkIcon className="ic ic-sm" />
         </button>
-        <button type="button" className="btn btn-primary dl-btn" style={{ flex: 1 }} onClick={startDownload}>
+        <button type="button" className="btn btn-primary dl-btn" style={{ flex: 1 }} onClick={startDownload} disabled={Boolean(gh.job)}>
           <span className="dl-fill" />
           <span className="dl-label">
             {isLink ? <ExternalLink className="ic ic-sm" /> : <Download className="ic ic-sm" />}
-            {isLink ? 'Mở liên kết' : 'Tải xuống'}
+            {isGithub ? (ghBusy ? `Đang gom tệp… ${Math.round((gh.job?.share ?? 0) * 100)}%` : (gh.primary?.label ?? 'Tải xuống')) : isLink ? 'Mở liên kết' : 'Tải xuống'}
           </span>
         </button>
       </div>

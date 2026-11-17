@@ -171,8 +171,10 @@ export interface DocumentSummaryDto {
   university: Pick<UniversityDto, 'id' | 'code' | 'name' | 'nameVi' | 'color'>;
   uploader: UserSummaryDto;
   tags: string[];
-  /** The address, for LINK documents only; files stay behind the download endpoint. */
+  /** The address, for LINK and GITHUB documents only; files stay behind the download endpoint. */
   linkUrl: string | null;
+  /** Uploader's notes on how to download and use it (GitHub documents). */
+  guide: string | null;
   /** The university's own name for the term, e.g. "Spring 2026". */
   term: { id: string; code: string; name: string } | null;
   /** Folder inside the subject, e.g. "Đề thi". */

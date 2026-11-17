@@ -285,6 +285,9 @@ a.tag:hover, button.tag:hover { border-color: var(--violet-200); color: var(--vi
 .ft-link { background: var(--violet-50); color: var(--violet-600); }
 .ft-link svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; flex: none; }
 .ft-solid.ft-link { background: var(--violet); color: #fff; }
+.ft-github { background: #EEF0F3; color: #24292F; }
+.ft-github svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.ft-solid.ft-github { background: #24292F; color: #fff; }
 
 .file-icon { display: inline-block; width: 40px; height: 48px; position: relative; flex: none; vertical-align: middle; }
 .file-icon svg { width: 100%; height: 100%; }

@@ -76,7 +76,11 @@ export function useDocumentActions() {
 
   const menu = (d: AdminDocumentDto, onEdit: () => void): MenuItem[] => [
     { label: 'Sửa thông tin', icon: Pencil, onSelect: onEdit },
-    { label: d.format === 'LINK' ? 'Mở liên kết' : 'Xem trên thư viện', icon: ExternalLink, onSelect: () => window.open(d.format === 'LINK' ? d.fileUrl : `/app/library/${d.id}`, '_blank', 'noopener') },
+    {
+      label: d.format === 'LINK' ? 'Mở liên kết' : d.format === 'GITHUB' ? 'Mở trên GitHub' : 'Xem trên thư viện',
+      icon: ExternalLink,
+      onSelect: () => window.open(d.format === 'LINK' || d.format === 'GITHUB' ? d.fileUrl : `/app/library/${d.id}`, '_blank', 'noopener'),
+    },
     'separator',
     { label: 'Duyệt đăng', icon: Check, onSelect: () => setStatus(d, 'PUBLISHED'), hidden: d.status === 'PUBLISHED' },
     { label: 'Từ chối', icon: X, onSelect: () => setStatus(d, 'REJECTED'), hidden: d.status !== 'PENDING' },
@@ -235,6 +239,7 @@ export function DocumentsPage() {
           <select className={cn('select', format && 'is-on')} value={format} onChange={(e) => patch({ format: e.target.value || undefined })} aria-label="Định dạng">
             <option value="">Tệp và liên kết</option>
             <option value="LINK">Liên kết</option>
+            <option value="GITHUB">GitHub</option>
             <option value="PDF">PDF</option>
             <option value="DOCX">Word</option>
             <option value="PPTX">PowerPoint</option>

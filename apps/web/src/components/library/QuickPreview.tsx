@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Bookmark, BookmarkCheck, Download, Eye, X } from 'lucide-react';
 import type { DocumentSummaryDto } from '@kaned/shared';
@@ -5,6 +6,9 @@ import { Modal } from '@/components/ui/Modal';
 import { FileIcon } from '@/components/ui/FileBadge';
 import { RatingInline } from '@/components/ui/Stars';
 import { Viewer } from '@/components/paper/Paper';
+import { GithubViewer } from '@/components/library/GithubViewer';
+import { useGithubDocument } from '@/components/library/useGithubDocument';
+import { useDownload } from '@/features/library/queries';
 import { fmtInt, timeAgo } from '@/lib/format';
 import { cn } from '@/lib/cn';
 
@@ -22,6 +26,13 @@ export function QuickPreview({
   onDownload: (doc: DocumentSummaryDto) => void;
   downloading?: boolean;
 }) {
+  // A GitHub document previews as its real file list, and downloads from GitHub.
+  const { mutate: count } = useDownload();
+  const docId = doc?.id;
+  const onCount = useCallback(() => docId && count(docId), [docId, count]);
+  const gh = useGithubDocument(doc?.format === 'GITHUB' ? { format: doc.format, fileUrl: doc.linkUrl ?? '' } : null, onCount);
+  const ghBusy = Boolean(gh.job && gh.target && gh.job.path === gh.target.path);
+
   return (
     <Modal open={Boolean(doc)} onClose={onClose} title="" size="xl" bare>
       {doc && (
@@ -38,7 +49,13 @@ export function QuickPreview({
               <X className="ic" />
             </button>
           </div>
-          <Viewer doc={doc} thumbs={false} onDownload={() => onDownload(doc)} downloading={downloading} />
+          {gh.target ? (
+            <div className="pv-github">
+              <GithubViewer gh={gh} />
+            </div>
+          ) : (
+            <Viewer doc={doc} thumbs={false} onDownload={() => onDownload(doc)} downloading={downloading} />
+          )}
           <div className="modal-foot">
             <div className="pv-stats">
               <RatingInline value={doc.ratingAvg} count={doc.ratingCount} />
@@ -64,10 +81,17 @@ export function QuickPreview({
               {doc.isBookmarked ? <BookmarkCheck className="ic ic-sm" /> : <Bookmark className="ic ic-sm" />}
               {doc.isBookmarked ? 'Đã lưu' : 'Lưu'}
             </button>
-            <button type="button" className={cn('btn btn-primary', downloading && 'is-loading')} onClick={() => onDownload(doc)}>
-              <Download className="ic ic-sm" />
-              Tải xuống
-            </button>
+            {gh.target && gh.primary ? (
+              <button type="button" className={cn('btn btn-primary', ghBusy && 'is-loading')} onClick={gh.primary.run} disabled={Boolean(gh.job)}>
+                <Download className="ic ic-sm" />
+                {gh.primary.label}
+              </button>
+            ) : (
+              <button type="button" className={cn('btn btn-primary', downloading && 'is-loading')} onClick={() => onDownload(doc)}>
+                <Download className="ic ic-sm" />
+                Tải xuống
+              </button>
+            )}
           </div>
         </div>
       )}

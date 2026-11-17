@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { CloudUpload, ExternalLink, FileUp, Link2, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { CloudUpload, ExternalLink, FileUp, Github, Link2, Trash2 } from 'lucide-react';
 import {
   createDocumentSchema,
   detectLinkProvider,
   DOCUMENT_STATUSES,
   DOCUMENT_STATUS_LABELS,
+  isExternalFormat,
   isWebUrl,
+  normalizeGithubInput,
   MAX_UPLOAD_BYTES,
   MIME_TO_FORMAT,
   type AdminDocumentDto,
@@ -16,6 +18,7 @@ import {
 } from '@kaned/shared';
 import { Field } from '@/components/ui/Field';
 import { mergeTags, PlacementFields, TagInput, TypePicker } from '@/components/documents/DocumentFields';
+import { GithubSource, githubStatusMessage, githubStatusUsable, type GithubStatus } from '@/components/documents/GithubSource';
 import { useAuth } from '@/providers/AuthProvider';
 import { FileIcon } from '@/components/ui/FileBadge';
 import { useSubjects } from '@/features/catalog/queries';
@@ -30,8 +33,9 @@ import { Sheet } from './ui';
 const EXT: Record<string, FileFormat> = { pdf: 'PDF', docx: 'DOCX', pptx: 'PPTX', xlsx: 'XLSX', html: 'HTML', htm: 'HTML', md: 'MD', markdown: 'MD' };
 
 interface Draft {
-  source: 'file' | 'link';
+  source: 'file' | 'link' | 'github';
   link: string;
+  guide: string;
   title: string;
   description: string;
   type: DocumentType | '';
@@ -51,6 +55,7 @@ interface Draft {
 const blank = (): Draft => ({
   source: 'file',
   link: '',
+  guide: '',
   title: '',
   description: '',
   type: '',
@@ -68,8 +73,9 @@ const blank = (): Draft => ({
 });
 
 const fromDoc = (d: AdminDocumentDto): Draft => ({
-  source: d.format === 'LINK' ? 'link' : 'file',
-  link: d.format === 'LINK' ? d.fileUrl : '',
+  source: d.format === 'LINK' ? 'link' : d.format === 'GITHUB' ? 'github' : 'file',
+  link: isExternalFormat(d.format) ? d.fileUrl : '',
+  guide: d.guide ?? '',
   title: d.title,
   description: d.description,
   type: d.type,
@@ -102,6 +108,7 @@ export function DocumentEditor({ doc, open, onClose, defaults }: { doc: AdminDoc
   const [file, setFile] = useState<{ file: File; format: FileFormat } | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
   const [drag, setDrag] = useState(false);
+  const [ghStatus, setGhStatus] = useState<GithubStatus>('empty');
   const picker = useRef<HTMLInputElement>(null);
   const uploaded = useRef<{ file: File; url: string; publicId: string; bytes: number; pages?: number } | null>(null);
 
@@ -138,6 +145,19 @@ export function DocumentEditor({ doc, open, onClose, defaults }: { doc: AdminDoc
 
   const busy = progress !== null || create.isPending || update.isPending;
 
+  // A pasted GitHub address fills the title and description, only where they are still empty.
+  // An earlier suggestion the admin has not touched is replaced by the newer one.
+  const suggested = useRef({ title: '', description: '' });
+  const suggestFromGithub = useCallback(({ title, description }: { title: string; description: string }) => {
+    const prev = suggested.current;
+    suggested.current = { title, description };
+    setDraft((d) => ({
+      ...d,
+      title: title && (!d.title.trim() || d.title.trim() === prev.title) ? title : d.title,
+      description: description && (!d.description.trim() || d.description.trim() === prev.description) ? description : d.description,
+    }));
+  }, []);
+
   const submit = async () => {
     const meta = {
       title: draft.title,
@@ -154,6 +174,7 @@ export function DocumentEditor({ doc, open, onClose, defaults }: { doc: AdminDoc
       lecturer: draft.lecturer.trim() || undefined,
       period: draft.period || undefined,
       language: 'Vietnamese',
+      ...(draft.source === 'github' ? { guide: draft.guide.trim() || null } : {}),
     };
 
     try {
@@ -161,9 +182,10 @@ export function DocumentEditor({ doc, open, onClose, defaults }: { doc: AdminDoc
         const parsed = createDocumentSchema.omit({ fileUrl: true, filePublicId: true, fileBytes: true, format: true }).safeParse(meta);
         if (!parsed.success) return showIssues(parsed.error.issues);
         if (doc.format === 'LINK' && !isWebUrl(draft.link.trim())) return setErrors({ fileUrl: 'Dán một liên kết bắt đầu bằng https://' });
+        if (doc.format === 'GITHUB' && !githubStatusUsable(ghStatus)) return setErrors({ fileUrl: githubStatusMessage(ghStatus) });
         await update.mutateAsync({
           id: doc.id,
-          input: { ...parsed.data, status: draft.status, ...(doc.format === 'LINK' && draft.link.trim() !== doc.fileUrl ? { linkUrl: draft.link.trim() } : {}) },
+          input: { ...parsed.data, status: draft.status, ...(isExternalFormat(doc.format) && draft.link.trim() !== doc.fileUrl ? { linkUrl: doc.format === 'GITHUB' ? normalizeGithubInput(draft.link) : draft.link.trim() } : {}) },
         });
         toast.success('Đã lưu tài liệu', draft.title);
         onClose();
@@ -174,6 +196,9 @@ export function DocumentEditor({ doc, open, onClose, defaults }: { doc: AdminDoc
       if (draft.source === 'link') {
         if (!isWebUrl(draft.link.trim())) return setErrors({ fileUrl: 'Dán một liên kết bắt đầu bằng https://' });
         source = { format: 'LINK', fileUrl: draft.link.trim(), filePublicId: '', fileBytes: 0 };
+      } else if (draft.source === 'github') {
+        if (!githubStatusUsable(ghStatus)) return setErrors({ fileUrl: githubStatusMessage(ghStatus) });
+        source = { format: 'GITHUB', fileUrl: normalizeGithubInput(draft.link), filePublicId: '', fileBytes: 0 };
       } else {
         if (!file) return setErrors({ fileUrl: 'Chọn tệp để tải lên.' });
         // Validate the rest before spending time on the upload.
@@ -217,7 +242,7 @@ export function DocumentEditor({ doc, open, onClose, defaults }: { doc: AdminDoc
       onClose={busy ? () => undefined : onClose}
       size="lg"
       title={editing ? 'Sửa tài liệu' : 'Đăng tài liệu'}
-      description={editing ? doc?.title : 'Một tệp từ máy bạn, hoặc liên kết tới Google Slides, Drive, Canva, YouTube…'}
+      description={editing ? doc?.title : 'Một tệp từ máy bạn, một liên kết (Google Slides, Drive, Canva, YouTube…) hoặc tài liệu trên GitHub.'}
       footer={
         <>
           {editing && doc && (
@@ -249,10 +274,28 @@ export function DocumentEditor({ doc, open, onClose, defaults }: { doc: AdminDoc
                 <Link2 className="ic ic-sm" />
                 Liên kết
               </button>
+              <button type="button" aria-pressed={draft.source === 'github'} onClick={() => set('source', 'github')}>
+                <Github className="ic ic-sm" />
+                GitHub
+              </button>
             </div>
           )}
         </div>
-        {draft.source === 'link' ? (
+        {draft.source === 'github' ? (
+          <GithubSource
+            id="ad-gh"
+            value={draft.link}
+            onChange={(url) => {
+              set('link', url);
+              setErrors(({ fileUrl: _a, linkUrl: _b, ...rest }) => rest);
+            }}
+            guide={draft.guide}
+            onGuide={(text) => set('guide', text)}
+            onStatus={setGhStatus}
+            onSuggest={editing ? undefined : suggestFromGithub}
+            error={errors.fileUrl ?? errors.linkUrl}
+          />
+        ) : draft.source === 'link' ? (
           <Field
             error={errors.fileUrl ?? errors.linkUrl}
             hint={provider ? `${provider.label} · ${provider.embedUrl ? 'xem được ngay trên trang tài liệu' : 'mở ở tab mới'}` : 'Google Slides, Docs, Drive, Canva, YouTube, Notion… hoặc bất kỳ trang nào.'}

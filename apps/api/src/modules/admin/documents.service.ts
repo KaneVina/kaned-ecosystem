@@ -1,7 +1,9 @@
 import { and, asc, count, desc, eq, ilike, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
 import {
   DOCUMENT_STATUSES,
+  isExternalFormat,
   isWebUrl,
+  parseGithubUrl,
   type AdminDocumentDto,
   type AdminDocumentQuery,
   type AdminDocumentUpdate,
@@ -108,7 +110,7 @@ export async function createDocument(
     'create',
     'document',
     created.id,
-    `Đăng ${input.format === 'LINK' ? 'liên kết' : 'tài liệu'} “${input.title}” (${created.subject.code})`,
+    `Đăng ${input.format === 'LINK' ? 'liên kết' : input.format === 'GITHUB' ? 'tài liệu GitHub' : 'tài liệu'} “${input.title}” (${created.subject.code})`,
   );
   return getDocument(created.id);
 }
@@ -128,8 +130,11 @@ export async function updateDocument(actorId: string, role: string, id: string, 
   if (Object.keys(meta).length) await library.updateDocument(id, actorId, role, meta);
 
   if (linkUrl !== undefined) {
-    if (before.format !== 'LINK') throw ApiError.badRequest('Chỉ tài liệu dạng liên kết mới đổi được địa chỉ.');
+    if (!isExternalFormat(before.format)) throw ApiError.badRequest('Chỉ tài liệu dạng liên kết mới đổi được địa chỉ.');
     if (!isWebUrl(linkUrl)) throw ApiError.badRequest('Liên kết không hợp lệ.', { linkUrl: 'Bắt đầu bằng https://' });
+    if (before.format === 'GITHUB' && !parseGithubUrl(linkUrl)) {
+      throw ApiError.badRequest('Đây không phải liên kết GitHub.', { linkUrl: 'Dán liên kết https://github.com/…' });
+    }
     await db.update(documents).set({ fileUrl: linkUrl }).where(eq(documents.id, id));
   }
   if (status && status !== before.status) {
@@ -153,7 +158,7 @@ export async function deleteDocument(actorId: string, id: string) {
   const row = await findOne(id);
   if (!row) notFound('tài liệu');
   await db.delete(documents).where(eq(documents.id, id));
-  if (row.format !== 'LINK' && row.filePublicId) await storage.destroy(row.filePublicId).catch(() => undefined);
+  if (!isExternalFormat(row.format) && row.filePublicId) await storage.destroy(row.filePublicId).catch(() => undefined);
   await logActivity(actorId, 'delete', 'document', id, `Xoá tài liệu “${row.title}”`);
 }
 
@@ -168,7 +173,7 @@ export async function bulk(actorId: string, input: DocumentBulkInput) {
   if (input.action === 'delete') {
     await db.delete(documents).where(inArray(documents.id, ids));
     await Promise.all(
-      rows.filter((r) => r.format !== 'LINK' && r.filePublicId).map((r) => storage.destroy(r.filePublicId).catch(() => undefined)),
+      rows.filter((r) => !isExternalFormat(r.format) && r.filePublicId).map((r) => storage.destroy(r.filePublicId).catch(() => undefined)),
     );
   } else {
     const status: DocumentStatus = { publish: 'PUBLISHED', reject: 'REJECTED', remove: 'REMOVED' }[input.action] as DocumentStatus;

@@ -42,8 +42,11 @@ export const documentTypeEnum = pgEnum('document_type', [
   'PROJECT',
   'TEXTBOOK',
 ]);
-/** LINK: the document is a URL (Google Slides, Canva, YouTube…) instead of an uploaded file. */
-export const fileFormatEnum = pgEnum('file_format', ['PDF', 'DOCX', 'PPTX', 'XLSX', 'HTML', 'MD', 'LINK']);
+/**
+ * LINK: the document is a URL (Google Slides, Canva, YouTube…) instead of an uploaded file.
+ * GITHUB: a GitHub repository, folder or file.
+ */
+export const fileFormatEnum = pgEnum('file_format', ['PDF', 'DOCX', 'PPTX', 'XLSX', 'HTML', 'MD', 'LINK', 'GITHUB']);
 export const documentStatusEnum = pgEnum('document_status', [
   'PENDING',
   'PUBLISHED',
@@ -427,6 +430,8 @@ export const documents = pgTable(
     fileBytes: integer('file_bytes').notNull(),
     pages: integer('pages'),
     thumbnailUrl: text('thumbnail_url'),
+    /** The uploader's notes on downloading and using it (GitHub documents). */
+    guide: text('guide'),
 
     year: integer('year').notNull(),
     semester: semesterEnum('semester').notNull(),

@@ -23,7 +23,7 @@ import {
 import { ApiError } from '../../lib/errors.js';
 import { storage } from '../../lib/storage.js';
 import { foldVietnamese, slugify } from '../../lib/slug.js';
-import { isWebUrl } from '@kaned/shared';
+import { isExternalFormat, isWebUrl, parseGithubUrl } from '@kaned/shared';
 import { documentWith, toDocumentSummary, toReview, userWith } from '../../lib/dto.js';
 
 function buildFilters(query: DocumentQuery): SQL[] {
@@ -244,6 +244,14 @@ async function tagIdsFor(names: string[]): Promise<string[]> {
  * http(s) address and has neither.
  */
 function assertSource(input: Pick<CreateDocumentInput, 'format' | 'fileUrl' | 'filePublicId' | 'fileBytes'>) {
+  if (input.format === 'GITHUB') {
+    if (!parseGithubUrl(input.fileUrl)) {
+      throw ApiError.badRequest('Đây không phải liên kết GitHub.', {
+        fileUrl: 'Dán liên kết dạng https://github.com/ten-ban/ten-repo',
+      });
+    }
+    return;
+  }
   if (input.format === 'LINK') {
     if (!isWebUrl(input.fileUrl)) {
       throw ApiError.badRequest('Liên kết phải bắt đầu bằng http:// hoặc https://', { fileUrl: 'Liên kết không hợp lệ.' });
@@ -287,7 +295,7 @@ export async function createDocument(
   assertSource(input);
   const term = await termFields(input.academicTermId, subject.universityId);
   const folderId = await assertFolder(input.folderId, subject.id);
-  const isLink = input.format === 'LINK';
+  const isLink = isExternalFormat(input.format);
 
   const [created] = await db
     .insert(documents)
@@ -302,6 +310,7 @@ export async function createDocument(
       fileBytes: isLink ? 0 : input.fileBytes,
       pages: input.pages ?? null,
       thumbnailUrl: input.thumbnailUrl ?? (isLink ? null : storage.thumbnailFor(input.filePublicId, input.format)),
+      guide: input.guide?.trim() || null,
       year: input.year,
       semester: input.semester,
       schoolYear: input.schoolYear ?? null,
@@ -374,6 +383,7 @@ export async function updateDocument(
       schoolYear: input.schoolYear,
       ...(input.lecturer !== undefined ? { lecturer: input.lecturer?.trim() || null } : {}),
       ...(input.period !== undefined ? { period: input.period?.trim() || null } : {}),
+      ...(input.guide !== undefined ? { guide: input.guide?.trim() || null } : {}),
       language: input.language,
       subjectId: input.subjectId,
       universityId: input.universityId,
@@ -400,7 +410,7 @@ export async function updateDocument(
 export async function deleteDocument(id: string, userId: string, role: string) {
   const doc = await assertCanEdit(id, userId, role);
   await db.delete(documents).where(eq(documents.id, id));
-  if (doc.format !== 'LINK' && doc.filePublicId) await storage.destroy(doc.filePublicId);
+  if (!isExternalFormat(doc.format) && doc.filePublicId) await storage.destroy(doc.filePublicId);
 }
 
 /** Counts the download and hands back the file URL. */

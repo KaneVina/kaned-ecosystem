@@ -271,7 +271,7 @@ export type AdminDocumentQuery = z.infer<typeof adminDocumentQuerySchema>;
 
 export const adminDocumentUpdateSchema = updateDocumentSchema.extend({
   status: z.enum(DOCUMENT_STATUSES).optional(),
-  /** Only for LINK documents: point the document at a new address. */
+  /** Only for LINK and GITHUB documents: point the document at a new address. */
   linkUrl: z.string().trim().url('Dán một liên kết hợp lệ.').max(2000).optional(),
 });
 export type AdminDocumentUpdate = z.infer<typeof adminDocumentUpdateSchema>;

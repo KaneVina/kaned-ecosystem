@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,6 +12,7 @@ import {
   FileText,
   FileUp,
   FolderOpen,
+  Github,
   Link2,
   ListChecks,
   ScrollText,
@@ -26,6 +27,7 @@ import {
   type DocumentSummaryDto,
   detectLinkProvider,
   isWebUrl,
+  normalizeGithubInput,
   type FileFormat,
 } from "@kaned/shared";
 import { PageHead } from "@/components/ui/Panel";
@@ -40,6 +42,12 @@ import { toApiError } from "@/lib/api";
 import { fmtBytes } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { PlacementFields, TagInput, TypePicker } from "@/components/documents/DocumentFields";
+import {
+  GithubSource,
+  githubStatusMessage,
+  githubStatusUsable,
+  type GithubStatus,
+} from "@/components/documents/GithubSource";
 
 const EXT_TO_FORMAT: Record<string, FileFormat> = {
   pdf: "PDF",
@@ -90,14 +98,26 @@ export function UploadPage() {
   const [progress, setProgress] = useState<number | null>(null);
   const [tagDraft, setTagDraft] = useState("");
   const [submitted, setSubmitted] = useState(false);
-  const [source, setSource] = useState<"file" | "link">("file");
+  const [source, setSource] = useState<"file" | "link" | "github">(
+    params.get("source") === "github" ? "github" : "file",
+  );
   const [link, setLink] = useState("");
+  const [ghUrl, setGhUrl] = useState("");
+  const [guide, setGuide] = useState("");
+  const [ghStatus, setGhStatus] = useState<GithubStatus>("empty");
   const linkOk = isWebUrl(link.trim());
   const provider = linkOk ? detectLinkProvider(link.trim()) : null;
   // A finished upload is kept, so trying again after a failed save does not upload twice.
   const uploaded = useRef<{ file: File; url: string; publicId: string; bytes: number; pages?: number } | null>(null);
   const idempotency = useIdempotencyKey();
-  const hasSource = source === "file" ? Boolean(file) : linkOk;
+  const hasSource =
+    source === "file" ? Boolean(file) : source === "link" ? linkOk : githubStatusUsable(ghStatus);
+  const sourceError = () =>
+    source === "file"
+      ? "Chọn một tệp để tải lên."
+      : source === "link"
+        ? "Dán một liên kết bắt đầu bằng https://"
+        : githubStatusMessage(ghStatus);
 
   const createDocument = useCreateDocument();
   const { data: universities = [] } = useUniversities();
@@ -179,8 +199,21 @@ export function UploadPage() {
 
   const tags = v.tags ?? [];
 
+  // A pasted GitHub address fills the title and description, only where they are still empty.
+  // An earlier suggestion the student has not touched is replaced by the newer one.
+  const suggested = useRef({ title: "", description: "" });
+  const suggestFromGithub = useCallback(
+    ({ title, description }: { title: string; description: string }) => {
+      const cur = { title: form.getValues("title").trim(), description: form.getValues("description").trim() };
+      if (title && (!cur.title || cur.title === suggested.current.title)) form.setValue("title", title);
+      if (description && (!cur.description || cur.description === suggested.current.description)) form.setValue("description", description);
+      suggested.current = { title, description };
+    },
+    [form],
+  );
+
   const checklist: Array<[string, boolean]> = [
-    [source === "file" ? "Tệp tài liệu" : "Liên kết", hasSource],
+    [source === "file" ? "Tệp tài liệu" : source === "link" ? "Liên kết" : "Liên kết GitHub", hasSource],
     ["Tiêu đề", (v.title ?? "").trim().length >= 10],
     ["Mô tả", (v.description ?? "").trim().length >= 30],
     ["Loại tài liệu", Boolean(v.type)],
@@ -199,9 +232,10 @@ export function UploadPage() {
           title: v.title || "Tiêu đề tài liệu của bạn",
           description: v.description,
           type: v.type ?? "NOTES",
-          format: source === "link" ? "LINK" : (file?.format ?? "PDF"),
-          fileBytes: source === "link" ? 0 : (file?.file.size ?? 1_200_000),
-          linkUrl: source === "link" && linkOk ? link.trim() : null,
+          format: source === "link" ? "LINK" : source === "github" ? "GITHUB" : (file?.format ?? "PDF"),
+          fileBytes: source === "file" ? (file?.file.size ?? 1_200_000) : 0,
+          linkUrl: source === "link" && linkOk ? link.trim() : source === "github" ? ghUrl.trim() || null : null,
+          guide: null,
           term: null,
           folder: null,
           pages: 12,
@@ -239,14 +273,17 @@ export function UploadPage() {
     async (values) => {
       setSubmitted(true);
       if (!hasSource) {
-        setFileError(source === "file" ? "Chọn một tệp để tải lên." : "Dán một liên kết bắt đầu bằng https://");
+        setFileError(sourceError());
+        document.querySelector(".up-sec")?.scrollIntoView({ behavior: "smooth", block: "start" });
         return;
       }
       try {
         const { rights: _rights, ...rest } = values;
-        let sourceFields: Pick<CreateDocumentInput, "format" | "fileUrl" | "filePublicId" | "fileBytes" | "pages">;
+        let sourceFields: Pick<CreateDocumentInput, "format" | "fileUrl" | "filePublicId" | "fileBytes" | "pages" | "guide">;
         if (source === "link") {
           sourceFields = { format: "LINK", fileUrl: link.trim(), filePublicId: "", fileBytes: 0 };
+        } else if (source === "github") {
+          sourceFields = { format: "GITHUB", fileUrl: normalizeGithubInput(ghUrl), filePublicId: "", fileBytes: 0, guide: guide.trim() || null };
         } else {
           if (uploaded.current?.file !== file!.file) {
             setProgress(0);
@@ -276,7 +313,7 @@ export function UploadPage() {
     },
     () => {
       setSubmitted(true);
-      if (!hasSource) setFileError(source === "file" ? "Chọn một tệp để tải lên." : "Dán một liên kết bắt đầu bằng https://");
+      if (!hasSource) setFileError(sourceError());
       document
         .querySelector(".field.invalid")
         ?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -312,11 +349,13 @@ export function UploadPage() {
             <div className="up-sec-head">
               <span className="up-step">1</span>
               <div>
-                <h2 className="t-h3">Tệp hoặc liên kết</h2>
+                <h2 className="t-h3">Nguồn tài liệu</h2>
                 <p>
                   {source === "file"
                     ? `PDF, Word, PowerPoint, Excel, HTML hoặc Markdown (.md), tối đa ${fmtBytes(MAX_UPLOAD_BYTES)}.`
-                    : "Google Slides, Docs, Drive, Canva, YouTube, Notion… hoặc bất kỳ trang nào."}
+                    : source === "link"
+                      ? "Google Slides, Docs, Drive, Canva, YouTube, Notion… hoặc bất kỳ trang nào."
+                      : "Tài liệu bạn để trên GitHub. Kaned tự tạo nút tải ZIP, danh sách tệp và lệnh git cho người xem."}
                 </p>
               </div>
               <div className="seg up-source" role="group" aria-label="Nguồn tài liệu">
@@ -328,8 +367,27 @@ export function UploadPage() {
                   <Link2 className="ic ic-sm" />
                   Dán liên kết
                 </button>
+                <button type="button" aria-pressed={source === "github"} onClick={() => (setSource("github"), setFileError(""))}>
+                  <Github className="ic ic-sm" />
+                  GitHub
+                </button>
               </div>
             </div>
+            {source === "github" ? (
+              <GithubSource
+                id="up-gh"
+                value={ghUrl}
+                onChange={(next) => {
+                  setGhUrl(next);
+                  if (fileError) setFileError("");
+                }}
+                guide={guide}
+                onGuide={setGuide}
+                onStatus={setGhStatus}
+                onSuggest={suggestFromGithub}
+                error={fileError}
+              />
+            ) : (
             <div className={cn("field", fileError && "invalid")}>
               {source === "link" ? (
                 <div className="up-link">
@@ -348,7 +406,23 @@ export function UploadPage() {
                       aria-label="Liên kết tài liệu"
                     />
                   </div>
-                  {provider && (
+                  {provider?.id === "github" ? (
+                    <div className="gh-note is-warn gh-switch">
+                      <Github className="ic ic-sm" />
+                      <span>Đây là liên kết GitHub. Đăng ở mục GitHub để người xem thấy danh sách tệp và tải được ZIP.</span>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => {
+                          setGhUrl(link.trim());
+                          setLink("");
+                          setSource("github");
+                        }}
+                      >
+                        Chuyển sang GitHub
+                      </button>
+                    </div>
+                  ) : provider && (
                     <div className="up-link-ok">
                       <CircleCheck className="ic ic-sm" />
                       <span>
@@ -458,6 +532,7 @@ export function UploadPage() {
                 <span>{fileError}</span>
               </span>
             </div>
+            )}
           </section>
 
           <section className="panel up-sec">

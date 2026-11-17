@@ -30,9 +30,17 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, { en: string; vi: string
   TEXTBOOK: { en: 'Textbooks', vi: 'Giáo trình', icon: 'library' },
 };
 
-/** LINK is a document that lives elsewhere (Google Slides, Canva, YouTube…). */
-export const FILE_FORMATS = ['PDF', 'DOCX', 'PPTX', 'XLSX', 'HTML', 'MD', 'LINK'] as const;
+/**
+ * LINK is a document that lives elsewhere (Google Slides, Canva, YouTube…);
+ * GITHUB is one kept in a GitHub repository, folder or file.
+ */
+export const FILE_FORMATS = ['PDF', 'DOCX', 'PPTX', 'XLSX', 'HTML', 'MD', 'LINK', 'GITHUB'] as const;
 export type FileFormat = (typeof FILE_FORMATS)[number];
+
+/** Formats stored as an address instead of an uploaded file. */
+export const EXTERNAL_FORMATS = ['LINK', 'GITHUB'] as const;
+export const isExternalFormat = (format: string): format is (typeof EXTERNAL_FORMATS)[number] =>
+  format === 'LINK' || format === 'GITHUB';
 
 /** Formats that are uploaded as files. */
 export const UPLOAD_FORMATS = ['PDF', 'DOCX', 'PPTX', 'XLSX', 'HTML', 'MD'] as const;
@@ -45,6 +53,7 @@ export const FILE_FORMAT_LABELS: Record<FileFormat, string> = {
   HTML: 'HTML',
   MD: 'Markdown',
   LINK: 'Liên kết',
+  GITHUB: 'GitHub',
 };
 
 export const FILE_FORMAT_COLORS: Record<FileFormat, string> = {
@@ -53,6 +62,7 @@ export const FILE_FORMAT_COLORS: Record<FileFormat, string> = {
   PPTX: '#CF5F22',
   XLSX: '#1C7F4F',
   LINK: '#4433B4',
+  GITHUB: '#24292F',
   HTML: '#C2410C',
   MD: '#475467',
 };

@@ -10,7 +10,7 @@ import type {
   UserSummaryDto,
   OAuthProviderId,
 } from '@kaned/shared';
-import { OAUTH_PROVIDERS } from '@kaned/shared';
+import { OAUTH_PROVIDERS, isExternalFormat } from '@kaned/shared';
 
 /* ------------------------------------------------- relational query parts */
 
@@ -91,6 +91,7 @@ interface DocumentLike {
   uploader: UserLike;
   tags: Array<{ tag: { name: string } }>;
   fileUrl: string;
+  guide?: string | null;
   term?: { id: string; code: string; name: string } | null;
   folder?: { id: string; name: string } | null;
 }
@@ -194,7 +195,8 @@ export function toDocumentSummary(
     university: brief(row.university),
     uploader: toUserSummary(row.uploader),
     tags: row.tags.map((t) => t.tag.name),
-    linkUrl: row.format === 'LINK' ? row.fileUrl : null,
+    linkUrl: isExternalFormat(row.format) ? row.fileUrl : null,
+    guide: row.guide ?? null,
     term: row.term ? { id: row.term.id, code: row.term.code, name: row.term.name } : null,
     folder: row.folder ? { id: row.folder.id, name: row.folder.name } : null,
     isBookmarked: opts.isBookmarked,
