@@ -768,3 +768,6 @@ p.pce-sub { margin: 0; }
 .ug-break li.is-bad b { color: #B42318; }
 .ug-parts { color: var(--a-ink-3); font-variant-numeric: tabular-nums; font-size: 12.5px; }
 .ug-break p { margin: 8px 0 0; font-size: 12.5px; color: var(--a-ink-3); }
+.pce-extras { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 10px; border: 1px dashed var(--a-border); }
+.pce-extras-l { font-size: 12.5px; color: var(--a-ink-3); margin-right: 2px; }
+.pce-extra-in { width: 130px; height: 28px; }

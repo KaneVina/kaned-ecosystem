@@ -85,7 +85,21 @@ export function resetDb(reason: string) {
   db = drizzle(client, { schema, logger: false });
   sqlClient = client;
   console.warn(`[db] new connection pool (${reason})`);
-  old.end({ timeout: 2 }).catch(() => undefined);
+  // Queries still running on the old pool get time to finish.
+  old.end({ timeout: 10 }).catch(() => undefined);
+}
+
+/*
+ * A request that hangs asks for a fresh pool, but the swap waits until no
+ * other request is running, so a healthy query is never cut off midway.
+ */
+let resetWanted: string | null = null;
+export function requestDbReset(reason: string) {
+  resetWanted = reason;
+  if (inFlight === 0) {
+    resetWanted = null;
+    resetDb(reason);
+  }
 }
 
 /*
@@ -109,5 +123,10 @@ export function beginDbWork() {
     done = true;
     inFlight = Math.max(0, inFlight - 1);
     lastActivity = Date.now();
+    if (inFlight === 0 && resetWanted) {
+      const why = resetWanted;
+      resetWanted = null;
+      resetDb(why);
+    }
   };
 }

@@ -124,6 +124,18 @@ export function evaluateAssessment(
     return { item, firsts, seconds, scores, avg, contribution, state, openRetake };
   });
 
+  // Total under the mark (first attempts): every category that allows a retake must be retaken.
+  if (lines.length && lines.every((l) => l.firsts.every((f) => f !== null)) && weightTotal > 0) {
+    const firstTotal = lines.reduce((s, l) => s + (l.firsts.reduce<number>((t, x) => t + (x ?? 0), 0) / l.item.parts) * l.item.weight, 0) / weightTotal;
+    if (firstTotal < passMark) {
+      for (const l of lines) {
+        if (!l.item.retake) continue;
+        l.openRetake = l.firsts.map((_, i) => l.seconds[i] === null);
+        if (l.openRetake.some(Boolean) && l.state === 'ok') l.state = 'retake';
+      }
+    }
+  }
+
   const done = lines.filter((l) => l.avg !== null);
   const weightEntered = done.reduce((s, l) => s + l.item.weight, 0);
   const partial = round2(done.reduce((s, l) => s + (l.contribution ?? 0), 0));

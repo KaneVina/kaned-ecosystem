@@ -36,7 +36,7 @@ function summarize(rows: GradeRow[], passMark: number) {
         credits: g.subject.credits,
         score10: g.score10,
         termNo: g.termNo,
-        criteriaMet: !criteriaBlockPass(g.subject.passCriteria as never, g.score10, g.criteria, g.subject.assessmentScheme as never),
+        criteriaMet: !criteriaBlockPass(g.subject.passCriteria as never, g.score10, g.criteria, g.subject.assessmentScheme as never, passMark),
       })),
     passMark,
   );
@@ -138,7 +138,7 @@ export async function userGrades(userId: string): Promise<AdminUserGradesDto> {
     major: user.major ? { id: user.major.id, code: user.major.code, nameVi: user.major.nameVi } : null,
     grades: rows
       .map((g) => {
-        const blocked = g.score10 !== null && criteriaBlockPass(g.subject.passCriteria as never, g.score10, g.criteria, g.subject.assessmentScheme as never);
+        const blocked = g.score10 !== null && criteriaBlockPass(g.subject.passCriteria as never, g.score10, g.criteria, g.subject.assessmentScheme as never, passMark);
         const outcome: AdminUserGradesDto['grades'][number]['outcome'] = g.inProgress
           ? 'in_progress'
           : g.score10 !== null && g.score10 >= passMark

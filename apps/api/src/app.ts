@@ -5,7 +5,7 @@ import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 import { env } from './env.js';
-import { beginDbWork, resetDb, sqlClient } from './db/index.js';
+import { beginDbWork, requestDbReset, sqlClient } from './db/index.js';
 import { api } from './routes.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
 import { apiLimiter } from './middleware/rateLimit.js';
@@ -41,7 +41,7 @@ export function createApp() {
     const end = beginDbWork();
     const timer = setTimeout(() => {
       if (res.headersSent) return;
-      resetDb(`${req.method} ${req.path} took over ${REQUEST_TIMEOUT_MS / 1000}s`);
+      requestDbReset(`${req.method} ${req.path} took over ${REQUEST_TIMEOUT_MS / 1000}s`);
       res.status(503).set('Retry-After', '1').json({ error: { code: 'BUSY', message: 'Máy chủ phản hồi chậm. Thử lại sau giây lát.' } });
     }, REQUEST_TIMEOUT_MS);
     const finish = () => {
@@ -75,7 +75,7 @@ export function createApp() {
       body.dbMs = Date.now() - t;
       if (body.db === 'down') {
         body.status = 'degraded';
-        resetDb('health check could not reach the database');
+        requestDbReset('health check could not reach the database');
       }
     }
     res.set('Cache-Control', 'no-store').status(body.status === 'ok' ? 200 : 503).json(body);

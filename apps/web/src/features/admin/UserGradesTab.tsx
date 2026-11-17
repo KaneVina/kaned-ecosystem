@@ -19,7 +19,7 @@ const fmt = (v: number) => (Number.isInteger(v) ? String(v) : String(Math.round(
 /** Component scores and pass conditions behind one subject's grade. */
 function GradeBreakdown({ g, passMark }: { g: AdminUserGradeDto; passMark: number }) {
   const scheme = evaluateAssessment(g.assessmentScheme, g.criteria, passMark);
-  const crit = evaluatePassCriteria(g.passCriteria, g.score10, g.criteria, g.assessmentScheme);
+  const crit = evaluatePassCriteria(g.passCriteria, g.score10, g.criteria, g.assessmentScheme, passMark);
   return (
     <div className="ug-break">
       {g.assessmentScheme.length > 0 && (

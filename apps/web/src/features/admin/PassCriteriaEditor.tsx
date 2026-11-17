@@ -1,4 +1,4 @@
-import { useId, type Dispatch, type SetStateAction } from 'react';
+import { useId, useState, type Dispatch, type SetStateAction } from 'react';
 import { Award, Ban, CalendarX2, ClipboardCheck, Plus, RotateCcw, Sigma, Trash2, Wand2, X, type LucideIcon } from 'lucide-react';
 import {
   absenceLimit,
@@ -48,10 +48,8 @@ const PRESETS: Array<{ label: string; build: () => PassCriterion[] }> = [
   { label: 'FE ≥ 4 · Tổng ≥ 5', build: () => [column('FE'), make('total')] },
   { label: 'PE ≥ 4 · FE ≥ 4 · Tổng ≥ 5', build: () => [column('PE'), column('FE'), make('total')] },
   { label: 'FE = PE + TE', build: () => [column('FE', 4, { parts: [part('PE', 50, null, true), part('TE', 50, null, true)] })] },
-  {
-    label: 'PE: Speaking · Interview · Presentation',
-    build: () => [column('PE', 5, { retake: true, parts: [part('Speaking', null, 4), part('Interview', null, 4, true), part('Presentation', null, 4)] })],
-  },
+  { label: 'PE ≥ 4 · FE ≥ 4 (thi lại được) · Tổng ≥ 5', build: () => [column('PE', 4, { retake: true }), column('FE', 4, { retake: true }), make('total')] },
+  { label: 'PE kèm Interview · Presentation', build: () => [column('PE', 4, { retake: true, extras: ['Interview', 'Presentation'] })] },
   { label: 'Vắng ≤ 20%', build: () => [make('attendance')] },
   { label: 'Không điểm liệt', build: () => [make('noZero')] },
   {
@@ -91,8 +89,15 @@ function ComponentCard({ c, set, lists }: { c: ComponentCriterion; set: (next: C
   const setPart = (id: string, patch: Partial<ScorePart>) => set({ ...c, parts: parts.map((p) => (p.id === id ? { ...p, ...patch } : p)) });
   const addPart = (label = '') => set({ ...c, parts: [...parts, part(label)] });
 
+  const [extra, setExtra] = useState('');
+  const extras = c.extras ?? [];
+  const addExtra = (raw: string) => {
+    const t = raw.trim().slice(0, 40);
+    if (t && !extras.some((x) => x.toLowerCase() === t.toLowerCase()) && extras.length < 6) set({ ...c, extras: [...extras, t] });
+    setExtra('');
+  };
   let hint: string;
-  if (!parts.length) hint = `Sinh viên nhập điểm ${c.label || 'cột này'}. Thêm phần thi nếu cột gồm nhiều phần (Speaking, Interview…).`;
+  if (!parts.length) hint = `Sinh viên nhập điểm ${c.label || 'cột này'}. Chỉ thêm "Phần thi tính điểm" khi cột là tổng của nhiều bài có điểm (vd. FE = PE + TE).`;
   else if (computed) hint = `${formulaOf(c)}${Math.round(sum) !== 100 ? ` — tổng tỉ trọng ${sum}%, sẽ quy về 100%` : ''}. ${c.label} được tính tự động.`;
   else if (weighted) hint = `Nhập tỉ trọng cho mọi phần để tự tính ${c.label || 'cột này'}, hoặc bỏ hết tỉ trọng để chỉ xét điểm sàn từng phần.`;
   else hint = `Sinh viên nhập điểm ${c.label || 'cột'}; mỗi phần có điểm sàn riêng — có thể cao hơn hoặc thấp hơn ${c.min}.`;
@@ -156,7 +161,7 @@ function ComponentCard({ c, set, lists }: { c: ComponentCriterion; set: (next: C
           {parts.length < 6 && (
             <button type="button" className="pce-preset" onClick={() => addPart()}>
               <Plus className="ic ic-xs" />
-              Phần thi
+              Phần thi tính điểm
             </button>
           )}
           {!parts.length && /^fe$/i.test(c.label.trim()) && (
@@ -164,14 +169,45 @@ function ComponentCard({ c, set, lists }: { c: ComponentCriterion; set: (next: C
               FE = PE + TE
             </button>
           )}
-          {!parts.length &&
-            ['Speaking', 'Interview', 'Presentation'].map((n) => (
-              <button key={n} type="button" className="pce-preset" onClick={() => addPart(n)}>
-                + {n}
-              </button>
-            ))}
         </div>
         <p className="pce-hint">{hint}</p>
+        <div className="pce-extras">
+          <span className="pce-extras-l">Kèm theo (chỉ thông báo, không tính điểm):</span>
+          {extras.map((x) => (
+            <span key={x} className="code-chip">
+              {x}
+              <button type="button" onClick={() => set({ ...c, extras: extras.filter((y) => y !== x) })} aria-label={`Bỏ ${x}`}>
+                <X className="ic ic-xs" />
+              </button>
+            </span>
+          ))}
+          {extras.length < 6 && (
+            <>
+              <input
+                className="input input-sm pce-extra-in"
+                value={extra}
+                maxLength={40}
+                placeholder="vd. Hỏi code"
+                aria-label="Thêm yêu cầu kèm theo"
+                onChange={(e) => setExtra(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ',') {
+                    e.preventDefault();
+                    addExtra(extra);
+                  }
+                }}
+                onBlur={() => extra.trim() && addExtra(extra)}
+              />
+              {['Speaking', 'Interview', 'Presentation', 'Hỏi code']
+                .filter((n) => !extras.includes(n))
+                .map((n) => (
+                  <button key={n} type="button" className="pce-preset" onClick={() => addExtra(n)}>
+                    + {n}
+                  </button>
+                ))}
+            </>
+          )}
+        </div>
       </div>
     </>
   );

@@ -53,6 +53,11 @@ export const passCriterionSchema = z.discriminatedUnion('kind', [
     min: score,
     retake: z.boolean().optional(),
     parts: z.array(scorePartSchema).max(6).optional(),
+    /**
+     * What has to be done with this exam besides its score — Speaking,
+     * Interview, Presentation (code review). A notice only, never scored.
+     */
+    extras: z.array(z.string().trim().min(1).max(40)).max(6).optional(),
   }),
   z.object({ id: critId, kind: z.literal('total'), min: score }),
   z.object({
@@ -168,6 +173,8 @@ export interface CriterionCheck {
   formula?: string | null;
   /** Parts whose second attempt could still lift a computed column that falls short. */
   liftable?: string[];
+  /** Score boxes whose second attempt is open now (lần 1 short, or the total short). */
+  retakeKeys?: string[];
   /** Attendance. */
   attendance?: { absent: number | null; sessions: number | null; askSessions: boolean; limit: number | null; left: number | null };
   /** No-zero rule: the columns that are 0. */
@@ -227,10 +234,22 @@ export function evaluatePassCriteria(
   values: PassCriteriaValues | null | undefined,
   /** The subject's assessment scheme, so the no-zero rule also sees its parts. */
   scheme?: AssessmentItem[] | null,
+  /** The programme's pass mark; the subject's own "total ≥" rule wins when it has one. */
+  passMark?: number,
 ): PassCriteriaResult {
   const list = criteria ?? [];
   const v = values ?? {};
   const scoreLines: ScoreLine[] = [];
+  /*
+   * Retake rule (FPT): when the total clears the mark, only the column under
+   * its floor is retaken; when the total falls short, every column that can be
+   * retaken must be, even those already above their floor.
+   */
+  const totalRule = list.find((c): c is Extract<PassCriterion, { kind: 'total' }> => c.kind === 'total');
+  const totalFloor = totalRule?.min ?? passMark ?? null;
+  const totalLow = score10 !== null && totalFloor !== null && score10 < totalFloor;
+  const retakeLabels: string[] = [];
+  let retakesOpen = 0;
 
   const checks = list.map<CriterionCheck>((c) => {
     const text = describeCriterion(c);
@@ -254,9 +273,17 @@ export function evaluatePassCriteria(
         if (main.state === 'bad' && liftable.length) main.state = 'retake';
         // A part without its own floor only matters when it feeds the computed column.
         const counted = parts.filter((p) => computed || p.min !== null);
+        // Total under the mark: every retakeable box with a first attempt goes to lần 2.
+        const boxes = computed ? parts : [main, ...parts];
+        const due = totalLow ? boxes.filter((l) => l.retake && l.second === null && l.first !== null) : [];
+        const forced = due.filter((l) => l.state === 'ok');
+        for (const l of forced) l.state = 'retake';
+        if (due.length) retakeLabels.push(c.label);
+        const retakeKeys = boxes.filter((l) => l.retake && l.second === null && (l.state === 'retake' || (computed && main.state === 'retake'))).map((l) => l.key);
+        retakesOpen += retakeKeys.length;
+        const state = worst([main.state, ...counted.map((p) => p.state), ...forced.map((l) => l.state)]);
+        const failing = [...counted, main].find((l) => l.state === 'bad') ?? [...counted, main].find((l) => l.state === 'retake' && !forced.includes(l));
         scoreLines.push(...(computed ? parts : [main, ...parts]));
-        const state = worst([main.state, ...counted.map((p) => p.state)]);
-        const failing = [...counted, main].find((l) => l.state === 'bad') ?? [...counted, main].find((l) => l.state === 'retake');
         return {
           criterion: c,
           text,
@@ -266,12 +293,16 @@ export function evaluatePassCriteria(
           score: main,
           parts,
           formula: formulaOf(c),
-          detail: failing === main && main.state === 'retake' && computed
-            ? `${c.label} được ${fmt(main.effective!)} < ${fmt(c.min)} — còn thi lại lần 2 (${liftable.map((p) => p.label).join(', ')})`
-            : failing
-              ? lineDetail(failing)
-              : undefined,
+          detail:
+            !failing && forced.length
+              ? `Điểm tổng ${fmt(score10!)} < ${fmt(totalFloor!)} — phải thi lại ${c.label} dù đã đạt ${fmt(c.min)}`
+              : failing === main && main.state === 'retake' && computed
+                ? `${c.label} được ${fmt(main.effective!)} < ${fmt(c.min)} — còn thi lại lần 2 (${liftable.map((p) => p.label).join(', ')})`
+                : failing
+                  ? lineDetail(failing)
+                  : undefined,
           liftable: liftable.map((p) => p.key),
+          retakeKeys,
         };
       }
       case 'attendance': {
@@ -306,6 +337,18 @@ export function evaluatePassCriteria(
         return { criterion: c, text, state: 'wait', ok: null, value: v[c.id] === true };
     }
   });
+
+  // The total waits on retakes when there are columns left to retake.
+  for (const check of checks) {
+    if (check.criterion.kind !== 'total' || check.state !== 'bad') continue;
+    if (retakesOpen > 0) {
+      check.state = 'retake';
+      check.ok = false;
+      check.detail = `Điểm tổng ${fmt(score10!)} < ${fmt(check.criterion.min)} — thi lại ${retakeLabels.length ? retakeLabels.join(' và ') : 'các cột được thi lại'}, rồi nhập điểm tổng mới`;
+    } else {
+      check.detail = `Điểm tổng ${fmt(score10!)} < ${fmt(check.criterion.min)}`;
+    }
+  }
 
   // The no-zero rule looks at every score recorded above, so it is settled last.
   for (const check of checks) {
@@ -352,8 +395,9 @@ export function criteriaBlockPass(
   score10: number | null,
   values: PassCriteriaValues | null | undefined,
   scheme?: AssessmentItem[] | null,
+  passMark?: number,
 ) {
-  const byCriteria = criteria?.length ? !evaluatePassCriteria(criteria, score10, values, scheme).met : false;
-  const byScheme = scheme?.length ? !evaluateAssessment(scheme, values).completionOk : false;
+  const byCriteria = criteria?.length ? !evaluatePassCriteria(criteria, score10, values, scheme, passMark).met : false;
+  const byScheme = scheme?.length ? !evaluateAssessment(scheme, values, passMark).completionOk : false;
   return byCriteria || byScheme;
 }

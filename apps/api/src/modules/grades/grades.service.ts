@@ -90,7 +90,7 @@ export async function gradeSummary(userId: string): Promise<GpaSummary> {
       credits: g.subject.credits,
       score10: g.score10,
       termNo: g.termNo,
-      criteriaMet: !criteriaBlockPass(g.subject.passCriteria, g.score10, g.criteria, g.subject.assessmentScheme),
+      criteriaMet: !criteriaBlockPass(g.subject.passCriteria, g.score10, g.criteria, g.subject.assessmentScheme, user?.major?.passMark),
     })),
     user?.major?.passMark,
   );
@@ -123,7 +123,7 @@ export async function plan(userId: string, query: PlannerQuery) {
       subjectId: g.subjectId,
       score10: g.score10,
       inProgress: g.inProgress,
-      criteriaMet: !criteriaBlockPass(criteriaById.get(g.subjectId)?.passCriteria, g.score10, g.criteria, criteriaById.get(g.subjectId)?.assessmentScheme),
+      criteriaMet: !criteriaBlockPass(criteriaById.get(g.subjectId)?.passCriteria, g.score10, g.criteria, criteriaById.get(g.subjectId)?.assessmentScheme, query.passMark ?? major.passMark),
     })),
     { passMark: query.passMark ?? major.passMark },
   );

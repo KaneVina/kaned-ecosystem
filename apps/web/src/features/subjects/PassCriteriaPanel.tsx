@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Check, Circle, RotateCcw, X } from 'lucide-react';
+import { Check, Circle, Info, RotateCcw, X } from 'lucide-react';
 import {
   criterionKey,
   type CheckState,
@@ -113,10 +113,21 @@ function ComponentItem({ check, set }: { check: CriterionCheck; set: (key: strin
             {main.effective === null ? '—' : fmt(main.effective)}
           </span>
         ) : (
-          <Attempts line={main} set={set} />
+          <Attempts line={main} set={set} open={check.retakeKeys?.includes(main.key)} />
         )}
       </div>
       {check.formula && <p className="pc-formula">{check.formula}</p>}
+      {c.extras && c.extras.length > 0 && (
+        <p className="pc-extras" title="Làm xong bài thi cần thực hiện thêm — không tính điểm riêng">
+          <Info className="ic ic-xs" />
+          <span>Kèm theo {c.label}:</span>
+          {c.extras.map((x) => (
+            <span key={x} className="pc-extra">
+              {x}
+            </span>
+          ))}
+        </p>
+      )}
       {parts.length > 0 && (
         <ul className="pc-parts">
           {parts.map((p) => (
@@ -132,7 +143,7 @@ function ComponentItem({ check, set }: { check: CriterionCheck; set: (key: strin
                   </span>
                 )}
               </span>
-              <Attempts line={p} set={set} open={check.liftable?.includes(p.key)} />
+              <Attempts line={p} set={set} open={check.retakeKeys?.includes(p.key)} />
             </li>
           ))}
         </ul>

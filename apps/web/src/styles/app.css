@@ -995,3 +995,12 @@ a.dash-tool:hover .dash-tool-go { transform: translateX(3px); color: var(--viole
 .sd-facts > div.wide { grid-column: 1 / -1; }
 .sd-facts dt { font-size: 11.5px; color: var(--ink-4); }
 .sd-facts dd { margin: 2px 0 0; font-size: 13.5px; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.pc-extras { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; padding: 6px 8px; border-radius: 8px; background: color-mix(in srgb, var(--violet, #4433B4) 5%, transparent); font-size: 12.5px; color: var(--ink-3); }
+.pc-extras .ic { color: var(--violet, #4433B4); }
+.pc-extra { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 999px; background: var(--paper); border: 1px solid var(--violet-200, #CFC8F3); color: var(--violet-700, #3A2B9A); font-weight: 600; font-size: 12px; }
+.xr-retake { margin-top: 12px; padding: 10px 12px; border-radius: 10px; border: 1px solid #F0D9A8; background: #FFFBF2; }
+.xr-retake > b { display: block; margin-bottom: 6px; font-size: 12.5px; color: #8A5300; }
+.xr-retake p { margin: 8px 0 0; font-size: 12.5px; color: var(--ink-3, #5E5B73); line-height: 1.45; }
+.xr-rt thead th { font-size: 11.5px; font-weight: 600; color: var(--ink-4, #8B88A0); border-top: 0 !important; }
+.xr-rt td { font-variant-numeric: tabular-nums; }
+.xr-rt td b { color: var(--ink, #1C1A2B); font-weight: 600; }

@@ -52,7 +52,7 @@ export function SubjectDetail({
   const known = new Set(statusByCode.keys());
   const criteria = subject.passCriteria ?? [];
   const scheme = subject.assessmentScheme ?? [];
-  const crit = evaluatePassCriteria(criteria, entry?.inProgress ? null : score, entry?.criteria, scheme);
+  const crit = evaluatePassCriteria(criteria, entry?.inProgress ? null : score, entry?.criteria, scheme, passMark);
   const unmet = crit.checks.filter((c) => c.state !== 'ok').map((c) => (c.state === 'retake' ? `${c.text} (còn thi lại lần 2)` : c.text));
 
   return (

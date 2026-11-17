@@ -123,8 +123,9 @@ export function toApiError(error: unknown): NormalisedApiError {
     err.status = error.response?.status ?? 0;
     err.code = body?.error?.code ?? (error.code === 'ECONNABORTED' ? 'TIMEOUT' : 'NETWORK');
     err.fields = body?.error?.fields;
+    const detail = (body?.error as { detail?: string } | undefined)?.detail;
     err.message =
-      body?.error?.message ??
+      (body?.error?.message ? `${body.error.message}${detail ? ` (${detail})` : ''}` : undefined) ??
       (err.status === 0
         ? 'Không kết nối được tới máy chủ. Kiểm tra xem API đã chạy chưa.'
         : 'Đã có lỗi xảy ra. Vui lòng thử lại.');
