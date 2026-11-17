@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { SearchSelect } from "@/components/ui/SearchSelect";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -15,20 +14,14 @@ import {
   FolderOpen,
   Link2,
   ListChecks,
-  Plus,
   ScrollText,
   Trash2,
   X,
 } from "lucide-react";
 import {
   createDocumentSchema,
-  DOCUMENT_TYPES,
-  DOCUMENT_TYPE_LABELS,
   MAX_UPLOAD_BYTES,
   MIME_TO_FORMAT,
-  SEMESTERS,
-  SEMESTER_LABELS,
-  STUDY_YEARS,
   type CreateDocumentInput,
   type DocumentSummaryDto,
   detectLinkProvider,
@@ -40,14 +33,13 @@ import { FileIcon } from "@/components/ui/FileBadge";
 import { DocCard } from "@/components/library/DocCard";
 import { useCreateDocument, uploadToCloudinary } from "./queries";
 import { useIdempotencyKey } from "@/lib/useIdempotencyKey";
-import { useFolders, useSubjects, useTerms, useUniversities } from "@/features/catalog/queries";
-import { buildFolderTree, flattenTree } from "@/lib/folders";
+import { useSubjects, useUniversities } from "@/features/catalog/queries";
 import { useAuth } from "@/providers/AuthProvider";
 import { useToast } from "@/providers/ToastProvider";
 import { toApiError } from "@/lib/api";
 import { fmtBytes } from "@/lib/format";
 import { cn } from "@/lib/cn";
-import { TYPE_ICONS } from "@/lib/typeIcons";
+import { PlacementFields, TagInput, TypePicker } from "@/components/documents/DocumentFields";
 
 const EXT_TO_FORMAT: Record<string, FileFormat> = {
   pdf: "PDF",
@@ -149,27 +141,6 @@ export function UploadPage() {
       form.setValue("subjectId", form.getValues("subjectId"));
   }, [subjects.length, form]);
   const university = universities.find((u) => u.id === v.universityId);
-  const { data: terms = [] } = useTerms(v.universityId || undefined);
-  const { data: folders = [] } = useFolders(v.subjectId || undefined);
-  const folderOptions = flattenTree(buildFolderTree(folders));
-  // The school's current term is the most likely one; pick it unless one is set.
-  useEffect(() => {
-    if (!terms.length || form.getValues("academicTermId")) return;
-    const current = terms.find((t) => t.state === "current") ?? terms[terms.length - 1];
-    if (current) {
-      form.setValue("academicTermId", current.id);
-      pickTerm(current.id);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [terms.length]);
-  const periods = university?.periods ?? [];
-  /** Picking one of the school's terms fills in semester and school year. */
-  const pickTerm = (termId: string) => {
-    const term = terms.find((t) => t.id === termId);
-    if (!term) return;
-    form.setValue("semester", term.semester, { shouldValidate: submitted });
-    form.setValue("schoolYear", term.schoolYear);
-  };
 
   const accept = (f: File) => {
     const ext = (f.name.split(".").pop() ?? "").toLowerCase();
@@ -207,20 +178,6 @@ export function UploadPage() {
   };
 
   const tags = v.tags ?? [];
-  const addTag = (raw: string) => {
-    let next = [...tags];
-    for (const part of raw.split(/[,，\n]/)) {
-      const t = part.trim().slice(0, 30);
-      if (t && !next.includes(t) && next.length < 8) next.push(t);
-    }
-    if (next.length !== tags.length) form.setValue("tags", next);
-    setTagDraft("");
-  };
-  const suggested = subject
-    ? [subject.code, subject.nameVi.toLowerCase()].filter(
-        (t) => !tags.includes(t),
-      )
-    : [];
 
   const checklist: Array<[string, boolean]> = [
     [source === "file" ? "Tệp tài liệu" : "Liên kết", hasSource],
@@ -557,102 +514,20 @@ export function UploadPage() {
                 </span>
               </div>
             </div>
-            <fieldset className={cn("field", errors.type && "invalid")}>
-              <legend className="label">
-                Loại tài liệu <span className="req">*</span>
-              </legend>
-              <div className="type-grid">
-                {DOCUMENT_TYPES.map((t) => {
-                  const Icon = TYPE_ICONS[t];
-                  return (
-                    <label key={t} className="type-card">
-                      <input
-                        type="radio"
-                        value={t}
-                        {...form.register("type")}
-                      />
-                      <span className="tc-ic">
-                        <Icon className="ic ic-sm" />
-                      </span>
-                      <span>{DOCUMENT_TYPE_LABELS[t].vi}</span>
-                    </label>
-                  );
-                })}
-              </div>
-              <span className="error-text">
-                <CircleAlert className="ic ic-xs" />
-                <span>Chọn loại tài liệu.</span>
-              </span>
-            </fieldset>
-            <div className="field">
-              <label className="label" htmlFor="up-tag">
-                Thẻ <span className="opt">· tối đa 8, Enter hoặc dấu phẩy để tách</span>
-              </label>
-              <div
-                className="tag-input"
-                onClick={() => document.getElementById("up-tag")?.focus()}
-              >
-                {tags.map((t) => (
-                  <span key={t} className="chip">
-                    {t}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        form.setValue(
-                          "tags",
-                          tags.filter((x) => x !== t),
-                        )
-                      }
-                      aria-label={`Bỏ thẻ ${t}`}
-                    >
-                      <X className="ic ic-xs" />
-                    </button>
-                  </span>
-                ))}
-                <input
-                  id="up-tag"
-                  placeholder={tags.length ? "" : "Gõ từ khoá rồi nhấn Enter"}
-                  maxLength={30}
-                  value={tagDraft}
-                  enterKeyHint="enter"
-                  onChange={(e) => {
-                    // Phone keyboards do not report "," as a key press, so split on the text itself.
-                    const val = e.target.value;
-                    if (/[,，]/.test(val)) addTag(val);
-                    else setTagDraft(val);
-                  }}
-                  onBlur={() => tagDraft.trim() && addTag(tagDraft)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === ",") {
-                      e.preventDefault();
-                      addTag(tagDraft);
-                    } else if (
-                      e.key === "Backspace" &&
-                      !tagDraft &&
-                      tags.length
-                    ) {
-                      form.setValue("tags", tags.slice(0, -1));
-                    }
-                  }}
-                />
-              </div>
-              {suggested.length > 0 && tags.length < 8 && (
-                <div className="tag-suggest">
-                  <span>Gợi ý:</span>
-                  {suggested.map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      className="tag"
-                      onClick={() => addTag(t)}
-                    >
-                      <Plus className="ic ic-xs" />
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <TypePicker
+              name="up-type"
+              value={v.type}
+              invalid={Boolean(errors.type)}
+              onChange={(t) => form.setValue("type", t, { shouldValidate: submitted })}
+            />
+            <TagInput
+              id="up-tag"
+              value={tags}
+              onChange={(next) => form.setValue("tags", next)}
+              draft={tagDraft}
+              onDraft={setTagDraft}
+              suggestions={subject ? [subject.code, subject.nameVi.toLowerCase()] : []}
+            />
           </section>
 
           <section className="panel up-sec">
@@ -666,160 +541,31 @@ export function UploadPage() {
                 </p>
               </div>
             </div>
-            <div className="form-grid">
-              <div className={cn("field", errors.universityId && "invalid")}>
-                <label className="label" htmlFor="up-uni">
-                  Trường <span className="req">*</span>
-                </label>
-                <SearchSelect
-                  id="up-uni"
-                  value={v.universityId ?? ""}
-                  invalid={Boolean(errors.universityId)}
-                  placeholder="Chọn trường"
-                  searchPlaceholder="Gõ tên hoặc mã trường…"
-                  options={universities.map((u) => ({ value: u.id, code: u.code, label: u.nameVi, keywords: u.name }))}
-                  onChange={(id) => {
-                    form.setValue("universityId", id, { shouldValidate: submitted });
-                    form.setValue("subjectId", "");
-                    form.setValue("folderId", "");
-                    form.setValue("academicTermId", "");
-                    form.setValue("period", "");
-                  }}
-                />
-                <span className="error-text">
-                  <CircleAlert className="ic ic-xs" />
-                  <span>Chọn trường.</span>
-                </span>
-              </div>
-              <div className={cn("field", errors.subjectId && "invalid")}>
-                <label className="label" htmlFor="up-subject">
-                  Môn học <span className="req">*</span>
-                </label>
-                <SearchSelect
-                  id="up-subject"
-                  value={v.subjectId ?? ""}
-                  disabled={!v.universityId}
-                  invalid={Boolean(errors.subjectId)}
-                  placeholder={v.universityId ? "Chọn môn học" : "Chọn trường trước"}
-                  searchPlaceholder="Gõ mã môn hoặc tên, vd. CSD201, cấu trúc…"
-                  options={subjects.map((s) => ({ value: s.id, code: s.code, label: s.nameVi, keywords: s.name }))}
-                  onChange={(id) => {
-                    form.setValue("subjectId", id, { shouldValidate: submitted });
-                    form.setValue("folderId", "");
-                  }}
-                />
-                <span className="error-text">
-                  <CircleAlert className="ic ic-xs" />
-                  <span>Chọn môn mà tài liệu thuộc về.</span>
-                </span>
-              </div>
-              {folderOptions.length > 0 && (
-                <div className="field">
-                  <label className="label" htmlFor="up-folder">
-                    Thư mục trong môn
-                  </label>
-                  <SearchSelect
-                    id="up-folder"
-                    value={v.folderId ?? ""}
-                    clearable
-                    placeholder="Không xếp vào thư mục"
-                    searchPlaceholder="Tìm thư mục…"
-                    options={folderOptions.map((f) => ({ value: f.id, label: f.name, depth: f.depth }))}
-                    onChange={(id) => form.setValue("folderId", id)}
-                  />
-                </div>
-              )}
-              {terms.length > 0 ? (
-                <div className={cn("field", errors.semester && "invalid")}>
-                  <label className="label" htmlFor="up-term">
-                    Học kỳ <span className="req">*</span>
-                  </label>
-                  <SearchSelect
-                    id="up-term"
-                    value={v.academicTermId ?? ""}
-                    invalid={Boolean(errors.semester)}
-                    placeholder="Chọn học kỳ"
-                    searchPlaceholder="Tìm học kỳ, vd. Fall 2026…"
-                    options={[...terms].reverse().map((t) => ({
-                      value: t.id,
-                      label: t.state === "current" ? `${t.name} — đang diễn ra` : t.name,
-                      keywords: t.code,
-                    }))}
-                    onChange={(id) => {
-                      form.setValue("academicTermId", id);
-                      pickTerm(id);
-                    }}
-                  />
-                  <span className="error-text">
-                    <CircleAlert className="ic ic-xs" />
-                    <span>Chọn học kỳ.</span>
-                  </span>
-                </div>
-              ) : (
-                <fieldset className={cn("field", errors.semester && "invalid")}>
-                  <legend className="label">
-                    Học kỳ <span className="req">*</span>
-                  </legend>
-                  <div className="pill-radios">
-                    {SEMESTERS.map((s) => (
-                      <label key={s} className="pill-radio">
-                        <input type="radio" value={s} {...form.register("semester")} />
-                        <span>{SEMESTER_LABELS[s].vi}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <span className="error-text">
-                    <CircleAlert className="ic ic-xs" />
-                    <span>Chọn học kỳ.</span>
-                  </span>
-                </fieldset>
-              )}
-              {periods.length > 0 && (
-                <fieldset className="field">
-                  <legend className="label">Block</legend>
-                  <div className="pill-radios">
-                    {periods.map((p) => (
-                      <label key={p} className="pill-radio">
-                        <input
-                          type="radio"
-                          name="up-period"
-                          checked={v.period === p}
-                          onChange={() => form.setValue("period", p)}
-                          onClick={() => v.period === p && form.setValue("period", "")}
-                        />
-                        <span>{p}</span>
-                      </label>
-                    ))}
-                  </div>
-                </fieldset>
-              )}
-              <fieldset className={cn("field", errors.year && "invalid")}>
-                <legend className="label">
-                  Năm học <span className="req">*</span>
-                </legend>
-                <div className="pill-radios">
-                  {STUDY_YEARS.map((y) => (
-                    <label key={y} className="pill-radio">
-                      <input type="radio" value={y} {...form.register("year")} />
-                      <span>Năm {y}</span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-              <div className="field">
-                <label className="label" htmlFor="up-lecturer">
-                  Giảng viên
-                </label>
-                <input
-                  id="up-lecturer"
-                  className="input"
-                  maxLength={120}
-                  placeholder="vd. Nguyễn Văn A"
-                  autoComplete="off"
-                  {...form.register("lecturer")}
-                />
-              </div>
-            </div>
+            <PlacementFields
+              idPrefix="up"
+              value={{
+                universityId: v.universityId ?? "",
+                subjectId: v.subjectId ?? "",
+                folderId: v.folderId ?? "",
+                academicTermId: v.academicTermId ?? "",
+                semester: v.semester ?? "",
+                schoolYear: v.schoolYear ?? "",
+                period: v.period ?? "",
+                year: v.year ?? "",
+                lecturer: v.lecturer ?? "",
+              }}
+              onChange={(patch) => {
+                for (const [key, val] of Object.entries(patch)) {
+                  form.setValue(key as keyof Form, val as never, { shouldValidate: submitted });
+                }
+              }}
+              errors={{
+                universityId: Boolean(errors.universityId),
+                subjectId: Boolean(errors.subjectId),
+                semester: Boolean(errors.semester),
+                year: Boolean(errors.year),
+              }}
+            />
           </section>
 
           <section className="panel up-sec">
