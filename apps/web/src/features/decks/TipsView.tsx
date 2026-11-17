@@ -3,7 +3,7 @@ import { CircleCheckBig, Lightbulb, TriangleAlert } from 'lucide-react';
 import { fmtInt } from '@/lib/format';
 import { cn } from '@/lib/cn';
 import { useDeckCtx } from './context';
-import { TipBody } from './parts';
+import { QText, TipBody } from './parts';
 
 export function TipsView() {
   const { m, startPractice, go } = useDeckCtx();
@@ -97,7 +97,7 @@ export function TipsView() {
                   <TriangleAlert className="ic ic-sm" />
                   <span>Lưu ý · Đáp án câu {q.id}</span>
                 </h3>
-                <p className="dk-tip-q">{q.text}</p>
+                <QText text={q.text} small as="div" />
                 <TipBody body={q.warning!} />
                 <footer>
                   <span>Đáp án theo bộ đề: {q.answers.map((k) => q.options[k]).join('; ')}</span>

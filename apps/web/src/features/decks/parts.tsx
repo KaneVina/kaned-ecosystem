@@ -1,4 +1,6 @@
-import { Fragment, type ReactNode } from 'react';
+import { Fragment, useState, type ReactNode } from 'react';
+import { Search } from 'lucide-react';
+import { Typewriter } from '@/components/ui/Typewriter';
 import { ArrowDownUp, ChevronDown, Copy, Lightbulb, Shuffle, TriangleAlert } from 'lucide-react';
 import type { DeckQuestion } from '@kaned/shared';
 import { cn } from '@/lib/cn';
@@ -6,13 +8,63 @@ import { fmtInt } from '@/lib/format';
 import { useDeckCtx } from './context';
 import { countsOf, highlight, type Scope } from './model';
 
-/** **bold** inside a line. */
-function Inline({ text }: { text: string }) {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+/** **bold** and `code` inside a line, optionally with search matches marked. */
+export function Inline({ text, terms }: { text: string; terms?: string[] }) {
+  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+  const t = (x: string) => (terms?.length ? <Highlighted text={x} terms={terms} /> : x);
   return (
     <>
-      {parts.map((p, i) => (p.startsWith('**') && p.endsWith('**') && p.length > 4 ? <b key={i}>{p.slice(2, -2)}</b> : <Fragment key={i}>{p}</Fragment>))}
+      {parts.map((p, i) =>
+        p.startsWith('**') && p.endsWith('**') && p.length > 4 ? (
+          <b key={i}>{t(p.slice(2, -2))}</b>
+        ) : p.startsWith('`') && p.endsWith('`') && p.length > 2 ? (
+          <code key={i} className="dk-ic">
+            {t(p.slice(1, -1))}
+          </code>
+        ) : (
+          <Fragment key={i}>{t(p)}</Fragment>
+        ),
+      )}
     </>
+  );
+}
+
+/** A question's text: prose lines, and code between ``` lines shown as a block. */
+export function QText({ text, terms, small, as: Tag = 'h2' }: { text: string; terms?: string[]; small?: boolean; as?: 'h2' | 'h3' | 'div' }) {
+  const blocks: Array<{ code: boolean; lines: string[] }> = [];
+  let fence = false;
+  for (const line of text.split('\n')) {
+    if (/^```/.test(line.trim())) {
+      fence = !fence;
+      blocks.push({ code: fence, lines: [] });
+      continue;
+    }
+    const last = blocks[blocks.length - 1];
+    if (last && last.code === fence) last.lines.push(line);
+    else blocks.push({ code: fence, lines: [line] });
+  }
+  const parts = blocks.filter((b) => b.lines.length);
+  const hasCode = parts.some((b) => b.code);
+  const Outer = hasCode ? 'div' : Tag;
+  return (
+    <Outer className={cn('dk-qtext', small && 'is-sm', hasCode && 'has-code')} {...(hasCode ? { role: 'heading', 'aria-level': Tag === 'h3' ? 3 : 2 } : {})}>
+      {parts.map((b, i) =>
+        b.code ? (
+          <pre key={i} className="dk-codeblock">
+            <code>{terms?.length ? <Highlighted text={b.lines.join('\n')} terms={terms} /> : b.lines.join('\n')}</code>
+          </pre>
+        ) : (
+          <span key={i} className="dk-qline">
+            {b.lines.map((l, j) => (
+              <Fragment key={j}>
+                {j > 0 && <br />}
+                <Inline text={l} terms={terms} />
+              </Fragment>
+            ))}
+          </span>
+        ),
+      )}
+    </Outer>
   );
 }
 
@@ -60,6 +112,7 @@ export function Highlighted({ text, terms }: { text: string; terms: string[] }) 
 /** Note, other exam's answer, other ways of asking, the original question: label + text. */
 export function extraNotes(q: DeckQuestion, QI: Map<string, DeckQuestion>): Array<[string, ReactNode]> {
   const out: Array<[string, ReactNode]> = [];
+  if (q.explain) out.push(['Giải thích', <TipInlineLines key="e" text={q.explain} />]);
   if (q.note) out.push(['Ghi chú', <TipInlineLines key="n" text={q.note} />]);
   if (q.alt)
     out.push([
@@ -143,8 +196,12 @@ export function StudyAids({ q, sim = true }: { q: DeckQuestion; sim?: boolean })
           {similar.map((r) => (
             <div key={r.id} className="dk-sim-row">
               <span className="dk-sim-n">Câu {r.id}</span>
-              <span>{r.text}</span>
-              <span className="dk-sim-a">{r.answers.map((k) => r.options[k]).join('; ')}</span>
+              <span>
+                <Inline text={r.text.replace(/```\w*\n?/g, '')} />
+              </span>
+              <span className="dk-sim-a">
+                <Inline text={r.answers.map((k) => r.options[k]).join('; ')} />
+              </span>
             </div>
           ))}
         </div>
@@ -306,4 +363,65 @@ export function confetti() {
     else cv.remove();
   };
   requestAnimationFrame(step);
+}
+
+/** "Gợi ý" before answering: closed until asked for. */
+export function HintToggle({ hint }: { hint?: string }) {
+  const [open, setOpen] = useState(false);
+  if (!hint) return null;
+  return open ? (
+    <div className="dk-hintbox">
+      <div className="dk-tip-h">
+        <Lightbulb className="ic ic-sm" />
+        Gợi ý
+      </div>
+      <p>
+        <Inline text={hint} />
+      </p>
+    </div>
+  ) : (
+    <button
+      type="button"
+      className="btn btn-ghost btn-sm dk-hint-btn"
+      onClick={(e) => {
+        e.stopPropagation();
+        setOpen(true);
+      }}
+    >
+      <Lightbulb className="ic ic-sm" />
+      Gợi ý
+    </button>
+  );
+}
+
+/** The library's big search box: typing examples until you click in it. */
+export function BigSearch({ id, value, onChange, placeholder, hints, label }: { id: string; value: string; onChange: (v: string) => void; placeholder: string; hints: string[]; label: string }) {
+  const [focus, setFocus] = useState(false);
+  const typing = !value && !focus && hints.length > 0;
+  return (
+    <div className="ex-search dk-bigsearch">
+      <div className="input-group ex-search-box">
+        <Search className="ic" />
+        <label htmlFor={id} className="sr-only">
+          {label}
+        </label>
+        <input
+          id={id}
+          type="search"
+          className={cn('input input-lg', typing && 'has-tw')}
+          placeholder={placeholder}
+          value={value}
+          onFocus={() => setFocus(true)}
+          onBlur={() => setFocus(false)}
+          onChange={(e) => onChange(e.target.value)}
+          autoComplete="off"
+        />
+        {typing && (
+          <span className="ex-tw" aria-hidden>
+            Thử tìm <Typewriter phrases={hints} typeMs={45} holdMs={1800} />
+          </span>
+        )}
+      </div>
+    </div>
+  );
 }

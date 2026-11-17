@@ -5,7 +5,7 @@ import { cn } from '@/lib/cn';
 import { fmtInt } from '@/lib/format';
 import { useDeckCtx, type BrowseState } from './context';
 import { countsOf, LET, makeStatus, qLabel } from './model';
-import { hasAids, Highlighted, Notes, StudyAids } from './parts';
+import { BigSearch, Inline, Notes, QText, StudyAids, hasAids } from './parts';
 
 export function Browse() {
   const { m, state, settings, browse: B, setBrowse, startPractice, go, progress } = useDeckCtx();
@@ -17,6 +17,18 @@ export function Browse() {
   }, [text, setBrowse]);
 
   const { status, marked } = makeStatus(state);
+  // Examples from this deck: chapter names, words in `code`, a question number.
+  const hints = useMemo(() => {
+    const out: string[] = [];
+    for (const c of m.chapters.slice(0, 3)) out.push(`“${c.name.split(/\s+/).slice(0, 4).join(' ').toLowerCase()}”`);
+    if (out.length < 3) {
+      const seen = new Map<string, number>();
+      for (const q of m.Q) for (const x of `${q.text} ${q.options.join(' ')}`.matchAll(/`([A-Za-z][\w.]{2,24})`/g)) seen.set(x[1], (seen.get(x[1]) ?? 0) + 1);
+      for (const [w] of [...seen.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3 - out.length)) out.push(`“${w}”`);
+    }
+    if (m.Q.length > 12) out.push(`“${m.Q[11].id}” để mở câu ${m.Q[11].id}`);
+    return out;
+  }, [m]);
   const terms = useMemo(() => foldVi(B.q.trim()).split(/\s+/).filter(Boolean), [B.q]);
   const list = useMemo(() => {
     const nd = foldVi(B.q.trim());
@@ -48,18 +60,7 @@ export function Browse() {
 
   return (
     <div className="dk-browse">
-      <div className="dk-search">
-        <Search className="ic" />
-        <input
-          type="search"
-          className="input"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Tìm theo từ khoá, có dấu hay không dấu đều được, hoặc gõ số câu"
-          aria-label="Tìm câu hỏi"
-          autoComplete="off"
-        />
-      </div>
+      <BigSearch id="dk-bq" value={text} onChange={setText} label="Tìm câu hỏi" placeholder="Tìm theo từ khoá, có dấu hay không dấu đều được, hoặc gõ số câu" hints={hints} />
       <div className="dk-filters">
         {m.chapters.length > 0 && (
           <select className="select" value={B.ch} onChange={(e) => set({ ch: Number(e.target.value) })} aria-label="Chương">
@@ -126,15 +127,13 @@ export function Browse() {
                   <Star className="ic ic-sm" />
                 </button>
               </div>
-              <h3 className="dk-qtext is-sm">
-                <Highlighted text={q.text} terms={terms} />
-              </h3>
+              <QText text={q.text} terms={terms} small as="h3" />
               <ul className="dk-fopts">
                 {q.options.map((o, j) => (
                   <li key={j} className={!hidden && q.answers.includes(j) ? 'is-right' : ''}>
                     <b>{LET[j]}</b>
                     <span>
-                      <Highlighted text={o} terms={terms} />
+                      <Inline text={o} terms={terms} />
                     </span>
                   </li>
                 ))}

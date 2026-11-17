@@ -39,12 +39,16 @@ Dễ nhầm: 8, 9
 | `## Câu 12` | Mở câu 12. Bỏ số thì Kaned tự đánh số tiếp theo. |
 | `## Câu 12.1` | Kiểu hỏi khác của câu 12. |
 | `- [ ]` / `- [x]` | Phương án sai / đúng. Nhiều `[x]` là câu nhiều đáp án. Tối đa 8 phương án. |
-| `> Ghi chú:` | Giải thích, hiện sau khi trả lời. |
+| `> Gợi ý:` | Hiện khi người học bấm “Gợi ý”, trước khi trả lời. |
+| `> Giải thích:` | Vì sao đáp án đúng, hiện sau khi trả lời. |
+| `> Ghi chú:` | Ghi chú thêm, hiện sau khi trả lời. |
 | `> Đề khác:` | Có đề dùng đáp án khác. |
 | `> Hỏi cách khác: câu hỏi → đáp án` | Cùng ý, hỏi theo cách khác. |
 | `> Lưu ý đáp án:` | Đáp án của đề khác giáo trình. Luôn hiện cho người học. |
 | `Mẹo: 4, 7` | Các mẹo dùng cho câu này. |
 | `Dễ nhầm: 8, 9` | Các câu gần giống nhưng khác đáp án. |
+
+Code trong câu hỏi đặt giữa hai dòng ```` ``` ```` (ví dụ ```` ```dart ````), thụt lề được giữ nguyên. Trong câu, phương án và giải thích, `` `chữ` `` hiện dạng code.
 
 Câu có phương án kiểu "Tất cả các phương án trên", "Cả A và B" được giữ nguyên thứ tự khi người học bật xáo đáp án.
 
@@ -62,3 +66,12 @@ Vận dụng quy luật để điều chỉnh chính sách → chức năng **th
 ## Chuyển từ file HTML ôn thi cũ
 
 `python3 scripts/html2deck.py "file-on-thi.html" decks/MON.kaned.md` đọc `window.__DATA__` của file HTML ôn thi kiểu MLN122 và viết ra file bộ đề.
+
+## Chuyển từ file .ts / .json
+
+File ngân hàng câu hỏi viết bằng TypeScript (`questions: [{ question, options, answer, hint, rationale }]`) được đọc bằng cây cú pháp, không chạy code:
+
+```
+node scripts/ts2json.cjs mon.ts /tmp/mon.json
+python3 scripts/json2deck.py /tmp/mon.json decks/MON.kaned.md '{"code":"MON","title":"Ôn thi MON"}'
+```

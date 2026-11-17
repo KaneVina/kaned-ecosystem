@@ -4,7 +4,7 @@ import { cn } from '@/lib/cn';
 import { fmtInt } from '@/lib/format';
 import { useDeckCtx } from './context';
 import { beep, LET, makePerm, qLabel } from './model';
-import { Banner, FilterBar, Notes, StudyAids, StudyEmpty } from './parts';
+import { Banner, FilterBar, Inline, Notes, QText, StudyAids, StudyEmpty, HintToggle } from './parts';
 
 const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -224,15 +224,16 @@ export function FlipCards() {
                   <Star className="ic ic-sm" />
                 </button>
               </div>
-              <h2 className="dk-qtext">{q.text}</h2>
+              <QText text={q.text} />
               <ul className="dk-fopts">
                 {perm.map((k, pos) => (
                   <li key={k}>
                     <b>{LET[pos]}</b>
-                    <span>{q.options[k]}</span>
+                    <span><Inline text={q.options[k]} /></span>
                   </li>
                 ))}
               </ul>
+              <HintToggle key={q.id} hint={q.hint} />
               <div className="dk-face-foot">
                 <RefreshCw className="ic ic-xs" />
                 Bấm vào thẻ hoặc phím <kbd>Space</kbd> để lật
@@ -247,7 +248,7 @@ export function FlipCards() {
                 {q.answers.map((k) => (
                   <li key={k}>
                     <b>{LET[perm.indexOf(k)]}</b>
-                    <span>{q.options[k]}</span>
+                    <span><Inline text={q.options[k]} /></span>
                   </li>
                 ))}
               </ul>
@@ -255,12 +256,12 @@ export function FlipCards() {
               <StudyAids q={q} sim={false} />
               <details className="dk-review">
                 <summary>Xem lại câu hỏi</summary>
-                <p>{q.text}</p>
+                <QText text={q.text} small as="div" />
                 <ul className="dk-fopts">
                   {perm.map((k, pos) => (
                     <li key={k} className={q.answers.includes(k) ? 'is-right' : ''}>
                       <b>{LET[pos]}</b>
-                      <span>{q.options[k]}</span>
+                      <span><Inline text={q.options[k]} /></span>
                     </li>
                   ))}
                 </ul>

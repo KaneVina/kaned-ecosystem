@@ -245,7 +245,7 @@ export function useDeckModel(deck: DeckDetailDto): DeckModel {
       chapters,
       chapterName: (n: number) => names.get(n) ?? '',
       base: Q.filter((q) => !q.parent).length,
-      search: Q.map((q) => foldVi(`${q.id} ${q.text} ${q.options.join(' ')} ${q.note ?? ''}`)),
+      search: Q.map((q) => foldVi(`${q.id} ${q.text} ${q.options.join(' ')} ${q.note ?? ''} ${q.explain ?? ''}`)),
     };
   }, [deck.content]);
 }

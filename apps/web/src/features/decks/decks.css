@@ -140,7 +140,9 @@
 .dk-tag.is-bad { background: var(--red-50); border-color: #F3C3BF; color: var(--red); }
 .dk-star.is-on { color: var(--amber); }
 .dk-star.is-on svg { fill: currentColor; }
-.dk-qtext { font-size: 19px; line-height: 1.55; font-weight: 600; margin: 0 0 20px; max-width: 70ch; white-space: pre-line; }
+.dk-qtext { font-size: 19px; line-height: 1.55; font-weight: 600; margin: 0 0 20px; max-width: 70ch; }
+.dk-qtext.has-code { max-width: none; }
+.dk-qline { display: block; max-width: 70ch; }
 .dk-qtext.is-sm { font-size: 16px; margin-bottom: 12px; }
 .dk-opts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .dk-opt { width: 100%; display: grid; grid-template-columns: 32px minmax(0, 1fr) 22px; gap: 14px; align-items: start; text-align: left; padding: 12px 15px; border-radius: 13px; border: 1.5px solid var(--line); background: var(--paper); font: inherit; font-size: 16px; line-height: 1.55; color: var(--ink); cursor: pointer; transition: border-color .15s, background .2s, opacity .25s, transform .12s var(--ease-out); }
@@ -367,3 +369,18 @@
 @media (prefers-reduced-motion: reduce) {
   .dk-card, .dk-drag, .dk-fc, .dk-opt, .dk-ring-fill, .dk-stamp, .dk-fb, .dk-tip { animation: none !important; transition: none !important; }
 }
+
+/* code in questions and answers */
+.dk-codeblock { margin: 10px 0; padding: 14px 16px; border-radius: var(--r-md); background: #1F2330; color: #E6E8EF; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace; font-size: 13.5px; font-weight: 400; line-height: 1.6; white-space: pre; overflow-x: auto; tab-size: 2; letter-spacing: 0; }
+.dk-codeblock mark { background: rgba(231, 160, 51, .45); color: #fff; }
+.dk-ic { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .88em; font-weight: 500; padding: 1px 6px; border-radius: 5px; background: var(--sunk); border: 1px solid var(--line); color: var(--violet-700); white-space: break-spaces; }
+.dk-opt.is-ok .dk-ic, .dk-opt.is-bad .dk-ic { background: rgba(255,255,255,.7); }
+.dk-hint-btn { margin-top: 12px; color: #9A6412; }
+.dk-hint-btn:hover { background: var(--amber-50); color: #7A4F0E; }
+.dk-hintbox { margin-top: 14px; padding: 12px 15px; border-radius: 12px; background: var(--amber-50); border: 1px dashed #E3C17E; animation: fbIn .3s var(--ease-out) both; }
+.dk-hintbox .dk-tip-h { margin-bottom: 4px; }
+.dk-hintbox p { margin: 0; font-size: 14.5px; color: var(--ink-2); line-height: 1.6; }
+@media (max-width: 520px) { .dk-codeblock { font-size: 12.5px; padding: 12px; margin-left: -4px; margin-right: -4px; } }
+
+.dk-browse .dk-bigsearch { margin: 0 0 16px; }
+.dk-list-tools:empty { display: none; }

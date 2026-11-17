@@ -6,7 +6,7 @@ import { fmtInt } from '@/lib/format';
 import { useDeckCtx } from './context';
 import { clock, fmtScore, grade10, LET, makePerm, poolOf, qLabel, sameSet, shuffle } from './model';
 import { AnswerSheet } from './Practice';
-import { confetti, hasAids, Notes, Ring, StudyAids } from './parts';
+import { Inline, Notes, QText, Ring, StudyAids, confetti, hasAids } from './parts';
 
 const COUNTS = [20, 30, 50, 100];
 const MINUTES = [15, 30, 45, 60, 90];
@@ -286,13 +286,13 @@ function ExamRun() {
                 <Flag className="ic ic-sm" />
               </button>
             </div>
-            <h2 className="dk-qtext">{q.text}</h2>
+            <QText text={q.text} />
             <ol className="dk-opts">
               {perm.map((k, pos) => (
                 <li key={k}>
                   <button type="button" className={cn('dk-opt', sel.includes(k) && 'is-sel')} aria-pressed={sel.includes(k)} onClick={() => choose(k)}>
                     <span className="dk-key">{LET[pos]}</span>
-                    <span className="dk-otext">{q.options[k]}</span>
+                    <span className="dk-otext"><Inline text={q.options[k]} /></span>
                     <span className="dk-tick" />
                   </button>
                 </li>
@@ -470,13 +470,13 @@ function ExamResult() {
                 <span className={cn('dk-tag', x.ok ? 'is-ok' : 'is-bad')}>{x.ok ? 'Đúng' : x.sel.length ? 'Sai' : 'Bỏ trống'}</span>
                 <span className="dk-tag">{qLabel(q)} trong bộ đề</span>
               </div>
-              <h3 className="dk-qtext is-sm">{q.text}</h3>
+              <QText text={q.text} small as="h3" />
               <ul className="dk-fopts">
                 {perm.map((k, pos) => (
                   <li key={k} className={q.answers.includes(k) ? 'is-right' : x.sel.includes(k) ? 'is-yours' : ''}>
                     <b>{LET[pos]}</b>
                     <span>
-                      {q.options[k]}
+                      <Inline text={q.options[k]} />
                       {x.sel.includes(k) && !q.answers.includes(k) && <em> (bạn chọn)</em>}
                     </span>
                   </li>

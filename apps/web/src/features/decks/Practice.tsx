@@ -4,7 +4,7 @@ import { cn } from '@/lib/cn';
 import { fmtInt } from '@/lib/format';
 import { useDeckCtx } from './context';
 import { beep, LET, makePerm, qLabel, sameSet } from './model';
-import { Banner, FilterBar, Notes, StudyAids, StudyEmpty } from './parts';
+import { Banner, FilterBar, Inline, Notes, QText, StudyAids, StudyEmpty, HintToggle } from './parts';
 
 export function Practice() {
   const { m, state, settings, practice: P, setPractice, startPractice, progress, go, setExam } = useDeckCtx();
@@ -196,7 +196,7 @@ export function Practice() {
                 <Star className="ic ic-sm" />
               </button>
             </div>
-            <h2 className="dk-qtext">{q.text}</h2>
+            <QText text={q.text} />
             <ol className="dk-opts">
               {perm.map((k, pos) => {
                 const picked = res ? res.sel.includes(k) : sel.includes(k);
@@ -206,7 +206,7 @@ export function Practice() {
                   <li key={k}>
                     <button type="button" className={cn('dk-opt', cls, res && right && !res.sel.includes(k) && 'is-reveal')} onClick={() => choose(k)} disabled={Boolean(res)}>
                       <span className="dk-key">{LET[pos]}</span>
-                      <span className="dk-otext">{q.options[k]}</span>
+                      <span className="dk-otext"><Inline text={q.options[k]} /></span>
                       <span className="dk-tick">{res && right ? <Check className="ic" /> : res && picked ? <X className="ic" /> : null}</span>
                     </button>
                   </li>
@@ -214,6 +214,7 @@ export function Practice() {
               })}
             </ol>
 
+            {!res && <HintToggle key={q.id} hint={q.hint} />}
             {res && (
               <div className={cn('dk-fb', res.ok ? 'is-ok' : 'is-bad')}>
                 <div className="dk-fb-head">
@@ -228,7 +229,11 @@ export function Practice() {
                 </div>
                 <p>
                   Đáp án đúng: <b>{correctLetters}</b>
-                  {q.answers.length === 1 ? `. ${q.options[q.answers[0]]}` : ''}
+                  {q.answers.length === 1 && (
+                    <>
+                      . <Inline text={q.options[q.answers[0]]} />
+                    </>
+                  )}
                 </p>
                 <Notes q={q} />
               </div>

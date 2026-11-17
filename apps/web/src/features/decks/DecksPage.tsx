@@ -7,6 +7,7 @@ import { EmptyState, ErrorState, Skeleton } from '@/components/ui/Feedback';
 import { useAuth } from '@/providers/AuthProvider';
 import { fmtInt, timeAgo } from '@/lib/format';
 import { useDecks } from './api';
+import { BigSearch } from './parts';
 import './decks.css';
 
 export function DecksPage() {
@@ -15,6 +16,7 @@ export function DecksPage() {
   const [q, setQ] = useState('');
   const [uni, setUni] = useState('');
   const staff = user && STAFF_ROLES.includes(user.role);
+  const hints = useMemo(() => [...new Set(data.map((d) => `“${d.subject.code}”`))].slice(0, 4).concat('“ôn thi cuối kỳ”'), [data]);
 
   const universities = useMemo(() => {
     const map = new Map<string, DeckSummaryDto['subject']['university']>();
@@ -45,7 +47,9 @@ export function DecksPage() {
             </Link>
           ) : undefined
         }
-      />
+      >
+        <BigSearch id="dk-q" value={q} onChange={setQ} label="Tìm bộ đề" placeholder="Tìm theo mã môn, tên môn hoặc tên bộ đề" hints={hints} />
+      </PageHead>
       <div className="container dk-body">
         {isLoading ? (
           <div className="dk-deck-grid">
@@ -70,10 +74,6 @@ export function DecksPage() {
         ) : (
           <>
             <div className="dk-filters dk-list-tools">
-              <div className="dk-search is-sm">
-                <Search className="ic" />
-                <input className="input" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm theo mã môn hoặc tên bộ đề" aria-label="Tìm bộ đề" />
-              </div>
               {universities.length > 1 && (
                 <select className="select" value={uni} onChange={(e) => setUni(e.target.value)} aria-label="Trường">
                   <option value="">Mọi trường</option>

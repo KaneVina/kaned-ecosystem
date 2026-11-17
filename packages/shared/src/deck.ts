@@ -55,6 +55,10 @@ export interface DeckQuestion {
   /** Ids of look-alike questions with different answers. */
   similar: string[];
   note?: string;
+  /** Shown on request before answering. */
+  hint?: string;
+  /** Why the answer is right, shown after answering. */
+  explain?: string;
   /** Another exam uses this answer instead. */
   alt?: string;
   /** The deck's key differs from the textbook: always shown. */
@@ -127,10 +131,14 @@ interface QDraft {
   tips: number[];
   similar: string[];
   note?: string;
+  hint?: string;
+  explain?: string;
   alt?: string;
   warning?: string;
   asked: Array<{ q: string; a: string }>;
-  lastField: 'note' | 'alt' | 'warning' | 'asked' | null;
+  lastField: 'note' | 'hint' | 'explain' | 'alt' | 'warning' | 'asked' | null;
+  /** Inside a ``` code block of the question text. */
+  fence: boolean;
 }
 
 interface TDraft {
@@ -205,7 +213,7 @@ export function parseDeck(source: string): ParsedDeck {
       const t = /^m[ẹeé]o(?=[\s\d:.]|$)\s*(\d+)?\s*[:.\-–]?\s*(.*)$/i.exec(head);
       if (q) {
         const rest = q[2].trim();
-        const draft: QDraft = { line: no, id: q[1] ?? null, text: rest ? [rest] : [], options: [], answers: [], chapter, tips: [], similar: [], asked: [], lastField: null };
+        const draft: QDraft = { line: no, id: q[1] ?? null, text: rest ? [rest] : [], options: [], answers: [], chapter, tips: [], similar: [], asked: [], lastField: null, fence: false };
         qs.push(draft);
         block = { kind: 'q', q: draft };
       } else if (t) {
@@ -235,6 +243,12 @@ export function parseDeck(source: string): ParsedDeck {
     }
 
     const q = block.q;
+    // Code in the question: kept exactly, indentation and blank lines included.
+    if (!q.options.length && (q.fence || /^```/.test(line))) {
+      if (/^```/.test(line)) q.fence = !q.fence;
+      q.text.push(raw.replace(/\s+$/, ''));
+      continue;
+    }
     if (!line) continue;
 
     const opt = OPTION.exec(raw);
@@ -251,9 +265,15 @@ export function parseDeck(source: string): ParsedDeck {
       const m = LABEL.exec(body);
       const key = m ? squash(m[1]) : '';
       const value = m ? m[2].trim() : body;
-      if (key === 'ghichu' || key === 'note' || key === 'giaithich') {
+      if (key === 'ghichu' || key === 'note') {
         q.note = value;
         q.lastField = 'note';
+      } else if (key === 'goiy' || key === 'hint') {
+        q.hint = value;
+        q.lastField = 'hint';
+      } else if (key === 'giaithich' || key === 'explain' || key === 'rationale') {
+        q.explain = value;
+        q.lastField = 'explain';
       } else if (key === 'dekhac' || key === 'dapankhac') {
         q.alt = value;
         q.lastField = 'alt';
@@ -292,7 +312,7 @@ export function parseDeck(source: string): ParsedDeck {
     }
 
     if (!q.options.length) {
-      q.text.push(line);
+      q.text.push(raw.replace(/\s+$/, ''));
     } else {
       q.options[q.options.length - 1] += ` ${line}`;
       warn(no, 'Dòng này được nối vào phương án phía trên. Nếu là phương án mới, viết "- [ ] …".');
@@ -309,7 +329,8 @@ export function parseDeck(source: string): ParsedDeck {
     else id = String(++next);
     if (seen.has(id)) err(d.line, `Câu ${id} bị trùng số với câu ở dòng ${seen.get(id)}.`);
     seen.set(id, d.line);
-    const text = d.text.join('\n').trim();
+    if (d.fence) err(d.line, `Câu ${id} mở khối code bằng \`\`\` nhưng chưa đóng.`);
+    const text = d.text.join('\n').replace(/\n{3,}/g, '\n\n').trim();
     if (!text) err(d.line, `Câu ${id} chưa có nội dung câu hỏi.`);
     if (d.options.length < 2) err(d.line, `Câu ${id} cần ít nhất 2 phương án "- [ ] …".`);
     if (d.options.length > OPTION_LETTERS.length) err(d.line, `Câu ${id} có quá ${OPTION_LETTERS.length} phương án.`);
@@ -324,6 +345,8 @@ export function parseDeck(source: string): ParsedDeck {
       tips: [...new Set(d.tips)],
       similar: [...new Set(d.similar)].filter((s) => s !== id),
       ...(d.note ? { note: d.note } : {}),
+      ...(d.hint ? { hint: d.hint } : {}),
+      ...(d.explain ? { explain: d.explain } : {}),
       ...(d.alt ? { alt: d.alt } : {}),
       ...(d.warning ? { warning: d.warning } : {}),
       ...(d.asked.length ? { asked: d.asked } : {}),
@@ -414,10 +437,23 @@ Lý thuyết "bàn tay vô hình" của Adam Smith được hiểu là: (chọn 
 - [x] Cơ chế thị trường tự điều chỉnh cung cầu
 - [x] Các cá nhân muốn tối đa hóa lợi ích cho mình
 - [ ] Nhà nước điều tiết toàn bộ nền kinh tế
+> Gợi ý: Hiện khi người học bấm “Gợi ý”, trước lúc trả lời.
+> Giải thích: Hiện sau khi trả lời: vì sao đáp án đúng.
 > Ghi chú: Câu nhiều đáp án: đánh dấu [x] cho mọi phương án đúng.
 > Hỏi cách khác: Ai ví cơ chế thị trường là "bàn tay vô hình"? → Adam Smith
 > Lưu ý đáp án: Ghi ở đây khi đáp án của đề khác giáo trình. Dòng này luôn hiện cho người học.
 Dễ nhầm: 1
+
+## Câu 3
+Câu có code: đặt code giữa hai dòng \`\`\`, thụt lề được giữ nguyên.
+\`\`\`dart
+void main() {
+  print(10 ~/ 3);
+}
+\`\`\`
+Đoạn code in ra gì?
+- [x] \`3\`
+- [ ] \`3.33\`
 `;
 
 /* ───────────────────────────── API shapes ───────────────────────────── */
