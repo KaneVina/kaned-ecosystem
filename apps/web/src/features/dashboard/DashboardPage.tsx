@@ -5,6 +5,7 @@ import type { DocumentSummaryDto } from '@kaned/shared';
 import { DocCard, DocCardSkeleton } from '@/components/library/DocCard';
 import { QuickPreview } from '@/components/library/QuickPreview';
 import { SectionHead } from '@/components/ui/Panel';
+import { Typewriter } from '@/components/ui/Typewriter';
 import { Progress } from '@/components/ui/Feedback';
 import { FileIcon } from '@/components/ui/FileBadge';
 import { TOOLS } from '@/components/layout/AppShell';
@@ -14,6 +15,8 @@ import { useGradeSummary, usePlanner } from '@/features/grades/queries';
 import { useAuth } from '@/providers/AuthProvider';
 import { fmtToday, timeAgo } from '@/lib/format';
 import { cn } from '@/lib/cn';
+
+const GREETINGS = ['hôm nay học gì?', 'ôn môn nào trước?', 'tìm đề thi cũ nhé?', 'GPA kỳ này lên nào!'];
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -44,7 +47,12 @@ export function DashboardPage() {
           <p className="dash-date">{fmtToday()}</p>
           <div className="ph-row">
             <div>
-              <h1 className="t-display dash-hi">Chào {firstName}, hôm nay học gì?</h1>
+              <h1 className="t-display dash-hi" aria-label={`Chào ${firstName}, hôm nay học gì?`}>
+                <span aria-hidden>
+                  Chào <span className="hi-name">{firstName}</span>,{' '}
+                </span>
+                <Typewriter phrases={GREETINGS} startDelayMs={350} />
+              </h1>
               <p className="ph-desc">
                 {user?.major
                   ? `${user.major.name}${user.university ? ` · ${user.university.name}` : ''}${user.year ? ` · năm ${user.year}` : ''}`
