@@ -690,3 +690,10 @@ a.dash-tool:hover .dash-tool-go { transform: translateX(3px); color: var(--viole
 .sd-add a { display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px; font-size: 13px; font-weight: 500; color: var(--violet-700); border-radius: 7px; }
 .sd-add a:hover { background: var(--violet-50); }
 .sd-add .ic { width: 14px; height: 14px; }
+
+/*
+ * Visually hidden inputs are positioned absolutely; without a positioned
+ * parent they escape scroll boxes (e.g. the library's subject list) and
+ * stretch the page below the footer.
+ */
+.year-pills label, .radio-tile, .re-terms label, .star-input, .type-card, .pill-radio, .col-item, .radio-card { position: relative; }

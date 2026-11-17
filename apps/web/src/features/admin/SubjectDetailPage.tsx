@@ -367,7 +367,7 @@ export function SubjectDetailPage() {
                 className={cn('ftree-item', scope === f.id && 'active', dropOn === f.id && 'is-drop')}
                 style={{ ['--depth' as string]: f.depth }}
                 onClick={() => setScope(f.id)}
-                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), setScope(f.id))}
+                onKeyDown={(e) => e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), setScope(f.id))}
                 {...dropProps(f.id, f.name)}
               >
                 {scope === f.id ? <FolderOpen className="ic ic-folder" /> : <Folder className="ic ic-folder" />}

@@ -191,7 +191,7 @@ function RuleCard({
               )}
               <div className="field">
                 <label className="label" htmlFor={`${id}-label`}>
-                  Tên hiển thị <span className="opt">(không bắt buộc)</span>
+                  Tên hiển thị
                 </label>
                 <input
                   id={`${id}-label`}
@@ -249,7 +249,7 @@ function RuleCard({
               </div>
               <div className="field">
                 <label className="label" htmlFor={`${id}-dl`}>
-                  Tên hiển thị <span className="opt">(không bắt buộc)</span>
+                  Tên hiển thị
                 </label>
                 <input id={`${id}-dl`} className="input" value={req.label ?? ''} onChange={(e) => onChange({ ...req, label: e.target.value || undefined })} />
               </div>
@@ -294,7 +294,7 @@ function RuleCard({
               </div>
               <div className="field">
                 <label className="label" htmlFor={`${id}-al`}>
-                  Tên hiển thị <span className="opt">(không bắt buộc)</span>
+                  Tên hiển thị
                 </label>
                 <input id={`${id}-al`} className="input" value={req.label ?? ''} onChange={(e) => onChange({ ...req, label: e.target.value || undefined })} />
               </div>

@@ -19,7 +19,7 @@ import { EmptyState, ErrorState } from '@/components/ui/Feedback';
 import { PageHead } from '@/components/ui/Panel';
 import { useDocumentFacets, useDocuments, useDownload, useToggleBookmark } from './queries';
 import { useLibraryFilters } from './useLibraryFilters';
-import { useSubjects, useUniversities } from '@/features/catalog/queries';
+import { useSubjects, useTerms, useUniversities } from '@/features/catalog/queries';
 import { useToast } from '@/providers/ToastProvider';
 import { toApiError } from '@/lib/api';
 import { fmtInt } from '@/lib/format';
@@ -74,6 +74,8 @@ export function LibraryPage() {
   const subjects = subjectPage?.items ?? [];
   const subjectById = useMemo(() => new Map(subjects.map((s) => [s.id, s])), [subjects]);
   const uniById = useMemo(() => new Map(universities.map((u) => [u.id, u])), [universities]);
+  const { data: schoolTerms = [] } = useTerms(filters.universityId?.length === 1 ? filters.universityId[0] : undefined);
+  const termById = useMemo(() => new Map(schoolTerms.map((t) => [t.id, t.name])), [schoolTerms]);
 
   // Keep an open preview in step with bookmark changes.
   const previewDoc = preview ? (data?.items.find((d) => d.id === preview.id) ?? preview) : null;
@@ -107,9 +109,13 @@ export function LibraryPage() {
       },
     });
   for (const id of filters.universityId ?? [])
-    chips.push({ key: `u${id}`, k: 'Trường', label: uniById.get(id)?.code ?? '…', remove: () => setFilters({ ...filters, universityId: without(filters.universityId, id), page: 1 }) });
+    chips.push({ key: `u${id}`, k: 'Trường', label: uniById.get(id)?.code ?? '…', remove: () => setFilters({ ...filters, universityId: without(filters.universityId, id), termId: undefined, period: undefined, page: 1 }) });
   for (const y of filters.year ?? [])
     chips.push({ key: `y${y}`, k: 'Năm', label: String(y), remove: () => setFilters({ ...filters, year: without(filters.year, y), page: 1 }) });
+  for (const id of filters.termId ?? [])
+    chips.push({ key: `t${id}`, k: 'Kỳ học', label: termById.get(id) ?? '…', remove: () => setFilters({ ...filters, termId: without(filters.termId, id), page: 1 }) });
+  for (const p of filters.period ?? [])
+    chips.push({ key: `p${p}`, k: 'Block', label: p, remove: () => setFilters({ ...filters, period: without(filters.period, p), page: 1 }) });
   for (const s of filters.semester ?? [])
     chips.push({ key: `s${s}`, k: 'Học kỳ', label: SEMESTER_LABELS[s as Semester].vi, remove: () => setFilters({ ...filters, semester: without(filters.semester, s), page: 1 }) });
   for (const id of filters.subjectId ?? [])

@@ -14,6 +14,7 @@ import { Checkbox } from '@/components/ui/Field';
 import { Stars } from '@/components/ui/Stars';
 import type { LibraryFilters } from '@/features/library/queries';
 import { cn } from '@/lib/cn';
+import { useTerms } from '@/features/catalog/queries';
 
 export interface FacetCounts {
   type: Record<string, number>;
@@ -76,6 +77,11 @@ export function Filters({
   const visibleSubjects = subjects.filter((s) =>
     subjectQuery ? fold(`${s.code} ${s.name} ${s.nameVi}`).includes(fold(subjectQuery)) : true,
   );
+  // Each school counts time its own way (CTU: Học kỳ 1/2, FPTU: Fall 2026 + Block 10…),
+  // so once one school is picked, filter by its own terms and blocks.
+  const school = filters.universityId?.length === 1 ? universities.find((u) => u.id === filters.universityId![0]) : undefined;
+  const { data: terms = [] } = useTerms(school?.id);
+  const periods = school?.periods ?? [];
   const n = (bucket: Record<string, number> | undefined, key: string) => bucket?.[key] ?? 0;
 
   return (
@@ -100,7 +106,7 @@ export function Filters({
                 count={n(facets?.universityId, u.id)}
                 zero={n(facets?.universityId, u.id) === 0}
                 checked={filters.universityId?.includes(u.id) ?? false}
-                onChange={() => set({ universityId: toggle(filters.universityId, u.id) })}
+                onChange={() => set({ universityId: toggle(filters.universityId, u.id), termId: undefined, period: undefined, semester: undefined })}
               />
             ))}
           </Group>
@@ -121,21 +127,58 @@ export function Filters({
             </div>
           </Group>
 
-          <Group title="Học kỳ" count={filters.semester?.length}>
-            <div className="pills">
-              {SEMESTERS.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  className="pill"
-                  aria-pressed={filters.semester?.includes(s) ?? false}
-                  onClick={() => set({ semester: toggle(filters.semester, s) })}
-                >
-                  {SEMESTER_LABELS[s].vi}
-                </button>
-              ))}
-            </div>
-          </Group>
+          {school && terms.length > 0 ? (
+            <Group title={`Kỳ học ${school.code}`} count={filters.termId?.length}>
+              <div className="pills">
+                {terms.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    className="pill"
+                    aria-pressed={filters.termId?.includes(t.id) ?? false}
+                    onClick={() => set({ termId: toggle(filters.termId, t.id) })}
+                  >
+                    {t.name}
+                    {t.state === 'current' && <span className="pill-dot" aria-label="đang diễn ra" />}
+                  </button>
+                ))}
+              </div>
+            </Group>
+          ) : (
+            <Group title="Học kỳ" count={filters.semester?.length}>
+              <div className="pills">
+                {SEMESTERS.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    className="pill"
+                    aria-pressed={filters.semester?.includes(s) ?? false}
+                    onClick={() => set({ semester: toggle(filters.semester, s) })}
+                  >
+                    {SEMESTER_LABELS[s].vi}
+                  </button>
+                ))}
+              </div>
+            </Group>
+          )}
+
+          {periods.length > 0 && (
+            <Group title="Block" count={filters.period?.length}>
+              <div className="pills">
+                {periods.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    className="pill"
+                    aria-pressed={filters.period?.includes(p) ?? false}
+                    onClick={() => set({ period: toggle(filters.period, p) })}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </Group>
+          )}
 
           <Group title="Môn học" count={filters.subjectId?.length}>
             <div className="input-group fg-search">

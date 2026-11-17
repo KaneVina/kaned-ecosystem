@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { DOCUMENT_SORTS, type DocumentSort } from '@kaned/shared';
 import type { LibraryFilters } from './queries';
 
-const ARRAY_KEYS = ['universityId', 'facultyId', 'majorId', 'subjectId', 'type', 'format', 'semester', 'tag'] as const;
+const ARRAY_KEYS = ['universityId', 'facultyId', 'majorId', 'subjectId', 'type', 'format', 'semester', 'termId', 'period', 'tag'] as const;
 const NUMBER_ARRAY_KEYS = ['year'] as const;
 
 /**
@@ -71,6 +71,8 @@ export function useLibraryFilters() {
     (filters.format?.length ?? 0) +
     (filters.year?.length ?? 0) +
     (filters.semester?.length ?? 0) +
+    (filters.termId?.length ?? 0) +
+    (filters.period?.length ?? 0) +
     (filters.minRating ? 1 : 0);
 
   return { filters, setFilters, clear, activeCount };

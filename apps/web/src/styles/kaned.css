@@ -215,7 +215,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .input-group > .ic { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--ink-3); pointer-events: none; }
 .input-group .input { padding-left: 38px; }
 
-.check { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; color: var(--ink-2); padding: 5px 0; user-select: none; }
+.check { position: relative; display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; color: var(--ink-2); padding: 5px 0; user-select: none; }
 .check input { position: absolute; opacity: 0; pointer-events: none; }
 .check .box {
   width: 17px; height: 17px; border-radius: 5px; border: 1.5px solid var(--line-2); background: var(--paper);
@@ -656,6 +656,9 @@ kbd { font-family: var(--font); font-size: 11px; font-weight: 600; color: var(--
 .doc-tools { position: absolute; top: 8px; right: 8px; display: flex; flex-direction: column; gap: 6px; z-index: 3; }
 .doc-tools .icon-btn { width: 32px; height: 32px; background: rgba(255,255,255,.94); backdrop-filter: blur(6px); box-shadow: 0 1px 2px rgba(28,26,43,.08), 0 2px 8px -2px rgba(28,26,43,.12); color: var(--ink-2); }
 .doc-tools .icon-btn .ic { width: 16px; height: 16px; }
+/* The card clips its overflow, so these tips open to the left, inside the card. */
+.doc-tools [data-tip]:hover::after, .doc-tools [data-tip]:focus-visible::after { bottom: auto; top: 50%; left: auto; right: calc(100% + 8px); transform: translateY(-50%); animation-name: tipInLeft; }
+@keyframes tipInLeft { from { opacity: 0; transform: translate(3px, -50%); } }
 .doc-tools .icon-btn:hover { background: #fff; color: var(--violet); }
 .bm-btn.is-on { color: var(--violet) !important; }
 .bm-btn.is-on .ic { fill: var(--violet-100); }
@@ -967,7 +970,7 @@ mark { background: #FDEBB0; color: inherit; border-radius: 2px; padding: 0 1px; 
 /* =========================================================
    Explore
    ========================================================= */
-.ex-search { margin-top: 20px; max-width: 780px; }
+.ex-search { margin-top: 20px; }
 .ex-search-box .input-lg { height: 50px; font-size: 15.5px; border-radius: 10px; padding-left: 44px; padding-right: 44px; box-shadow: var(--sh-2); }
 .ex-search-box > .ic { left: 15px; }
 .ex-kbd { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; }
@@ -977,7 +980,7 @@ mark { background: #FDEBB0; color: inherit; border-radius: 2px; padding: 0 1px; 
 .filters-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
 .filters-head .link:disabled { color: var(--ink-4); text-decoration: none; cursor: default; }
 .filters-close { display: none; }
-.filters-scroll { overflow-y: auto; flex: 1; scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
+.filters-scroll { position: relative; min-height: 0; overflow-y: auto; flex: 1; scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
 .fg { border-bottom: 1px solid var(--line); padding: 0 16px; }
 .fg:last-child { border-bottom: 0; }
 .fg-head { display: flex; align-items: center; gap: 8px; width: 100%; padding: 13px 0; font-size: 13.5px; font-weight: 600; color: var(--ink); border-radius: 6px; }
@@ -996,7 +999,7 @@ mark { background: #FDEBB0; color: inherit; border-radius: 2px; padding: 0 1px; 
 .input-sm { height: 34px; font-size: 13.5px; }
 .input-group .input-sm { padding-left: 34px; }
 .input-group > .ic.ic-sm { left: 11px; }
-.subj-list { max-height: 236px; overflow-y: auto; margin-right: -8px; padding-right: 8px; scrollbar-width: thin; }
+.subj-list { position: relative; max-height: 236px; overflow-y: auto; margin-right: -8px; padding-right: 8px; scrollbar-width: thin; }
 .fdot { width: 8px; height: 8px; border-radius: 2px; flex: none; }
 .fdot-pdf { background: var(--pdf); } .fdot-docx { background: var(--docx); } .fdot-pptx { background: var(--pptx); } .fdot-xlsx { background: var(--xlsx); } .fdot-link { background: var(--violet); }
 .pill .count { font-size: 11.5px; opacity: .65; margin-left: 1px; font-variant-numeric: tabular-nums; }
@@ -1632,3 +1635,4 @@ legend.label { padding: 0; margin-bottom: 8px; }
   .badges-row { grid-template-columns: minmax(0, 1fr); }
   .dp-act-row { grid-template-columns: 1fr 1fr auto; }
 }
+.pill .pill-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green, #16a34a); margin-left: 6px; display: inline-block; }

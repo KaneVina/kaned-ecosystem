@@ -465,7 +465,8 @@ a.major-row:hover, .major-row:hover { border-color: var(--a-border-2); backgroun
 .ftree-item.active { background: var(--a-accent-50); color: var(--a-accent-2); font-weight: 600; }
 .ftree-item.active .ic { color: var(--a-accent); }
 .ftree-item.is-drop { box-shadow: inset 0 0 0 1.5px var(--a-accent); background: var(--a-accent-50); }
-.ftree-item .row-menu-btn { width: 26px; height: 26px; opacity: 0; }
+.ftree-item .row-menu-btn { width: 26px; height: 26px; opacity: .45; }
+@media (hover: none) { .ftree-item .row-menu-btn { opacity: 1; } }
 .ftree-item:hover .row-menu-btn, .ftree-item .row-menu-btn[aria-expanded="true"] { opacity: 1; }
 .ftree-sep { height: 1px; background: var(--a-border); margin: 6px 4px; }
 .ftree-add { display: flex; align-items: center; gap: 8px; width: 100%; height: 34px; padding: 0 8px; border-radius: 7px; font-size: 13px; color: var(--a-ink-3); }

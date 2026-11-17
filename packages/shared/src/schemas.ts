@@ -80,6 +80,10 @@ export const documentQuerySchema = z.object({
   format: idList,
   year: numberList,
   semester: idList,
+  /** The school's own terms (academic_terms ids), e.g. FPT "Fall 2026". */
+  termId: idList,
+  /** The school's own teaching periods, e.g. FPT "Block 10". */
+  period: idList,
   minRating: z.coerce.number().min(0).max(5).optional(),
   uploaderId: z.string().optional(),
   bookmarkedBy: z.string().optional(),

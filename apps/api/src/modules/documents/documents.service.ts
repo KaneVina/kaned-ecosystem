@@ -41,6 +41,8 @@ function buildFilters(query: DocumentQuery): SQL[] {
   if (query.semester?.length) {
     filters.push(inArray(documents.semester, query.semester as DocumentSummaryDto['semester'][]));
   }
+  if (query.termId?.length) filters.push(inArray(documents.academicTermId, query.termId));
+  if (query.period?.length) filters.push(inArray(documents.period, query.period));
   if (query.minRating) filters.push(gte(documents.ratingAvg, query.minRating));
   if (query.uploaderId) filters.push(eq(documents.uploaderId, query.uploaderId));
   if (query.folderId === 'none') filters.push(isNull(documents.folderId));

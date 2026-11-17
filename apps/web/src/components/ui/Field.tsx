@@ -7,6 +7,7 @@ export interface FieldProps {
   htmlFor?: string;
   hint?: ReactNode;
   error?: string;
+  /** Kept for callers; optional fields are no longer labelled. */
   optional?: boolean;
   required?: boolean;
   className?: string;
@@ -14,14 +15,13 @@ export interface FieldProps {
 }
 
 /** Label, control, hint and error stacked the way kaned.css expects. */
-export function Field({ label, htmlFor, hint, error, optional, required, className, children }: FieldProps) {
+export function Field({ label, htmlFor, hint, error, required, className, children }: FieldProps) {
   return (
     <div className={cn('field', error && 'invalid', className)}>
       {label && (
         <label className="label" htmlFor={htmlFor}>
           {label}
           {required && <span className="req">*</span>}
-          {optional && <span className="opt">(không bắt buộc)</span>}
         </label>
       )}
       {children}

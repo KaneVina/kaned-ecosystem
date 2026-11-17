@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CloudUpload, ExternalLink, FileUp, Link2, Trash2 } from 'lucide-react';
+import { CloudUpload, ExternalLink, FileUp, Link2, Plus, Trash2, X } from 'lucide-react';
 import {
   createDocumentSchema,
   detectLinkProvider,
@@ -20,6 +20,8 @@ import {
   type Semester,
 } from '@kaned/shared';
 import { Field } from '@/components/ui/Field';
+import { SearchSelect } from '@/components/ui/SearchSelect';
+import { useAuth } from '@/providers/AuthProvider';
 import { FileIcon } from '@/components/ui/FileBadge';
 import { useSubjects, useTerms, useUniversities } from '@/features/catalog/queries';
 import { uploadToCloudinary } from '@/features/library/queries';
@@ -46,7 +48,9 @@ interface Draft {
   year: string;
   semester: Semester | '';
   schoolYear: string;
-  tags: string;
+  tags: string[];
+  lecturer: string;
+  period: string;
   status: DocumentStatus;
 }
 
@@ -62,8 +66,10 @@ const blank = (): Draft => ({
   folderId: '',
   year: '1',
   semester: '',
-  schoolYear: '2026–2027',
-  tags: '',
+  schoolYear: '',
+  tags: [],
+  lecturer: '',
+  period: '',
   status: 'PUBLISHED',
 });
 
@@ -80,7 +86,9 @@ const fromDoc = (d: AdminDocumentDto): Draft => ({
   year: String(d.year),
   semester: d.semester,
   schoolYear: d.schoolYear ?? '',
-  tags: d.tags.join(', '),
+  tags: d.tags,
+  lecturer: d.lecturer ?? '',
+  period: d.period ?? '',
   status: d.status,
 });
 
@@ -92,6 +100,8 @@ export interface DocumentDefaults {
 
 export function DocumentEditor({ doc, open, onClose, defaults }: { doc: AdminDocumentDto | null; open: boolean; onClose: () => void; defaults?: DocumentDefaults }) {
   const toast = useToast();
+  const { user } = useAuth();
+  const [tagDraft, setTagDraft] = useState('');
   const editing = Boolean(doc);
   const [draft, setDraft] = useState<Draft>(blank);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -111,8 +121,9 @@ export function DocumentEditor({ doc, open, onClose, defaults }: { doc: AdminDoc
 
   useEffect(() => {
     if (!open) return;
-    setDraft(doc ? fromDoc(doc) : { ...blank(), universityId: defaults?.universityId ?? '', subjectId: defaults?.subjectId ?? '', folderId: defaults?.folderId ?? '' });
+    setDraft(doc ? fromDoc(doc) : { ...blank(), universityId: defaults?.universityId ?? user?.university?.id ?? '', subjectId: defaults?.subjectId ?? '', folderId: defaults?.folderId ?? '' });
     setErrors({});
+    setTagDraft('');
     setFile(null);
     setProgress(null);
     uploaded.current = null;
@@ -128,7 +139,7 @@ export function DocumentEditor({ doc, open, onClose, defaults }: { doc: AdminDoc
 
   const accept = (f: File) => {
     const format = MIME_TO_FORMAT[f.type] ?? EXT[(f.name.split('.').pop() ?? '').toLowerCase()];
-    if (!format) return setErrors((e) => ({ ...e, fileUrl: 'Chỉ nhận PDF, DOCX, PPTX hoặc XLSX.' }));
+    if (!format) return setErrors((e) => ({ ...e, fileUrl: 'Chỉ nhận PDF, DOCX, PPTX, XLSX, HTML hoặc MD.' }));
     if (f.size > MAX_UPLOAD_BYTES) return setErrors((e) => ({ ...e, fileUrl: `Tệp vượt quá ${fmtBytes(MAX_UPLOAD_BYTES)}.` }));
     setFile({ file: f, format });
     setErrors(({ fileUrl: _, ...rest }) => rest);
@@ -136,9 +147,33 @@ export function DocumentEditor({ doc, open, onClose, defaults }: { doc: AdminDoc
   };
 
   const pickTerm = (termId: string) => {
-    set('academicTermId', termId);
     const term = terms.find((t) => t.id === termId);
-    if (term) setDraft((d) => ({ ...d, academicTermId: termId, semester: term.semester, schoolYear: term.schoolYear }));
+    setDraft((d) => (term ? { ...d, academicTermId: termId, semester: term.semester, schoolYear: term.schoolYear } : { ...d, academicTermId: termId }));
+    setErrors(({ semester: _, ...rest }) => rest);
+  };
+
+  // A new document most likely belongs to the school's current term.
+  useEffect(() => {
+    if (!open || editing || !terms.length) return;
+    const current = terms.find((t) => t.state === 'current');
+    if (current)
+      setDraft((d) => (d.academicTermId ? d : { ...d, academicTermId: current.id, semester: current.semester, schoolYear: current.schoolYear }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, terms]);
+
+  const university = universities.find((u) => u.id === draft.universityId);
+  const periods = university?.periods ?? [];
+
+  const addTag = (raw: string) => {
+    setDraft((d) => {
+      const next = [...d.tags];
+      for (const part of raw.split(/[,，\n]/)) {
+        const t = part.trim().slice(0, 30);
+        if (t && !next.includes(t) && next.length < 8) next.push(t);
+      }
+      return { ...d, tags: next };
+    });
+    setTagDraft('');
   };
 
   const busy = progress !== null || create.isPending || update.isPending;
@@ -155,7 +190,9 @@ export function DocumentEditor({ doc, open, onClose, defaults }: { doc: AdminDoc
       year: draft.year,
       semester: draft.semester || undefined,
       schoolYear: draft.schoolYear || undefined,
-      tags: draft.tags.split(',').map((t) => t.trim()).filter(Boolean).slice(0, 8),
+      tags: [...draft.tags, ...tagDraft.split(/[,，\n]/).map((t) => t.trim()).filter(Boolean)].slice(0, 8),
+      lecturer: draft.lecturer.trim() || undefined,
+      period: draft.period || undefined,
       language: 'Vietnamese',
     };
 
@@ -317,7 +354,7 @@ export function DocumentEditor({ doc, open, onClose, defaults }: { doc: AdminDoc
               >
                 <FileUp className="ic ic-lg" />
                 <b>Kéo thả tệp vào đây, hoặc bấm để chọn</b>
-                <span>PDF, DOCX, PPTX, XLSX · tối đa {fmtBytes(MAX_UPLOAD_BYTES)}</span>
+                <span>PDF, DOCX, PPTX, XLSX, HTML, MD · tối đa {fmtBytes(MAX_UPLOAD_BYTES)}</span>
                 <input
                   ref={picker}
                   type="file"
@@ -354,8 +391,37 @@ export function DocumentEditor({ doc, open, onClose, defaults }: { doc: AdminDoc
               ))}
             </select>
           </Field>
-          <Field label="Thẻ" htmlFor="ad-tags" optional hint="Cách nhau bằng dấu phẩy, tối đa 8.">
-            <input id="ad-tags" className="input" placeholder="đề thi, có lời giải" value={draft.tags} onChange={(e) => set('tags', e.target.value)} />
+          <Field label="Giảng viên" htmlFor="ad-lecturer">
+            <input id="ad-lecturer" className="input" maxLength={120} placeholder="vd. Nguyễn Văn A" autoComplete="off" value={draft.lecturer} onChange={(e) => set('lecturer', e.target.value)} />
+          </Field>
+          <Field label="Thẻ" htmlFor="ad-tags" hint="Nhấn Enter hoặc dấu phẩy để thêm, tối đa 8." className="span-2">
+            <div className="tag-input" onClick={() => document.getElementById('ad-tags')?.focus()}>
+              {draft.tags.map((t) => (
+                <span key={t} className="chip">
+                  {t}
+                  <button type="button" onClick={() => set('tags', draft.tags.filter((x) => x !== t))} aria-label={`Bỏ thẻ ${t}`}>
+                    <X className="ic ic-xs" />
+                  </button>
+                </span>
+              ))}
+              <input
+                id="ad-tags"
+                placeholder={draft.tags.length ? '' : 'Gõ từ khoá rồi nhấn Enter'}
+                maxLength={30}
+                value={tagDraft}
+                enterKeyHint="enter"
+                onChange={(e) => (/[,，]/.test(e.target.value) ? addTag(e.target.value) : setTagDraft(e.target.value))}
+                onBlur={() => tagDraft.trim() && addTag(tagDraft)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ',') {
+                    e.preventDefault();
+                    addTag(tagDraft);
+                  } else if (e.key === 'Backspace' && !tagDraft && draft.tags.length) {
+                    set('tags', draft.tags.slice(0, -1));
+                  }
+                }}
+              />
+            </div>
           </Field>
         </div>
       </section>
@@ -364,74 +430,90 @@ export function DocumentEditor({ doc, open, onClose, defaults }: { doc: AdminDoc
         <h3>Xếp vào môn học</h3>
         <div className="form-grid">
           <Field label="Trường" htmlFor="ad-uni" required error={errors.universityId}>
-            <select
+            <SearchSelect
               id="ad-uni"
-              className="select"
               value={draft.universityId}
-              onChange={(e) => setDraft((d) => ({ ...d, universityId: e.target.value, subjectId: '', academicTermId: '', folderId: '' }))}
-            >
-              <option value="">Chọn trường</option>
-              {universities.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.code} — {u.nameVi}
-                </option>
-              ))}
-            </select>
+              invalid={Boolean(errors.universityId)}
+              placeholder="Chọn trường"
+              searchPlaceholder="Gõ tên hoặc mã trường…"
+              options={universities.map((u) => ({ value: u.id, code: u.code, label: u.nameVi, keywords: u.name }))}
+              onChange={(id) => setDraft((d) => ({ ...d, universityId: id, subjectId: '', academicTermId: '', folderId: '', period: '' }))}
+            />
           </Field>
           <Field label="Môn học" htmlFor="ad-subj" required error={errors.subjectId}>
-            <select id="ad-subj" className="select" value={draft.subjectId} disabled={!draft.universityId} onChange={(e) => setDraft((d) => ({ ...d, subjectId: e.target.value, folderId: '' }))}>
-              <option value="">{draft.universityId ? 'Chọn môn' : 'Chọn trường trước'}</option>
-              {subjects.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.code} — {s.nameVi}
-                </option>
-              ))}
-            </select>
+            <SearchSelect
+              id="ad-subj"
+              value={draft.subjectId}
+              invalid={Boolean(errors.subjectId)}
+              disabled={!draft.universityId}
+              placeholder={draft.universityId ? 'Chọn môn' : 'Chọn trường trước'}
+              searchPlaceholder="Gõ mã hoặc tên môn…"
+              options={subjects.map((x) => ({ value: x.id, code: x.code, label: x.nameVi, keywords: x.name }))}
+              onChange={(id) => setDraft((d) => ({ ...d, subjectId: id, folderId: '' }))}
+            />
           </Field>
-          <Field label="Thư mục" htmlFor="ad-folder" optional error={errors.folderId} hint={draft.subjectId && !folders.length ? 'Môn chưa có thư mục. Tạo ở trang chi tiết môn.' : undefined}>
-            <select id="ad-folder" className="select" value={draft.folderId} disabled={!folders.length} onChange={(e) => set('folderId', e.target.value)}>
-              <option value="">Không thuộc thư mục nào</option>
-              {folderOptions.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {'\u2003'.repeat(f.depth)}
-                  {f.name}
-                </option>
-              ))}
-            </select>
+          <Field label="Thư mục" htmlFor="ad-folder" error={errors.folderId} hint={draft.subjectId && !folders.length ? 'Môn chưa có thư mục. Tạo ở trang chi tiết môn.' : undefined}>
+            <SearchSelect
+              id="ad-folder"
+              value={draft.folderId}
+              disabled={!folders.length}
+              clearable
+              placeholder="Không thuộc thư mục nào"
+              searchPlaceholder="Gõ tên thư mục…"
+              options={folderOptions.map((f) => ({ value: f.id, label: f.name, depth: f.depth }))}
+              onChange={(id) => set('folderId', id)}
+            />
           </Field>
-          <Field label="Kỳ học của trường" htmlFor="ad-term" optional hint={terms.length ? 'Điền sẵn học kỳ và niên khoá.' : 'Trường chưa có kỳ học nào.'}>
-            <select id="ad-term" className="select" value={draft.academicTermId} disabled={!terms.length} onChange={(e) => pickTerm(e.target.value)}>
-              <option value="">Không chọn</option>
-              {terms.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                  {t.state === 'current' ? ' — đang diễn ra' : ''}
-                </option>
-              ))}
-            </select>
+          <Field label="Kỳ học" htmlFor="ad-term" hint={terms.length ? 'Tự điền học kỳ theo kỳ đã chọn.' : 'Trường chưa có kỳ học nào.'}>
+            <SearchSelect
+              id="ad-term"
+              value={draft.academicTermId}
+              disabled={!terms.length}
+              clearable
+              placeholder="Không chọn"
+              searchPlaceholder="Gõ tên kỳ…"
+              options={terms.map((t) => ({ value: t.id, label: `${t.name}${t.state === 'current' ? ' — đang diễn ra' : ''}` }))}
+              onChange={(id) => (id ? pickTerm(id) : set('academicTermId', ''))}
+            />
           </Field>
-          <Field label="Năm học của môn" htmlFor="ad-year" required error={errors.year}>
-            <select id="ad-year" className="select" value={draft.year} onChange={(e) => set('year', e.target.value)}>
+          <Field label="Năm học của môn" required error={errors.year}>
+            <div className="pill-radios" role="radiogroup" aria-label="Năm học của môn">
               {STUDY_YEARS.map((y) => (
-                <option key={y} value={y}>
-                  Năm {y}
-                </option>
+                <label key={y} className="pill-radio">
+                  <input type="radio" name="ad-year" checked={draft.year === String(y)} onChange={() => set('year', String(y))} />
+                  <span>Năm {y}</span>
+                </label>
               ))}
-            </select>
+            </div>
           </Field>
-          <Field label="Học kỳ" htmlFor="ad-sem" required error={errors.semester}>
-            <select id="ad-sem" className="select" value={draft.semester} onChange={(e) => set('semester', e.target.value as Semester)}>
-              <option value="">Chọn học kỳ</option>
-              {SEMESTERS.map((s) => (
-                <option key={s} value={s}>
-                  {SEMESTER_LABELS[s].vi}
-                </option>
+          <Field label="Học kỳ" required error={errors.semester}>
+            <div className="pill-radios" role="radiogroup" aria-label="Học kỳ">
+              {SEMESTERS.map((x) => (
+                <label key={x} className="pill-radio">
+                  <input type="radio" name="ad-sem" checked={draft.semester === x} onChange={() => set('semester', x)} />
+                  <span>{SEMESTER_LABELS[x].vi}</span>
+                </label>
               ))}
-            </select>
+            </div>
           </Field>
-          <Field label="Niên khoá" htmlFor="ad-sy" optional error={errors.schoolYear}>
-            <input id="ad-sy" className="input" placeholder="2026–2027" value={draft.schoolYear} onChange={(e) => set('schoolYear', e.target.value)} />
-          </Field>
+          {periods.length > 0 && (
+            <Field label="Block" className="span-2">
+              <div className="pill-radios" role="radiogroup" aria-label="Block">
+                {periods.map((p) => (
+                  <label key={p} className="pill-radio">
+                    <input
+                      type="radio"
+                      name="ad-period"
+                      checked={draft.period === p}
+                      onChange={() => set('period', p)}
+                      onClick={() => draft.period === p && set('period', '')}
+                    />
+                    <span>{p}</span>
+                  </label>
+                ))}
+              </div>
+            </Field>
+          )}
         </div>
       </section>
 
