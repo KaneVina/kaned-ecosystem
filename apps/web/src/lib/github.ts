@@ -178,7 +178,7 @@ export function filesUnder(tree: GithubTree, path: string): GithubEntry[] {
 export const totalBytes = (entries: GithubEntry[]) => entries.reduce((sum, e) => sum + (e.type === 'blob' ? e.size : 0), 0);
 
 /** The browser gathers a folder into one ZIP; past these it is quicker to take the repository ZIP. */
-export const FOLDER_ZIP_LIMITS = { files: 800, bytes: 150 * 1024 * 1024 };
+export const FOLDER_ZIP_LIMITS = { files: 4000, bytes: 200 * 1024 * 1024 };
 
 function save(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
@@ -210,6 +210,7 @@ export async function zipGithubFolder(target: GithubTarget, folder: string, ref:
   const cut = folder ? folder.length + 1 : 0;
   const out: Record<string, Uint8Array> = {};
   let done = 0;
+  let count = 0;
   let next = 0;
   onProgress(0);
 
@@ -220,10 +221,11 @@ export async function zipGithubFolder(target: GithubTarget, folder: string, ref:
       if (!res.ok) throw new GithubError(res.status === 404 ? 'missing' : 'offline');
       out[`${root}/${file.path.slice(cut)}`] = new Uint8Array(await res.arrayBuffer());
       done += file.size;
-      onProgress(Math.min(0.97, done / total));
+      count += 1;
+      onProgress(Math.min(0.97, (done / total + count / blobs.length) / 2));
     }
   };
-  await Promise.all(Array.from({ length: Math.min(6, blobs.length) }, worker));
+  await Promise.all(Array.from({ length: Math.min(10, blobs.length) }, worker));
 
   const data = await new Promise<Uint8Array>((resolve, reject) => zip(out, { level: 1 }, (err, result) => (err ? reject(err) : resolve(result))));
   onProgress(1);
