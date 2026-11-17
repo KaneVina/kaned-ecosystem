@@ -17,10 +17,11 @@ function useHealth(target: React.RefObject<HTMLElement>) {
     const el = target.current;
     if (!el) return;
     let done = false;
-    const io = new IntersectionObserver(async ([entry]) => {
-      if (!entry.isIntersecting || done) return;
+    const check = async () => {
+      if (done) return;
       done = true;
       io.disconnect();
+      window.clearTimeout(fallback);
       const t = performance.now();
       const ctrl = new AbortController();
       const timer = window.setTimeout(() => ctrl.abort(), 8000);
@@ -34,9 +35,15 @@ function useHealth(target: React.RefObject<HTMLElement>) {
       } finally {
         window.clearTimeout(timer);
       }
-    });
+    };
+    const io = new IntersectionObserver(([entry]) => entry.isIntersecting && void check());
+    // Background tabs may never report the footer as visible; check anyway after a while.
+    const fallback = window.setTimeout(() => void check(), 6000);
     io.observe(el);
-    return () => io.disconnect();
+    return () => {
+      io.disconnect();
+      window.clearTimeout(fallback);
+    };
   }, [target]);
   return health;
 }

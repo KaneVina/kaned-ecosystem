@@ -25,7 +25,7 @@ type Row = NonNullable<Awaited<ReturnType<typeof findOne>>>;
 const findOne = (id: string) => db.query.documents.findFirst({ where: eq(documents.id, id), with: documentWith });
 
 export function toAdminDocument(row: Row): AdminDocumentDto {
-  return { ...toDocumentSummary(row), fileUrl: row.fileUrl, updatedAt: row.updatedAt.toISOString() };
+  return { ...toDocumentSummary(row), fileUrl: storage.deliveryUrl(row), updatedAt: row.updatedAt.toISOString() };
 }
 
 function filtersFor(query: Omit<AdminDocumentQuery, 'status' | 'page' | 'pageSize' | 'sort'>): SQL[] {

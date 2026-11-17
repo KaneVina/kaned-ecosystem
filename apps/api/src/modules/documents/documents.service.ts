@@ -215,7 +215,7 @@ export async function getDocument(id: string, viewerId?: string): Promise<Docume
   return {
     ...toDocumentSummary(row, { isBookmarked: bookmarked.has(id) }),
     views: row.views + 1,
-    fileUrl: row.fileUrl,
+    fileUrl: storage.deliveryUrl(row),
     reviews: reviewRows.map(toReview),
     related: related.map((d) => toDocumentSummary(d)),
     moreFromUploader: moreFromUploader.map((d) => toDocumentSummary(d)),
@@ -411,13 +411,15 @@ export async function registerDownload(id: string) {
     .where(eq(documents.id, id))
     .returning({
       fileUrl: documents.fileUrl,
+      filePublicId: documents.filePublicId,
       title: documents.title,
       format: documents.format,
       downloads: documents.downloads,
     });
 
   if (!row) throw ApiError.notFound('That document is no longer here.');
-  return row;
+  const { filePublicId: _id, ...rest } = row;
+  return { ...rest, fileUrl: storage.deliveryUrl(row, { attachment: true }) };
 }
 
 export async function toggleBookmark(documentId: string, userId: string) {

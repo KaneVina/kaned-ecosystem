@@ -104,6 +104,25 @@ export const storage = {
     }
   },
 
+  /**
+   * The address a browser should use for an uploaded file. Free Cloudinary
+   * accounts refuse to deliver PDF and ZIP files from their public URL
+   * ("deny or ACL failure"), so those go through a signed download link that
+   * expires; everything else keeps its public URL (Office's viewer needs one).
+   */
+  deliveryUrl(doc: { fileUrl: string; filePublicId?: string | null; format: string }, options: { attachment?: boolean } = {}): string {
+    if (!env.cloudinaryEnabled || !doc.filePublicId) return doc.fileUrl;
+    const m = /\/(image|raw)\/upload\//.exec(doc.fileUrl);
+    if (!m || !/^(PDF|ZIP)$/.test(doc.format)) return doc.fileUrl;
+    const raw = m[1] === 'raw';
+    return cloudinary.utils.private_download_url(doc.filePublicId, raw ? '' : doc.format.toLowerCase(), {
+      resource_type: raw ? 'raw' : 'image',
+      type: 'upload',
+      attachment: Boolean(options.attachment),
+      expires_at: Math.floor(Date.now() / 1000) + 12 * 3600,
+    });
+  },
+
   /** Cloudinary can render page 1 of a PDF as a JPEG — used for the card thumbnail. */
   thumbnailFor(publicId: string, format?: string): string | null {
     if (!env.cloudinaryEnabled || !publicId) return null;
