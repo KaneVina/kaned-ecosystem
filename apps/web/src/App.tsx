@@ -15,6 +15,8 @@ import { DocumentDetailPage } from '@/features/library/DocumentDetailPage';
 import { UploadPage } from '@/features/library/UploadPage';
 import { SubjectsWorkspace } from '@/features/subjects/SubjectsWorkspace';
 import { GpaPage } from '@/features/gpa/GpaPage';
+import { DecksPage } from '@/features/decks/DecksPage';
+import { DeckPage } from '@/features/decks/DeckPage';
 import { ProfilePage } from '@/features/profile/ProfilePage';
 import { useAuth } from '@/providers/AuthProvider';
 import { STAFF_ROLES } from '@kaned/shared';
@@ -33,6 +35,7 @@ const UsersPage = lazy(() => admin().then((m) => ({ default: m.UsersPage })));
 const UserDetailPage = lazy(() => admin().then((m) => ({ default: m.UserDetailPage })));
 const GradesPage = lazy(() => admin().then((m) => ({ default: m.GradesPage })));
 const ActivityPage = lazy(() => admin().then((m) => ({ default: m.ActivityPage })));
+const AdminDecksPage = lazy(() => admin().then((m) => ({ default: m.DecksPage })));
 
 /** Shown while the refresh cookie is exchanged for a session. */
 function Booting() {
@@ -88,6 +91,9 @@ export default function App() {
         <Route path="subjects" element={<SubjectsWorkspace />} />
         <Route path="subjects/:code" element={<SubjectsWorkspace />} />
         <Route path="tools/gpa" element={<GpaPage />} />
+        <Route path="flashcards" element={<DecksPage />} />
+        <Route path="flashcards/:id" element={<DeckPage />} />
+        <Route path="flashcards/:id/:mode" element={<DeckPage />} />
         <Route path="saved" element={<ProfilePage defaultTab="saved" />} />
         <Route path="profile" element={<ProfilePage defaultTab="uploads" />} />
         <Route path="settings" element={<SettingsPage />} />
@@ -124,6 +130,7 @@ export default function App() {
         <Route path="users/:id" element={<RequireStaff adminOnly><UserDetailPage /></RequireStaff>} />
         <Route path="grades" element={<RequireStaff adminOnly><GradesPage /></RequireStaff>} />
         <Route path="activity" element={<ActivityPage />} />
+        <Route path="decks" element={<AdminDecksPage />} />
         <Route path="*" element={<NotFoundPage inShell />} />
       </Route>
 

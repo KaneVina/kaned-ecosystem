@@ -8,7 +8,7 @@
  * is a new table pointing at users and subjects; nothing here has to change.
  */
 import { relations, sql } from 'drizzle-orm';
-import type { AssessmentItem, PassCriteriaValues, PassCriterion, Requirement } from '@kaned/shared';
+import type { AssessmentItem, DeckContent, DeckProgress, PassCriteriaValues, PassCriterion, Requirement } from '@kaned/shared';
 import {
   type AnyPgColumn,
   boolean,
@@ -586,6 +586,60 @@ export const grades = pgTable(
   }),
 );
 
+/* ─────────────────────────────── decks ──────────────────────────────── */
+
+/**
+ * Bộ đề ôn tập for a subject, written in the Kaned deck format. The file is
+ * kept as written (source) beside what was read from it (content).
+ */
+export const decks = pgTable(
+  'decks',
+  {
+    id: id(),
+    subjectId: text('subject_id')
+      .notNull()
+      .references(() => subjects.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    description: text('description'),
+    /** PUBLISHED | DRAFT */
+    status: varchar('status', { length: 12 }).notNull().default('PUBLISHED'),
+    source: text('source').notNull(),
+    content: jsonb('content').$type<DeckContent>().notNull(),
+    questionCount: integer('question_count').notNull().default(0),
+    tipCount: integer('tip_count').notNull().default(0),
+    chapterCount: integer('chapter_count').notNull().default(0),
+    createdById: text('created_by_id').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => ({
+    subjectIdx: index('decks_subject_idx').on(t.subjectId),
+  }),
+);
+
+/** One learner's progress in one deck, with counts kept beside it for lists. */
+export const deckProgress = pgTable(
+  'deck_progress',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    deckId: text('deck_id')
+      .notNull()
+      .references(() => decks.id, { onDelete: 'cascade' }),
+    state: jsonb('state').$type<DeckProgress>().notNull(),
+    seen: integer('seen').notNull().default(0),
+    ok: integer('ok').notNull().default(0),
+    bad: integer('bad').notNull().default(0),
+    marked: integer('marked').notNull().default(0),
+    updatedAt: updatedAt(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.deckId] }),
+    deckIdx: index('deck_progress_deck_idx').on(t.deckId),
+  }),
+);
+
 /* ─────────────────────────────── admin ──────────────────────────────── */
 
 /** What admins changed and when — the dashboard's activity feed. */
@@ -794,6 +848,17 @@ export const collectionItemRelations = relations(collectionItems, ({ one }) => (
   document: one(documents, { fields: [collectionItems.documentId], references: [documents.id] }),
 }));
 
+export const deckRelations = relations(decks, ({ one, many }) => ({
+  subject: one(subjects, { fields: [decks.subjectId], references: [subjects.id] }),
+  createdBy: one(users, { fields: [decks.createdById], references: [users.id] }),
+  progress: many(deckProgress),
+}));
+
+export const deckProgressRelations = relations(deckProgress, ({ one }) => ({
+  user: one(users, { fields: [deckProgress.userId], references: [users.id] }),
+  deck: one(decks, { fields: [deckProgress.deckId], references: [decks.id] }),
+}));
+
 export const gradeRelations = relations(grades, ({ one }) => ({
   user: one(users, { fields: [grades.userId], references: [users.id] }),
   subject: one(subjects, { fields: [grades.subjectId], references: [subjects.id] }),
@@ -811,3 +876,4 @@ export type GradeRow = typeof grades.$inferSelect;
 export type AcademicTermRow = typeof academicTerms.$inferSelect;
 export type FacultyRow = typeof faculties.$inferSelect;
 export type SubjectFolderRow = typeof subjectFolders.$inferSelect;
+export type DeckRow = typeof decks.$inferSelect;

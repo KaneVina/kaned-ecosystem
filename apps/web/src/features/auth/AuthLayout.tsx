@@ -22,7 +22,7 @@ const MODULES = [
   { name: 'Thư viện', state: 'Đang mở', icon: Library },
   { name: 'Tính GPA', state: 'Đang mở', icon: Calculator },
   { name: 'Môn học & điều kiện', state: 'Đang mở', icon: GraduationCap },
-  { name: 'Thẻ ghi nhớ', state: 'Sắp có', icon: Layers },
+  { name: 'Thẻ ghi nhớ', state: 'Đang mở', icon: Layers },
   { name: 'Thời khoá biểu', state: 'Sắp có', icon: CalendarDays },
   { name: 'Nhóm học', state: 'Đang thiết kế', icon: Users },
 ];

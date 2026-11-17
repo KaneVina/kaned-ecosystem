@@ -7,6 +7,7 @@ import {
   ChevronRight,
   FilePlus2,
   Files,
+  Layers,
   History,
   LayoutDashboard,
   LogOut,
@@ -61,6 +62,7 @@ const NAV: Array<{ title: string; items: Item[] }> = [
     items: [
       { to: '/admin', label: 'Tổng quan', icon: LayoutDashboard, end: true },
       { to: '/admin/documents', label: 'Tài liệu', icon: Files, count: 'pending' },
+      { to: '/admin/decks', label: 'Bộ đề ôn tập', icon: Layers },
     ],
   },
   {

@@ -2,6 +2,7 @@ export * from './domain.js';
 export * from './grading.js';
 export * from './links.js';
 export * from './github.js';
+export * from './deck.js';
 export * from './oauth.js';
 export * from './tracking.js';
 export * from './admin.js';

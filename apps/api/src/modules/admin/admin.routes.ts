@@ -9,6 +9,10 @@ import {
   adminUserQuerySchema,
   adminGradesQuerySchema,
   createDocumentSchema,
+  deckInputSchema,
+  deckListQuerySchema,
+  deckUpdateSchema,
+  type DeckListQuery,
   curriculumAddSchema,
   curriculumEntryUpdateSchema,
   documentBulkSchema,
@@ -45,6 +49,7 @@ import * as docs from './documents.service.js';
 import * as people from './people.service.js';
 import * as folders from './folders.service.js';
 import { getCurriculum } from '../catalog/catalog.service.js';
+import * as deckAdmin from '../decks/decks.service.js';
 
 /**
  * /api/admin — the dashboard's API.
@@ -206,6 +211,16 @@ adminRouter.get('/users', adminOnly, validateQuery(adminUserQuerySchema), async 
 adminRouter.patch('/users/:id/role', adminOnly, validateBody(userRoleSchema), async (req, res) =>
   res.json(await people.setRole(actor(req), req.params.id, req.body.role)),
 );
+
+/* study decks: anyone on staff reads, admins import and change */
+adminRouter.get('/decks', validateQuery(deckListQuerySchema), async (_req, res) => res.json(await deckAdmin.listDecksAdmin(parsedQuery<DeckListQuery>(res))));
+adminRouter.get('/decks/:id', async (req, res) => res.json(await deckAdmin.getDeckAdmin(req.params.id)));
+adminRouter.post('/decks', adminOnly, validateBody(deckInputSchema), async (req, res) => res.status(201).json(await deckAdmin.createDeck(actor(req), req.body)));
+adminRouter.patch('/decks/:id', adminOnly, validateBody(deckUpdateSchema), async (req, res) => res.json(await deckAdmin.updateDeck(actor(req), req.params.id, req.body)));
+adminRouter.delete('/decks/:id', adminOnly, async (req, res) => {
+  await deckAdmin.deleteDeck(actor(req), req.params.id);
+  res.status(204).end();
+});
 
 /* student grades: admins only, never moderators */
 adminRouter.get('/grades', adminOnly, validateQuery(adminGradesQuerySchema), async (_req, res) =>

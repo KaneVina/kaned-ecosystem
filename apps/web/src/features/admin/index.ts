@@ -10,3 +10,4 @@ export { ActivityPage } from './ActivityPage';
 export { SubjectDetailPage } from './SubjectDetailPage';
 export { UserDetailPage } from './UserDetailPage';
 export { GradesPage } from './GradesPage';
+export { DecksPage } from './DecksPage';

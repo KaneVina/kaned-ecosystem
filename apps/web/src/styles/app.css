@@ -1138,3 +1138,13 @@ a.ghv-name:hover span { color: var(--violet-600); text-decoration: underline; te
 .gh-switch { align-items: center; }
 .gh-switch .btn { margin-left: auto; flex: none; }
 @media (max-width: 640px) { .gh-switch { flex-wrap: wrap; } .gh-switch .btn { margin-left: 26px; } }
+
+/* subject page: study decks for this subject */
+.sd-decks { display: flex; flex-direction: column; gap: 8px; margin: 0 0 4px; }
+.sd-deck { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-radius: var(--r-md); border: 1px solid var(--violet-100); background: var(--violet-50); color: var(--ink); text-decoration: none; transition: border-color .15s, transform .15s var(--ease-out); }
+.sd-deck:hover { border-color: var(--violet-200); transform: translateY(-1px); }
+.sd-deck > .ic { color: var(--violet); flex: none; }
+.sd-deck > span { flex: 1; min-width: 0; }
+.sd-deck b { display: block; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sd-deck small { font-size: 12.5px; color: var(--ink-3); }
+.sd-deck em { font-style: normal; font-size: 13px; font-weight: 600; color: var(--violet-600); flex: none; }

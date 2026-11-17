@@ -1,5 +1,10 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
+  AdminDeckDetailDto,
+  AdminDeckDto,
+  DeckInput,
+  DeckListQuery,
+  DeckUpdate,
   AcademicTermDto,
   AcademicTermInput,
   ActivityDto,
@@ -207,6 +212,7 @@ function useWrite<TVars, TResult>(request: (vars: TVars, key: string) => Promise
       void client.invalidateQueries({ queryKey: ['catalog'] });
       void client.invalidateQueries({ queryKey: ['documents'] });
       void client.invalidateQueries({ queryKey: ['grades'] });
+      void client.invalidateQueries({ queryKey: ['decks'] });
     },
   });
 }
@@ -277,3 +283,15 @@ export const useSaveFolder = () =>
 export const useDeleteFolder = () => useWrite((id: string, key) => send<void>('delete', `/folders/${id}`, key));
 export const useMoveDocuments = () =>
   useWrite((input: MoveDocumentsInput, key) => send<{ moved: number }>('post', '/documents/move', key, input));
+
+/* ─────────────────────────────── decks ─────────────────────────────── */
+
+export const useDecksAdmin = (p: DeckListQuery) =>
+  useQuery({ queryKey: [...adminKeys.all, 'decks', p], queryFn: () => get<AdminDeckDto[]>('/decks', p), placeholderData: keepPreviousData });
+
+export const useDeckAdmin = (id?: string) =>
+  useQuery({ queryKey: [...adminKeys.all, 'deck', id], enabled: Boolean(id), queryFn: () => get<AdminDeckDetailDto>(`/decks/${id}`) });
+
+export const useCreateDeck = () => useWrite((input: DeckInput, key) => send<AdminDeckDto>('post', '/decks', key, input));
+export const useUpdateDeck = () => useWrite(({ id, input }: { id: string; input: DeckUpdate }, key) => send<AdminDeckDto>('patch', `/decks/${id}`, key, input));
+export const useDeleteDeck = () => useWrite((id: string, key) => send<void>('delete', `/decks/${id}`, key));

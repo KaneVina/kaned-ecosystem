@@ -60,9 +60,9 @@ export const TOOLS: Tool[] = [
     tone: 'teal',
   },
   {
-    to: null,
+    to: '/app/flashcards',
     label: 'Thẻ ghi nhớ',
-    description: 'Ôn tập lặp lại giãn cách từ tài liệu đã lưu',
+    description: 'Luyện trắc nghiệm, lật thẻ, thi thử và mẹo nhớ theo từng môn',
     icon: Layers,
     tone: 'amber',
   },

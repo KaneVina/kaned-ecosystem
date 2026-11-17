@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom';
-import { BookOpen, ChevronRight, ClipboardList, FileText, KeyRound, ListChecks, PieChart, Target, X } from 'lucide-react';
+import { BookOpen, ChevronRight, ClipboardList, FileText, KeyRound, Layers, ListChecks, PieChart, Target, X } from 'lucide-react';
 import { evaluatePassCriteria, gradeBandFor, type CurriculumSubjectDto, type PassCriteriaValues, type PlannerResult, type SubjectStatus } from '@kaned/shared';
 import { Skeleton } from '@/components/ui/Feedback';
 import { subjectTone } from '@/components/paper/profiles';
 import { useSubject } from '@/features/catalog/queries';
+import { useDecks } from '@/features/decks/api';
 import { isInvalidScore, parseScore, type DraftEntry } from '@/features/grades/queries';
 import { cn } from '@/lib/cn';
 import { RequirementList } from './RequirementList';
@@ -44,6 +45,7 @@ export function SubjectDetail({
   onClose?: () => void;
 }) {
   const { data: detail, isLoading } = useSubject(subject.code);
+  const { data: decks = [] } = useDecks({ subjectId: subject.id });
   const tone = subjectTone(subject.code);
   const status = STATUS[result.status];
   const raw = entry?.score ?? '';
@@ -78,6 +80,24 @@ export function SubjectDetail({
           <b>{subject.credits}</b> tín chỉ <i>·</i> {termLabel(subject.termNo)}
         </p>
       </header>
+
+      {decks.length > 0 && (
+        <div className="sd-decks">
+          {decks.map((d) => (
+            <Link key={d.id} to={`/app/flashcards/${d.id}`} className="sd-deck">
+              <Layers className="ic ic-sm" />
+              <span>
+                <b>{d.title}</b>
+                <small>
+                  {d.questionCount} câu{d.tipCount ? ` · ${d.tipCount} mẹo` : ''}
+                  {d.progress?.seen ? ` · đã thuộc ${Math.round((d.progress.ok / Math.max(1, d.questionCount)) * 100)}%` : ''}
+                </small>
+              </span>
+              <em>{d.progress?.seen ? 'Ôn tiếp' : 'Ôn thi'}</em>
+            </Link>
+          ))}
+        </div>
+      )}
 
       {/* Grade entry */}
       <section className="sd-grade" aria-label="Điểm của bạn">

@@ -771,3 +771,39 @@ p.pce-sub { margin: 0; }
 .pce-extras { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 10px; border: 1px dashed var(--a-border); }
 .pce-extras-l { font-size: 12.5px; color: var(--a-ink-3); margin-right: 2px; }
 .pce-extra-in { width: 130px; height: 28px; }
+
+/* ───────────────────────── deck import ───────────────────────── */
+.dke { display: flex; flex-direction: column; gap: 16px; }
+.dke-subj { display: inline-flex; align-items: center; gap: 8px; }
+.dke-drop { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border: 1.5px dashed var(--line-2); border-radius: var(--r-md); background: var(--paper-2); transition: border-color .15s, background .15s; }
+.dke-drop.is-drag { border-color: var(--violet); background: var(--violet-50); }
+.dke-drop > .ic { width: 26px; height: 26px; color: var(--violet); flex: none; }
+.dke-drop > div { flex: 1; min-width: 0; }
+.dke-drop b { display: block; font-size: 14.5px; }
+.dke-drop small { color: var(--ink-3); font-size: 13px; }
+.dke-src { min-height: 240px; font-family: var(--font); font-size: 13px; line-height: 1.55; white-space: pre; overflow: auto; tab-size: 2; }
+.dke-check { border: 1px solid var(--line); border-radius: var(--r-md); background: var(--paper); overflow: hidden; }
+.dke-check.is-ok { border-color: #BFE3D0; }
+.dke-check.is-bad { border-color: #F3C3BF; }
+.dke-sum { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; }
+.dke-sum > .ic { flex: none; margin-top: 2px; }
+.is-ok .dke-sum { background: var(--green-50); }
+.is-ok .dke-sum > .ic, .is-ok .dke-sum b { color: var(--green); }
+.is-bad .dke-sum { background: var(--red-50); }
+.is-bad .dke-sum > .ic, .is-bad .dke-sum b { color: var(--red); }
+.dke-sum b { display: block; font-size: 14.5px; }
+.dke-sum span { font-size: 13.5px; color: var(--ink-2); }
+.dke-issues { list-style: none; margin: 0; padding: 6px 0; max-height: 220px; overflow: auto; border-top: 1px solid var(--line); }
+.dke-issues li { display: flex; align-items: baseline; gap: 8px; padding: 4px 14px; font-size: 13.5px; color: var(--ink-2); }
+.dke-issues li > .ic { flex: none; transform: translateY(2px); }
+.dke-issues li > span { flex: none; font-weight: 600; font-variant-numeric: tabular-nums; min-width: 64px; }
+.dke-issues .is-err > .ic, .dke-issues .is-err > span { color: var(--red); }
+.dke-issues .is-warn > .ic, .dke-issues .is-warn > span { color: #9A6412; }
+.dke-chapters { margin: 0; padding: 8px 14px 10px; list-style: none; border-top: 1px solid var(--line); }
+.dke-chapters li { display: flex; gap: 10px; align-items: baseline; padding: 3px 0; font-size: 13.5px; }
+.dke-chapters li > span { flex: none; min-width: 70px; font-weight: 600; color: var(--violet-600); }
+.dke-chapters small { margin-left: auto; color: var(--ink-3); white-space: nowrap; }
+.dke-guide { border: 1px solid var(--line); border-radius: var(--r-md); padding: 10px 14px; background: var(--paper-2); font-size: 13.5px; color: var(--ink-2); }
+.dke-guide summary { cursor: pointer; font-weight: 600; color: var(--ink); }
+.dke-guide ul { margin: 10px 0 12px; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+.dke-guide code { font-size: 12.5px; background: var(--sunk); padding: 1px 5px; border-radius: 4px; }

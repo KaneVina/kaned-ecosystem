@@ -1,0 +1,224 @@
+import { useMemo } from 'react';
+import { Bookmark, CircleCheckBig, Flame, Layers, Lightbulb, Play, RotateCcw, Timer } from 'lucide-react';
+import { CountUp } from '@/components/ui/CountUp';
+import { fmtInt } from '@/lib/format';
+import { useDeckCtx } from './context';
+import { countsOf } from './model';
+import { Ring } from './parts';
+
+export function Overview() {
+  const { m, state, deck, practice, startPractice, startFlip, setExam, setBrowse, go } = useDeckCtx();
+  const c = useMemo(() => countsOf(m, state), [m, state]);
+  const pct = c.all ? (c.ok / c.all) * 100 : 0;
+  const resumeId = practice.ids[practice.idx];
+  const resuming = Boolean(state.pr && resumeId && practice.idx > 0);
+  const variants = m.Q.length - m.base;
+  const tipTotal = m.tips.size;
+
+  return (
+    <div className="dk-overview">
+      <section className="dk-hero">
+        <Ring value={pct} size={210}>
+          <b className="dk-ring-big">
+            <CountUp value={Math.round(pct)} />
+            <small>%</small>
+          </b>
+          <span className="dk-ring-cap">
+            đã thuộc {fmtInt(c.ok)} / {fmtInt(c.all)} câu
+          </span>
+        </Ring>
+        <div className="dk-hero-main">
+          <h2 className="t-h2">{c.seen ? 'Ôn tiếp nào' : 'Bắt đầu ôn bộ đề này'}</h2>
+          <p>
+            {fmtInt(m.base)} câu trắc nghiệm{variants > 0 ? `, thêm ${fmtInt(variants)} câu kiểu hỏi khác` : ''}
+            {tipTotal ? `, ${fmtInt(tipTotal)} mẹo nhớ` : ''}. Luyện từng câu để biết ngay đúng sai, lật thẻ để tự nhớ, hoặc làm đề thi thử có tính giờ.
+          </p>
+          <div className="dk-hero-actions">
+            <button type="button" className="btn btn-primary btn-lg" onClick={() => go('practice')}>
+              <Play className="ic ic-sm" />
+              {resuming ? `Học tiếp từ câu ${resumeId}` : 'Bắt đầu luyện tập'}
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary btn-lg"
+              onClick={() => {
+                setExam((e) => (e.phase === 'run' ? e : { ...e, phase: 'setup', n: Math.min(50, m.Q.length), ch: 0 }));
+                go('exam');
+              }}
+            >
+              <Timer className="ic ic-sm" />
+              Thi thử {Math.min(50, m.Q.length)} câu
+            </button>
+            {tipTotal > 0 && (
+              <button type="button" className="btn btn-ghost btn-lg" onClick={() => go('tips')}>
+                <Lightbulb className="ic ic-sm" />
+                Xem mẹo nhớ
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <div className="dk-stats">
+        <div className="dk-stat">
+          <b>
+            <CountUp value={c.seen} />
+          </b>
+          <span>
+            <i className="dk-dot is-seen" />
+            Đã làm
+          </span>
+        </div>
+        <button
+          type="button"
+          className="dk-stat is-link"
+          onClick={() => {
+            setBrowse((b) => ({ ...b, ch: 0, scope: 'ok', q: '', limit: 40 }));
+            go('browse');
+          }}
+        >
+          <b>
+            <CountUp value={c.ok} />
+          </b>
+          <span>
+            <i className="dk-dot is-ok" />
+            Đã thuộc
+          </span>
+        </button>
+        <button
+          type="button"
+          className="dk-stat is-link"
+          disabled={!c.bad}
+          onClick={() => {
+            startPractice({ scope: 'bad' });
+            go('practice');
+          }}
+        >
+          <b>
+            <CountUp value={c.bad} />
+          </b>
+          <span>
+            <i className="dk-dot is-bad" />
+            Cần ôn lại
+          </span>
+        </button>
+        <button
+          type="button"
+          className="dk-stat is-link"
+          disabled={!c.mk}
+          onClick={() => {
+            startPractice({ scope: 'mk' });
+            go('practice');
+          }}
+        >
+          <b>
+            <CountUp value={c.mk} />
+          </b>
+          <span>
+            <Bookmark className="ic ic-xs" />
+            Đánh dấu
+          </span>
+        </button>
+        <div className="dk-stat">
+          <b>
+            <CountUp value={state.best} />
+          </b>
+          <span>
+            <Flame className="ic ic-xs dk-flame" />
+            Kỷ lục chuỗi đúng
+          </span>
+        </div>
+      </div>
+
+      {m.chapters.length > 0 && (
+        <section className="dk-section">
+          <div className="dk-sec-head">
+            <div>
+              <h2 className="t-h3">Theo chương</h2>
+              <p>Tiến độ từng chương. Câu sai sẽ hiện ở mục “Cần ôn” để luyện lại.</p>
+            </div>
+          </div>
+          <div className="panel dk-ledger">
+            {m.chapters.map((ch) => {
+              const k = countsOf(m, state, ch.n);
+              const okp = k.all ? (k.ok / k.all) * 100 : 0;
+              const badp = k.all ? (k.bad / k.all) * 100 : 0;
+              return (
+                <div key={ch.n} className="dk-lrow">
+                  <span className="dk-lnum">{ch.n || '–'}</span>
+                  <div className="dk-lname">
+                    <b>{ch.name}</b>
+                    <small>
+                      {fmtInt(k.all)} câu{k.mk ? `, ${fmtInt(k.mk)} đánh dấu` : ''}
+                    </small>
+                  </div>
+                  <div className="dk-lbar">
+                    <div className="dk-bar">
+                      <i className="is-ok" style={{ width: `${okp}%` }} />
+                      <i className="is-bad" style={{ width: `${badp}%` }} />
+                    </div>
+                    <div className="dk-lbar-cap">
+                      <span>{Math.round(okp)}% đã thuộc</span>
+                      {k.bad > 0 && <span className="is-bad">{fmtInt(k.bad)} cần ôn</span>}
+                    </div>
+                  </div>
+                  <div className="dk-lacts">
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => {
+                        startPractice({ ch: ch.n });
+                        go('practice');
+                      }}
+                    >
+                      <CircleCheckBig className="ic ic-sm" />
+                      Luyện tập
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => {
+                        startFlip({ ch: ch.n });
+                        go('flip');
+                      }}
+                    >
+                      <Layers className="ic ic-sm" />
+                      Lật thẻ
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {state.exams.length > 0 && (
+        <section className="dk-section">
+          <div className="dk-sec-head">
+            <div>
+              <h2 className="t-h3">Lần thi thử gần đây</h2>
+            </div>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => go('exam')}>
+              <RotateCcw className="ic ic-sm" />
+              Thi lại
+            </button>
+          </div>
+          <div className="dk-exam-strip">
+            {state.exams.slice(0, 6).map((x) => (
+              <div key={x.d} className={x.score >= 5 ? 'is-pass' : 'is-fail'}>
+                <b>{(Math.round(x.score * 100) / 100).toLocaleString('vi-VN')}</b>
+                <span>
+                  {x.ok}/{x.n} câu · {new Date(x.d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+      <p className="dk-foot-note">
+        Cập nhật bộ đề {new Date(deck.updatedAt).toLocaleDateString('vi-VN')}. Tiến độ của bạn được lưu vào tài khoản, mở trên máy khác vẫn còn.
+      </p>
+    </div>
+  );
+}
