@@ -97,7 +97,7 @@ export function SiteFooter({ columns, compact = false }: { columns?: Array<{ tit
 
         <div className="sf-main">
           <div className="sf-brand">
-            <Link to="/app" className="sf-logo" aria-label="Kaned — trang chủ">
+            <Link to="/" className="sf-logo" aria-label="Kaned — trang chủ">
               <Wordmark />
             </Link>
             <p>Hệ sinh thái học tập cho sinh viên Việt Nam: tài liệu, điểm số và lộ trình môn học trên một tài khoản.</p>

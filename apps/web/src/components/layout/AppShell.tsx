@@ -197,7 +197,7 @@ export function AppShell() {
 
       <header className={cn('nav', scrolled && 'scrolled')}>
         <div className="container nav-in">
-          <Link to="/app" aria-label="Kaned — trang chủ">
+          <Link to="/" aria-label="Kaned — trang chủ">
             <Wordmark />
           </Link>
 
@@ -281,7 +281,7 @@ export function AppShell() {
         <div className="drawer-backdrop" onClick={() => setDrawer(false)} />
         <aside className="drawer" aria-label="Menu">
           <div className="drawer-head">
-            <Link to="/app">
+            <Link to="/" aria-label="Kaned — trang chủ">
               <Wordmark />
             </Link>
             <button type="button" className="icon-btn" aria-label="Đóng menu" onClick={() => setDrawer(false)}>
