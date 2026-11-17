@@ -65,30 +65,101 @@ function createClient() {
   });
 }
 
-let client = globalForDb.sql ?? createClient();
-if (!env.isProd) globalForDb.sql = client;
+let pool = globalForDb.sql ?? createClient();
+if (!env.isProd) globalForDb.sql = pool;
 
-/*
- * Live bindings: `resetDb` swaps these, and every module that imported them
- * sees the new client on its next call.
+/* ───────────────────────────── query watchdog ─────────────────────────────
+ * On Vercel a pooled socket can die without either side noticing (the
+ * instance was frozen, the pooler moved on). Every query on it then waits
+ * forever. With the watchdog on, a query still unanswered after
+ * QUERY_TIMEOUT_MS throws the pool away; a read is run once more on the fresh
+ * pool, a write fails fast instead (it may have reached the server).
+ * Only the API server turns it on — migrations may run long on purpose. */
+
+const QUERY_TIMEOUT_MS = 6_000;
+let watchdog = false;
+export function enableQueryWatchdog() {
+  watchdog = true;
+}
+
+class QueryTimeout extends Error {
+  constructor() {
+    super('The database did not answer in time.');
+    this.name = 'QueryTimeout';
+  }
+}
+
+function within<T>(promise: Promise<T>, ms: number): Promise<T> {
+  // The losing promise may still reject later (the old pool closing); keep that quiet.
+  promise.catch(() => undefined);
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new QueryTimeout()), ms);
+    promise.then(
+      (v) => {
+        clearTimeout(t);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(t);
+        reject(e);
+      },
+    );
+  });
+}
+
+const READ = /^\s*(select|with)\b/i;
+const WRITE = /\b(insert|update|delete)\b/i;
+
+async function guarded<T>(query: string, run: () => Promise<T>): Promise<T> {
+  if (!watchdog) return run();
+  try {
+    return await within(run(), QUERY_TIMEOUT_MS);
+  } catch (e) {
+    if (!(e instanceof QueryTimeout)) throw e;
+    resetDb(`a query waited ${QUERY_TIMEOUT_MS / 1000}s`);
+    if (READ.test(query) && !WRITE.test(query)) return within(run(), QUERY_TIMEOUT_MS);
+    throw e;
+  }
+}
+
+type Sql = ReturnType<typeof postgres>;
+
+/**
+ * What the rest of the code talks to: always the current pool, with the
+ * watchdog around `unsafe` (every Drizzle query goes through it).
  */
-export let db = drizzle(client, { schema, logger: false });
-export let sqlClient = client;
+const current = new Proxy(function sql() {} as unknown as Sql, {
+  apply: (_t, _this, args: unknown[]) => (pool as unknown as (...a: unknown[]) => unknown)(...args),
+  get(_t, prop) {
+    if (prop === 'unsafe') {
+      return (query: string, params?: unknown[], options?: unknown) => {
+        const make = () => pool.unsafe(query, params as never, options as never);
+        return {
+          values: () => guarded(query, () => make().values() as Promise<unknown>),
+          then: (ok?: (v: unknown) => unknown, fail?: (e: unknown) => unknown) => guarded(query, () => make() as Promise<unknown>).then(ok, fail),
+          catch: (fail: (e: unknown) => unknown) => guarded(query, () => make() as Promise<unknown>).catch(fail),
+        };
+      };
+    }
+    const value = Reflect.get(pool, prop) as unknown;
+    return typeof value === 'function' ? (value as (...a: unknown[]) => unknown).bind(pool) : value;
+  },
+});
+
+export const db = drizzle(current, { schema, logger: false });
+export const sqlClient = current;
 export * as schema from './schema.js';
 export type Db = typeof db;
 
 /** Throws the pool away and starts a new one; old sockets are closed in the background. */
 export function resetDb(reason: string) {
-  const old = client;
-  client = createClient();
-  if (!env.isProd) globalForDb.sql = client;
-  db = drizzle(client, { schema, logger: false });
-  sqlClient = client;
+  const old = pool;
+  pool = createClient();
+  if (!env.isProd) globalForDb.sql = pool;
   console.warn(`[db] new connection pool (${reason})`);
   // Queries still running on the old pool get time to finish.
   old.end({ timeout: 10 }).catch(() => undefined);
 }
-
 /*
  * A request that hangs asks for a fresh pool, but the swap waits until no
  * other request is running, so a healthy query is never cut off midway.

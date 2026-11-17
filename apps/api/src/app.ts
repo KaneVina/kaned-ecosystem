@@ -5,7 +5,7 @@ import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 import { env } from './env.js';
-import { beginDbWork, requestDbReset, sqlClient } from './db/index.js';
+import { beginDbWork, enableQueryWatchdog, requestDbReset, sqlClient } from './db/index.js';
 import { api } from './routes.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
 import { apiLimiter } from './middleware/rateLimit.js';
@@ -13,6 +13,7 @@ import { apiLimiter } from './middleware/rateLimit.js';
 const REQUEST_TIMEOUT_MS = 15_000;
 
 export function createApp() {
+  enableQueryWatchdog();
   const app = express();
 
   // Render and Vercel both sit behind a proxy; without this the rate limiter

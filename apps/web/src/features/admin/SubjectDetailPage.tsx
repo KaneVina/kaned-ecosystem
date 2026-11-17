@@ -150,7 +150,10 @@ export function SubjectDetailPage() {
   const { data: subject, isError } = useSubjectAdmin(id);
   const { data: folders = [] } = useFoldersAdmin(id);
   const [scope, setScope] = useState<Scope>('all');
-  const { data: docPage, isLoading } = useDocumentsAdmin({ subjectId: id, folderId: scope === 'all' ? undefined : scope, page: 1, pageSize: 100, sort: 'title' });
+  const docQuery = useDocumentsAdmin({ subjectId: id, folderId: scope === 'all' ? undefined : scope, page: 1, pageSize: 100, sort: 'title' });
+  // Never show another folder's list while this one loads (or fails): that reads as "the filter is broken".
+  const docPage = docQuery.isPlaceholderData ? undefined : docQuery.data;
+  const isLoading = docQuery.isLoading || docQuery.isPlaceholderData || (docQuery.isFetching && !docPage);
   const allDocs = useDocumentsAdmin({ subjectId: id, page: 1, pageSize: 1 });
   const unfiled = useDocumentsAdmin({ subjectId: id, folderId: 'none', page: 1, pageSize: 1 });
   const saveFolder = useSaveFolder();
@@ -451,7 +454,20 @@ export function SubjectDetailPage() {
                   <th className="w-menu" aria-label="Thao tác" />
                 </tr>
               </thead>
-              {isLoading ? (
+              {docQuery.isError && !docPage ? (
+                <EmptyRow cols={scope === 'all' ? 6 : 5}>
+                  <EmptyBlock
+                    icon={Files}
+                    title="Không tải được danh sách tài liệu"
+                    text={(docQuery.error as Error)?.message ?? 'Máy chủ không phản hồi.'}
+                    action={
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => void docQuery.refetch()}>
+                        Thử lại
+                      </button>
+                    }
+                  />
+                </EmptyRow>
+              ) : isLoading ? (
                 <TableSkeleton cols={scope === 'all' ? 6 : 5} rows={4} />
               ) : !docs.length ? (
                 <EmptyRow cols={scope === 'all' ? 6 : 5}>
