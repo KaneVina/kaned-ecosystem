@@ -400,6 +400,75 @@ export const newExam = (): ExamSession => ({ phase: 'setup', n: 50, min: 60, ch:
 
 /* ─────────────────────────────── search ─────────────────────────────── */
 
+/** Words that say nothing about which question is meant (English and Vietnamese, without accents). */
+const STOP = new Set(
+  ('a an the is are was were be been of to in on at for and or by with as it its this that these those what which who how why when where ' +
+    'does do did can could should would will may might must has have had from into than then there their them they you your we our ' +
+    'not no about per if so but i me my la gi cua va cac nhung mot cho trong voi thi ma nao ve o khi duoc bi')
+    .split(' '),
+);
+
+/** Exam banks ask the same thing in different words. */
+const SYNONYMS: string[][] = [
+  ['mainly', 'primarily', 'primary', 'chiefly', 'mostly'],
+  ['commonly', 'typically', 'usually', 'often', 'generally', 'common', 'typical'],
+  ['purpose', 'role', 'goal', 'function', 'used for'],
+  ['best', 'most suitable', 'most appropriate', 'recommended'],
+  ['benefit', 'advantage'],
+  ['screen', 'page', 'route'],
+  ['store', 'save', 'persist'],
+  ['retrieve', 'read', 'get', 'fetch', 'load'],
+];
+const SYN = new Map<string, string[]>();
+for (const g of SYNONYMS) for (const w of g) SYN.set(w, g);
+
+/** The words of a search that count: folded, without punctuation and filler words. */
+export function searchTerms(q: string): string[] {
+  const all = foldVi(q)
+    .split(/[^a-z0-9_.@#+-]+/)
+    .map((w) => w.replace(/^[.+-]+|[.+-]+$/g, ''))
+    .filter(Boolean);
+  const kept = all.filter((w) => w.length > 1 && !STOP.has(w));
+  return kept.length ? kept : all;
+}
+
+/** Whether one search word appears in a question, allowing synonyms and word endings (represent ~ represents). */
+function termIn(doc: string, t: string) {
+  if (doc.includes(t)) return true;
+  for (const s of SYN.get(t) ?? []) if (doc.includes(s)) return true;
+  if (t.length >= 6) {
+    const stem = t.replace(/(ing|ed|es|s|ly)$/, '');
+    if (stem.length >= 5 && doc.includes(stem)) return true;
+  }
+  return false;
+}
+
+/** Search words plus their synonyms and stems, for marking matches. */
+export function markTerms(terms: string[]) {
+  const out = new Set<string>();
+  for (const t of terms) {
+    out.add(t);
+    for (const x of SYN.get(t) ?? []) out.add(x);
+    if (t.length >= 6) {
+      const stem = t.replace(/(ing|ed|es|s|ly)$/, '');
+      if (stem.length >= 5) out.add(stem);
+    }
+  }
+  return [...out].sort((a, b) => b.length - a.length);
+}
+
+/** Share of search words found in a question, 0–1. */
+export function matchScore(doc: string, terms: string[]) {
+  if (!terms.length) return 1;
+  let n = 0;
+  for (const t of terms) if (termIn(doc, t)) n++;
+  return n / terms.length;
+}
+
+/** Share of words a near match needs: lower when nothing matches every word. */
+export const NEAR_MATCH = 0.6;
+export const NEAR_MATCH_WITH_FULL = 0.75;
+
 /** Splits text into plain and matched pieces, matching without accents. */
 export function highlight(text: string, terms: string[]): Array<{ t: string; hit: boolean }> {
   if (!terms.length) return [{ t: text, hit: false }];

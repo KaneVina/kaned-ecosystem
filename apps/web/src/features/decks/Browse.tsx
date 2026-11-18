@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CircleCheckBig, Eye, EyeOff, Lightbulb, Search, Star } from 'lucide-react';
-import { foldVi } from '@kaned/shared';
+import { foldVi, type DeckQuestion } from '@kaned/shared';
 import { cn } from '@/lib/cn';
 import { fmtInt } from '@/lib/format';
 import { useDeckCtx, type BrowseState } from './context';
-import { countsOf, fmtWait, LET, makeStatus, qLabel } from './model';
+import { countsOf, fmtWait, LET, makeStatus, markTerms, matchScore, NEAR_MATCH, NEAR_MATCH_WITH_FULL, qLabel, searchTerms } from './model';
 import { BigSearch, Inline, Notes, QText, StudyAids, hasAids } from './parts';
 
 export function Browse() {
@@ -30,19 +30,35 @@ export function Browse() {
     if (m.Q.length > 12) out.push(`“${m.Q[11].id}” để mở câu ${m.Q[11].id}`);
     return out;
   }, [m]);
-  const terms = useMemo(() => foldVi(B.q.trim()).split(/\s+/).filter(Boolean), [B.q]);
-  const list = useMemo(() => {
+  const terms = useMemo(() => searchTerms(B.q), [B.q]);
+  const marks = useMemo(() => markTerms(terms), [terms]);
+  /**
+   * Questions with every search word come first, in deck order. When the
+   * search has three words or more, questions that differ by a word or two
+   * (another wording of the same exam question) follow, closest first.
+   */
+  const { list, near } = useMemo(() => {
     const nd = foldVi(B.q.trim());
-    return m.Q.filter((q, i) => {
-      if (B.ch && q.chapter !== B.ch) return false;
+    const full: DeckQuestion[] = [];
+    const part: Array<[number, DeckQuestion]> = [];
+    m.Q.forEach((q, i) => {
+      if (B.ch && q.chapter !== B.ch) return;
       const s = status(q.id);
-      if (B.scope === 'ok' && s !== 'ok') return false;
-      if (B.scope === 'bad' && s !== 'bad') return false;
-      if (B.scope === 'new' && s !== 'new') return false;
-      if (B.scope === 'mk' && !marked(q.id)) return false;
-      if (B.scope === 'multi' && q.answers.length < 2) return false;
-      return terms.every((t) => m.search[i].includes(t)) || (/^\d+(\.\d+)?$/.test(nd) && q.id === nd);
+      if (B.scope === 'ok' && s !== 'ok') return;
+      if (B.scope === 'bad' && s !== 'bad') return;
+      if (B.scope === 'new' && s !== 'new') return;
+      if (B.scope === 'mk' && !marked(q.id)) return;
+      if (B.scope === 'multi' && q.answers.length < 2) return;
+      if (/^\d+(\.\d+)?$/.test(nd)) {
+        if (q.id === nd || m.search[i].includes(nd)) full.push(q);
+        return;
+      }
+      const sc = matchScore(m.search[i], terms);
+      if (sc === 1) full.push(q);
+      else if (terms.length >= 3 && sc >= NEAR_MATCH) part.push([sc, q]);
     });
+    const keep = part.filter(([sc]) => sc >= (full.length ? NEAR_MATCH_WITH_FULL : NEAR_MATCH)).sort((a, b) => b[0] - a[0]);
+    return { list: [...full, ...keep.map((x) => x[1])], near: keep.length };
     // status/marked come from state
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [m, state, B.q, B.ch, B.scope, terms]);
@@ -88,7 +104,8 @@ export function Browse() {
       </div>
       <div className="dk-count">
         <span>
-          {fmtInt(list.length)} câu{B.q.trim() ? ` khớp với “${B.q.trim()}”` : ''}
+          {fmtInt(list.length - near)} câu{B.q.trim() ? ` khớp với “${B.q.trim()}”` : ''}
+          {near ? `, thêm ${fmtInt(near)} câu gần giống (khác vài từ)` : ''}
         </span>
         {list.length > 0 && (
           <button
@@ -129,13 +146,13 @@ export function Browse() {
                   <Star className="ic ic-sm" />
                 </button>
               </div>
-              <QText text={q.text} terms={terms} small as="h3" />
+              <QText text={q.text} terms={marks} small as="h3" />
               <ul className="dk-fopts">
                 {q.options.map((o, j) => (
                   <li key={j} className={!hidden && q.answers.includes(j) ? 'is-right' : ''}>
                     <b>{LET[j]}</b>
                     <span>
-                      <Inline text={o} terms={terms} />
+                      <Inline text={o} terms={marks} />
                     </span>
                   </li>
                 ))}
