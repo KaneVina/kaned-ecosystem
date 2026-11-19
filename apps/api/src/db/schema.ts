@@ -159,6 +159,8 @@ export const lecturers = pgTable(
     universityId: text('university_id')
       .notNull()
       .references(() => universities.id, { onDelete: 'cascade' }),
+    /** LECTURER (giảng viên) | STAFF (cán bộ) */
+    kind: varchar('kind', { length: 12 }).notNull().default('LECTURER'),
     code: varchar('code', { length: 32 }).notNull(),
     fullName: text('full_name').notNull(),
     /** Bộ môn. */

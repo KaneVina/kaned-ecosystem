@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { BadgeCheck, BookOpen, Building2, Check, Copy, ExternalLink, Facebook, FileText, FlaskConical, Github, Globe, GraduationCap, Linkedin, Mail, Phone, UserRound, Youtube, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
-import { LECTURER_GENDER_LABELS, LECTURER_LINK_LABELS, type LecturerDetailDto, type LecturerDto, type LecturerLinkKind } from '@kaned/shared';
+import { LECTURER_GENDER_LABELS, LECTURER_KIND_LABELS, LECTURER_LINK_LABELS, type LecturerDetailDto, type LecturerDto, type LecturerLinkKind } from '@kaned/shared';
 import { DocCard } from '@/components/library/DocCard';
 import { useToast } from '@/providers/ToastProvider';
 import { fmtInt } from '@/lib/format';
@@ -122,6 +122,7 @@ export function LecturerHeader({ l, as: Tag = 'h1' }: { l: LecturerDto; as?: 'h1
       <div className="lec-head-text">
         <Tag className={Tag === 'h1' ? 't-h1' : 't-h2'}>{l.fullName}</Tag>
         <div className="lec-meta">
+          <span className={cn('lec-kind', `is-${l.kind.toLowerCase()}`)}>{LECTURER_KIND_LABELS[l.kind]}</span>
           <span className="lec-code">{l.code}</span>
           {l.gender && (
             <span>
@@ -154,7 +155,11 @@ export function LecturerFacts({ l }: { l: LecturerDto }) {
         <dd>{l.fullName}</dd>
       </div>
       <div>
-        <dt>Mã giảng viên</dt>
+        <dt>Vai trò</dt>
+        <dd>{LECTURER_KIND_LABELS[l.kind]}</dd>
+      </div>
+      <div>
+        <dt>Mã {LECTURER_KIND_LABELS[l.kind].toLowerCase()}</dt>
         <dd>{l.code}</dd>
       </div>
       <div>
@@ -198,9 +203,10 @@ export function LecturerCard({ l }: { l: LecturerDto }) {
         <b className="clamp-1">{l.fullName}</b>
         <span className="lec-card-sub clamp-1">
           <span className="lec-code">{l.code}</span>
-          {l.department ?? 'Chưa rõ bộ môn'}
+          {l.department ?? (l.kind === 'STAFF' ? 'Chưa rõ đơn vị' : 'Chưa rõ bộ môn')}
         </span>
         <span className="lec-card-foot">
+          <span className={cn('lec-kind', `is-${l.kind.toLowerCase()}`)}>{LECTURER_KIND_LABELS[l.kind]}</span>
           <span>{l.university.code}</span>
           {l.gender && <span>{LECTURER_GENDER_LABELS[l.gender]}</span>}
           <span className={cn(!l.documentCount && 'is-zero')}>

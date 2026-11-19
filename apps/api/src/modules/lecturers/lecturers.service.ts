@@ -33,6 +33,7 @@ const cleanLinks = (links?: Array<{ label?: string | null; url: string }> | null
 
 const toDto = (r: Row, documentCount: number): LecturerDto => ({
   id: r.id,
+  kind: r.kind === 'STAFF' ? 'STAFF' : 'LECTURER',
   code: r.code,
   fullName: r.fullName,
   department: r.department,
@@ -57,8 +58,9 @@ async function documentCounts(ids: string[]) {
   return new Map(rows.map((r) => [r.id!, r.n]));
 }
 
-export async function listLecturers(q: { q?: string; universityId?: string; department?: string; page: number; pageSize: number }) {
+export async function listLecturers(q: { q?: string; universityId?: string; department?: string; kind?: string; page: number; pageSize: number }) {
   const where: SQL[] = [];
+  if (q.kind) where.push(eq(lecturers.kind, q.kind));
   if (q.universityId) where.push(eq(lecturers.universityId, q.universityId));
   if (q.department) where.push(eq(lecturers.department, q.department));
   // Every word must appear somewhere: "hoang nt" finds Nguyễn Thị Hoàng (HoangNT).
@@ -140,6 +142,7 @@ export async function createLecturer(actorId: string, input: LecturerInput & { u
   await assertUniversity(input.universityId);
   const values = {
     universityId: input.universityId,
+    kind: input.kind ?? 'LECTURER',
     code: input.code.trim(),
     fullName: input.fullName.trim(),
     department: input.department ?? null,
@@ -168,6 +171,7 @@ export async function updateLecturer(actorId: string, id: string, input: Lecture
       .update(lecturers)
       .set({
         universityId: next.universityId,
+        kind: next.kind,
         code: next.code,
         fullName: next.fullName,
         department: next.department,
@@ -215,6 +219,7 @@ export async function importLecturers(
   await db.transaction(async (tx) => {
     for (const [key, r] of byCode) {
       const values = {
+        kind: r.kind ?? 'LECTURER',
         code: r.code.trim(),
         fullName: r.fullName.trim(),
         department: r.department ?? null,

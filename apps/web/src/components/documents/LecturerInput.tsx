@@ -114,6 +114,7 @@ export function LecturerInput({
               <span className="lec-s-text">
                 <b>{l.fullName}</b>
                 <small>
+                  {l.kind === 'STAFF' ? 'Cán bộ · ' : ''}
                   {l.code}
                   {l.department ? ` · ${l.department}` : ''} · {l.university.code}
                 </small>

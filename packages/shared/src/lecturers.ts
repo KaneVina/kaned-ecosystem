@@ -3,6 +3,11 @@ import type { DocumentSummaryDto } from './types.js';
 
 /** Lecturer directory ("Tra cứu giảng viên"): looked up by students, kept by admins, linked from documents. */
 
+/** Giảng viên teach; cán bộ are other school staff (phòng đào tạo, công tác sinh viên…). */
+export const LECTURER_KINDS = ['LECTURER', 'STAFF'] as const;
+export type LecturerKind = (typeof LECTURER_KINDS)[number];
+export const LECTURER_KIND_LABELS: Record<LecturerKind, string> = { LECTURER: 'Giảng viên', STAFF: 'Cán bộ' };
+
 export const LECTURER_GENDERS = ['MALE', 'FEMALE', 'OTHER'] as const;
 export type LecturerGender = (typeof LECTURER_GENDERS)[number];
 export const LECTURER_GENDER_LABELS: Record<LecturerGender, string> = { MALE: 'Nam', FEMALE: 'Nữ', OTHER: 'Khác' };
@@ -59,6 +64,7 @@ export type LecturerLink = z.input<typeof lecturerLinkSchema>;
 
 export const lecturerInputSchema = z.object({
   universityId: z.string().uuid('Chọn trường.'),
+  kind: z.enum(LECTURER_KINDS).default('LECTURER'),
   /** Staff code at the school, e.g. HoangNT or GV0123. */
   code: z
     .string()
@@ -84,6 +90,7 @@ export const lecturerQuerySchema = z.object({
   q: z.string().trim().max(120).optional(),
   universityId: z.string().uuid().optional(),
   department: z.string().trim().max(160).optional(),
+  kind: z.enum(LECTURER_KINDS).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(60).default(24),
 });
@@ -100,6 +107,7 @@ export type LecturerImport = z.input<typeof lecturerImportSchema>;
 
 export interface LecturerDto {
   id: string;
+  kind: LecturerKind;
   code: string;
   fullName: string;
   department: string | null;
@@ -133,6 +141,7 @@ const HEADERS: Record<string, keyof z.input<typeof lecturerImportSchema>['rows']
   sdt: 'phone', 'so dien thoai': 'phone', 'dien thoai': 'phone', phone: 'phone',
   email: 'email', mail: 'email',
   'mo ta': 'description', 'ghi chu': 'description', description: 'description',
+  loai: 'kind', 'vai tro': 'kind', 'chuc danh': 'kind', 'phan loai': 'kind', kind: 'kind', role: 'kind',
   'lien ket': 'links', links: 'links', link: 'links', website: 'links', portfolio: 'links', github: 'links',
 };
 const fold = (s: string) =>
@@ -143,6 +152,11 @@ const fold = (s: string) =>
     .replace(/Đ/g, 'D')
     .toLowerCase()
     .trim();
+
+export const kindFromText = (s: string): LecturerKind => {
+  const f = fold(s);
+  return /can bo|nhan vien|staff|chuyen vien/.test(f) ? 'STAFF' : 'LECTURER';
+};
 
 export const genderFromText = (s: string): LecturerGender | null => {
   const f = fold(s);
@@ -193,6 +207,7 @@ export function parseLecturerSheet(text: string) {
       raw[k] = k === 'links' && raw.links ? `${raw.links} ${cells[j]}` : cells[j];
     });
     const row = {
+      kind: raw.kind ? kindFromText(raw.kind) : ('LECTURER' as const),
       code: raw.code ?? '',
       fullName: raw.fullName ?? '',
       department: raw.department || null,

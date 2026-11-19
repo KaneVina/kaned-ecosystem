@@ -70,7 +70,7 @@ export const TOOLS: Tool[] = [
   {
     to: '/app/lecturers',
     label: 'Tra cứu giảng viên',
-    description: 'Thông tin liên hệ, bộ môn và tài liệu môn giảng viên dạy',
+    description: 'Liên hệ, bộ môn và tài liệu của giảng viên, cán bộ',
     icon: Contact,
     tone: 'teal',
   },

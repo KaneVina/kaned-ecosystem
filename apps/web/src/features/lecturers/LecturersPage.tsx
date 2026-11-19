@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { STAFF_ROLES } from '@kaned/shared';
+import { LECTURER_KIND_LABELS, LECTURER_KINDS, STAFF_ROLES, type LecturerKind } from '@kaned/shared';
 import { PageHead } from '@/components/ui/Panel';
 import { BigSearch } from '@/components/ui/BigSearch';
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/Feedback';
@@ -19,6 +19,9 @@ export function LecturersPage() {
   const [debounced, setDebounced] = useState(q);
   const uni = params.get('university') ?? user?.university?.id ?? '';
   const dept = params.get('department') ?? '';
+  const kindParam = params.get('kind');
+  const kind = (LECTURER_KINDS as readonly string[]).includes(kindParam ?? '') ? (kindParam as LecturerKind) : '';
+  const who = kind ? LECTURER_KIND_LABELS[kind].toLowerCase() : 'người';
   const page = Number(params.get('page') ?? 1) || 1;
   const unis = useUniversities();
   const depts = useLecturerDepartments(uni);
@@ -45,7 +48,7 @@ export function LecturersPage() {
     setParams(next, { replace: true });
   };
 
-  const query = { q: debounced || undefined, universityId: uni || undefined, department: dept || undefined, page, pageSize: 24 };
+  const query = { q: debounced || undefined, universityId: uni || undefined, department: dept || undefined, kind: kind || undefined, page, pageSize: 24 };
   const { data, isLoading, isError, refetch, isFetching } = useLecturers(query);
   const hints = useMemo(() => ['“Nguyễn”', '“Kỹ thuật phần mềm”', '“@fe.edu.vn”', '“mã giảng viên”'], []);
 
@@ -54,7 +57,7 @@ export function LecturersPage() {
       <PageHead
         crumbs={[{ label: 'Tổng quan', to: '/app' }, { label: 'Tra cứu giảng viên' }]}
         title="Tra cứu giảng viên"
-        description="Tìm giảng viên theo tên, mã, bộ môn hoặc email để xem thông tin liên hệ và tài liệu môn họ dạy."
+        description="Tìm giảng viên và cán bộ theo tên, mã, bộ môn hoặc email để xem thông tin liên hệ, liên kết và tài liệu môn họ dạy."
         actions={
           staff ? (
             <Link className="btn btn-secondary btn-sm" to="/admin/lecturers">
@@ -67,6 +70,13 @@ export function LecturersPage() {
       </PageHead>
       <div className="container lec-body">
         <div className="lec-filters">
+          <div className="seg lec-seg" role="group" aria-label="Lọc theo loại">
+            {(['', ...LECTURER_KINDS] as const).map((k) => (
+              <button key={k || 'all'} type="button" aria-pressed={kind === k} onClick={() => set('kind', k)}>
+                {k ? LECTURER_KIND_LABELS[k] : 'Tất cả'}
+              </button>
+            ))}
+          </div>
           <label className="sr-only" htmlFor="lec-uni">
             Trường
           </label>
@@ -90,7 +100,7 @@ export function LecturersPage() {
             ))}
           </select>
           <span className="lec-count" aria-live="polite">
-            {data ? `${fmtInt(data.total)} giảng viên` : ''}
+            {data ? `${fmtInt(data.total)} ${who}` : ''}
           </span>
         </div>
 
@@ -103,9 +113,9 @@ export function LecturersPage() {
         ) : isError ? (
           <ErrorState onRetry={() => void refetch()} />
         ) : !data?.items.length ? (
-          debounced || dept ? (
+          debounced || dept || kind ? (
             <EmptyState
-              title="Không tìm thấy giảng viên"
+              title={`Không tìm thấy ${who === 'người' ? 'ai' : who}`}
               description={`Không có ai khớp${debounced ? ` “${debounced}”` : ''}${dept ? ` trong bộ môn ${dept}` : ''}. Thử tên ngắn hơn hoặc bỏ bớt bộ lọc.`}
             />
           ) : (

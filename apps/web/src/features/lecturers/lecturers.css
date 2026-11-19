@@ -122,3 +122,9 @@
 }
 /* The open suggestion list must sit above the sections that follow its own. */
 .panel:has(.lec-suggest), .up-sec:has(.lec-suggest), .sheet-section:has(.lec-suggest) { position: relative; z-index: 20; }
+
+.lec-kind { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px; font-size: 11.5px; font-weight: 700; }
+.lec-kind.is-lecturer { background: #E6F4F1; color: #0F6B5C; }
+.lec-kind.is-staff { background: #EEF0FF; color: #3B35A8; }
+.lec-card-foot > .lec-kind + span::before { display: none; }
+.lec-seg { flex: none; }

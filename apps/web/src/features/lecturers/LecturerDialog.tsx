@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
+import { LECTURER_KIND_LABELS } from '@kaned/shared';
 import { Modal } from '@/components/ui/Modal';
 import { ErrorState, Skeleton } from '@/components/ui/Feedback';
 import { useLecturer } from './api';
@@ -13,7 +14,7 @@ export function LecturerDialog({ id, onClose }: { id: string | null; onClose: ()
     <Modal
       open={Boolean(id)}
       onClose={onClose}
-      title="Giảng viên"
+      title={data ? LECTURER_KIND_LABELS[data.kind] : 'Giảng viên'}
       size="md"
       className="lec-dialog"
       footer={

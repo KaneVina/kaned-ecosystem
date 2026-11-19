@@ -3,12 +3,15 @@ import { ClipboardPaste, ExternalLink, Pencil, Plus, SearchX, Trash2, UsersRound
 import {
   LECTURER_GENDERS,
   LECTURER_GENDER_LABELS,
+  LECTURER_KINDS,
+  LECTURER_KIND_LABELS,
   LECTURER_LINK_LABELS,
   lecturerInputSchema,
   lecturerLinkKind,
   parseLecturerSheet,
   type LecturerDto,
   type LecturerGender,
+  type LecturerKind,
 } from '@kaned/shared';
 import { Field } from '@/components/ui/Field';
 import { useToast } from '@/providers/ToastProvider';
@@ -26,16 +29,17 @@ export function LecturersPage() {
   const { data: universities = [] } = useUniversitiesAdmin();
   const [q, setQ] = useState('');
   const [uni, setUni] = useState('');
+  const [kind, setKind] = useState<LecturerKind | ''>('');
   const [page, setPage] = useState(1);
   const dq = useDebounced(q);
-  const { data, isLoading } = useLecturersAdmin({ q: dq || undefined, universityId: uni || undefined, page, pageSize: 25 });
+  const { data, isLoading } = useLecturersAdmin({ q: dq || undefined, universityId: uni || undefined, kind: kind || undefined, page, pageSize: 25 });
   const remove = useDeleteLecturer();
   const [editing, setEditing] = useState<LecturerDto | null>(null);
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   useAdminCrumbs([{ label: 'Giảng viên' }]);
-  useEffect(() => setPage(1), [dq, uni]);
+  useEffect(() => setPage(1), [dq, uni, kind]);
 
   const askDelete = (l: LecturerDto) =>
     setConfirm({
@@ -60,7 +64,7 @@ export function LecturersPage() {
   return (
     <>
       <AdminHead
-        title="Giảng viên"
+        title="Giảng viên & cán bộ"
         count={data?.total}
         description="Danh bạ cho công cụ Tra cứu giảng viên. Người đăng tài liệu chọn giảng viên từ đây để tài liệu dẫn tới hồ sơ."
         actions={
@@ -71,7 +75,7 @@ export function LecturersPage() {
             </button>
             <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}>
               <Plus className="ic" />
-              Thêm giảng viên
+              Thêm người
             </button>
           </>
         }
@@ -87,6 +91,13 @@ export function LecturersPage() {
               </option>
             ))}
           </select>
+          <div className="seg" role="group" aria-label="Lọc theo loại">
+            {(['', ...LECTURER_KINDS] as const).map((k) => (
+              <button key={k || 'all'} type="button" aria-pressed={kind === k} onClick={() => setKind(k)}>
+                {k ? LECTURER_KIND_LABELS[k] : 'Tất cả'}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="adm-table-wrap">
           <table className="adm-table is-clickable">
@@ -103,7 +114,7 @@ export function LecturersPage() {
               <TableSkeleton cols={5} rows={5} />
             ) : !data?.items.length ? (
               <EmptyRow cols={5}>
-                {dq || uni ? (
+                {dq || uni || kind ? (
                   <EmptyBlock icon={SearchX} title="Không có giảng viên khớp" text="Thử từ khoá khác hoặc bỏ bộ lọc trường." />
                 ) : (
                   <EmptyBlock
@@ -129,7 +140,7 @@ export function LecturersPage() {
                         <div style={{ minWidth: 0 }}>
                           <span className="cell-title">{l.fullName}</span>
                           <span className="cell-sub">
-                            <b>{l.code}</b> · {l.university.code}
+                            <b>{l.code}</b> · {LECTURER_KIND_LABELS[l.kind]} · {l.university.code}
                             {l.gender ? ` · ${LECTURER_GENDER_LABELS[l.gender]}` : ''}
                           </span>
                         </div>
@@ -183,6 +194,7 @@ type Uni = { id: string; code: string; nameVi: string };
 
 interface Draft {
   universityId: string;
+  kind: LecturerKind;
   code: string;
   fullName: string;
   department: string;
@@ -197,6 +209,7 @@ const toDraft = (l: LecturerDto | null, uni: string): Draft =>
   l
     ? {
         universityId: l.university.id,
+        kind: l.kind,
         code: l.code,
         fullName: l.fullName,
         department: l.department ?? '',
@@ -206,7 +219,7 @@ const toDraft = (l: LecturerDto | null, uni: string): Draft =>
         description: l.description ?? '',
         links: l.links.map((x) => ({ label: x.label ?? '', url: x.url })),
       }
-    : { universityId: uni, code: '', fullName: '', department: '', gender: '', phone: '', email: '', description: '', links: [] };
+    : { universityId: uni, kind: 'LECTURER', code: '', fullName: '', department: '', gender: '', phone: '', email: '', description: '', links: [] };
 
 function LecturerForm({
   open,
@@ -262,7 +275,7 @@ function LecturerForm({
     <Sheet
       open={open}
       onClose={onClose}
-      title={lecturer ? `Sửa ${lecturer.fullName}` : 'Thêm giảng viên'}
+      title={lecturer ? `Sửa ${lecturer.fullName}` : `Thêm ${LECTURER_KIND_LABELS[d.kind].toLowerCase()}`}
       description="Sinh viên đã đăng nhập xem được các thông tin này trong Tra cứu giảng viên."
       footer={
         <>
@@ -270,7 +283,7 @@ function LecturerForm({
             Huỷ
           </button>
           <button type="submit" form="lec-form" className={cn('btn btn-primary', save.isPending && 'is-loading')} disabled={save.isPending}>
-            {lecturer ? 'Lưu thay đổi' : 'Thêm giảng viên'}
+            {lecturer ? 'Lưu thay đổi' : `Thêm ${LECTURER_KIND_LABELS[d.kind].toLowerCase()}`}
           </button>
         </>
       }
@@ -287,10 +300,22 @@ function LecturerForm({
               ))}
             </select>
           </Field>
+          <div className="field span-2">
+            <span className="label">Loại</span>
+            <div className="radio-row" role="radiogroup" aria-label="Loại">
+              {LECTURER_KINDS.map((k) => (
+                <label key={k} className="radio-tile">
+                  <input type="radio" name="lf-kind" checked={d.kind === k} onChange={() => set('kind', k)} />
+                  <b>{LECTURER_KIND_LABELS[k]}</b>
+                  <span>{k === 'LECTURER' ? 'Dạy các môn học của trường.' : 'Phòng ban, công tác sinh viên, hỗ trợ học vụ…'}</span>
+                </label>
+              ))}
+            </div>
+          </div>
           <Field label="Họ và tên" htmlFor="lf-name" required error={errors.fullName} className="span-2">
             <input id="lf-name" className="input" maxLength={120} placeholder="Nguyễn Thị Hoàng" value={d.fullName} onChange={(e) => set('fullName', e.target.value)} />
           </Field>
-          <Field label="Mã giảng viên" htmlFor="lf-code" required error={errors.code} hint="Mã của trường, ví dụ HoangNT.">
+          <Field label={`Mã ${LECTURER_KIND_LABELS[d.kind].toLowerCase()}`} htmlFor="lf-code" required error={errors.code} hint="Mã của trường, ví dụ HoangNT.">
             <input id="lf-code" className="input" maxLength={32} value={d.code} onChange={(e) => set('code', e.target.value)} />
           </Field>
           <Field label="Giới tính" htmlFor="lf-gender">
@@ -303,7 +328,7 @@ function LecturerForm({
               ))}
             </select>
           </Field>
-          <Field label="Bộ môn" htmlFor="lf-dept" error={errors.department} className="span-2">
+          <Field label={d.kind === 'STAFF' ? 'Đơn vị / phòng ban' : 'Bộ môn'} htmlFor="lf-dept" error={errors.department} className="span-2">
             <input id="lf-dept" className="input" list="lf-depts" maxLength={160} placeholder="Kỹ thuật phần mềm" value={d.department} onChange={(e) => set('department', e.target.value)} />
             <datalist id="lf-depts">
               {deptOptions.map((x) => (
@@ -397,7 +422,7 @@ function ImportDialog({ open, onClose, universities, defaultUniversity }: { open
       size="md"
       icon={ClipboardPaste}
       title="Dán danh sách giảng viên"
-      description="Chép các dòng từ Excel hoặc Google Sheets (kèm dòng tiêu đề) rồi dán vào đây. Cột: Mã, Họ tên, Bộ môn, Giới tính, SĐT, Email, Mô tả, Liên kết, thứ tự nào cũng được."
+      description="Chép các dòng từ Excel hoặc Google Sheets (kèm dòng tiêu đề) rồi dán vào đây. Cột: Mã, Họ tên, Loại (Giảng viên/Cán bộ), Bộ môn, Giới tính, SĐT, Email, Mô tả, Liên kết, thứ tự nào cũng được. Không có cột Loại thì tính là giảng viên."
       footer={
         <>
           <button type="button" className="btn btn-secondary" onClick={onClose} disabled={run.isPending}>
