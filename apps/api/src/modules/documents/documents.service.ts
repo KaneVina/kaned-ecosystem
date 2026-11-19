@@ -23,7 +23,8 @@ import {
 import { ApiError } from '../../lib/errors.js';
 import { storage } from '../../lib/storage.js';
 import { foldVietnamese, slugify } from '../../lib/slug.js';
-import { isExternalFormat, isWebUrl, parseGithubUrl } from '@kaned/shared';
+import { isExternalFormat, isPreviewableLink, isWebUrl, parseGithubUrl } from '@kaned/shared';
+import { previewLink } from '../links/links.service.js';
 import { documentWith, toDocumentSummary, toReview, userWith } from '../../lib/dto.js';
 
 function buildFilters(query: DocumentQuery): SQL[] {
@@ -296,6 +297,16 @@ export async function createDocument(
   const term = await termFields(input.academicTermId, subject.universityId);
   const folderId = await assertFolder(input.folderId, subject.id);
   const isLink = isExternalFormat(input.format);
+  // YouTube and Canva: save the full design address and a cover picture.
+  let fileUrl = input.fileUrl;
+  let thumbnailUrl = input.thumbnailUrl ?? null;
+  if (input.format === 'LINK' && isPreviewableLink(fileUrl)) {
+    const found = await previewLink(fileUrl).catch(() => null);
+    if (found) {
+      if (found.url !== fileUrl && isWebUrl(found.url)) fileUrl = found.url;
+      thumbnailUrl ??= found.thumbnailUrl;
+    }
+  }
 
   const [created] = await db
     .insert(documents)
@@ -305,11 +316,11 @@ export async function createDocument(
       type: input.type,
       format: input.format,
       language: input.language,
-      fileUrl: input.fileUrl,
+      fileUrl,
       filePublicId: isLink ? '' : input.filePublicId,
       fileBytes: isLink ? 0 : input.fileBytes,
       pages: input.pages ?? null,
-      thumbnailUrl: input.thumbnailUrl ?? (isLink ? null : storage.thumbnailFor(input.filePublicId, input.format)),
+      thumbnailUrl: thumbnailUrl ?? (isLink ? null : storage.thumbnailFor(input.filePublicId, input.format)),
       guide: input.guide?.trim() || null,
       year: input.year,
       semester: input.semester,

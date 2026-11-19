@@ -210,7 +210,7 @@ export function DocumentDetailPage() {
                 <GithubGetPanel doc={data} gh={gh} />
               </>
             ) : isLink ? (
-              <LinkViewer doc={data} onOpen={startDownload} />
+              <LinkViewer doc={data} url={data.fileUrl} onOpen={startDownload} />
             ) : fileEmbedUrl(data) ? (
               <FileViewer doc={data} embedUrl={fileEmbedUrl(data)!} onDownload={startDownload} />
             ) : (

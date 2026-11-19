@@ -25,7 +25,69 @@ export interface LinkProvider {
   embedUrl: string | null;
   /** Aspect ratio of the embed, width / height. */
   ratio: number;
+  /** What it is, when it matters for the layout: a vertical Short, a playlist, a Canva design. */
+  kind?: 'video' | 'short' | 'playlist' | 'design';
+  /** A picture to show on cards, when it can be worked out from the address alone. */
+  thumbnailUrl?: string | null;
+  /** A short link (canva.link) that must be followed on the server before it can be shown. */
+  needsResolve?: boolean;
 }
+
+const YT_ID = /^[\w-]{11}$/;
+
+/** "90", "90s", "1m30s", "1h2m3s" → seconds. */
+function parseStart(v: string | null): number {
+  if (!v) return 0;
+  if (/^\d+s?$/.test(v)) return parseInt(v, 10);
+  const m = v.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/);
+  return m ? Number(m[1] ?? 0) * 3600 + Number(m[2] ?? 0) * 60 + Number(m[3] ?? 0) : 0;
+}
+
+/** Video id, playlist and start time of a YouTube address, if it points at a video or playlist. */
+export function parseYoutube(raw: string): { id: string | null; list: string | null; start: number; short: boolean } | null {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return null;
+  }
+  const host = url.hostname.replace(/^(www|m|music)\./, '');
+  if (host !== 'youtube.com' && host !== 'youtu.be' && host !== 'youtube-nocookie.com') return null;
+  let id: string | null = null;
+  let short = false;
+  if (host === 'youtu.be') id = url.pathname.split('/')[1] ?? null;
+  else {
+    const m = url.pathname.match(/^\/(embed|shorts|live|v)\/([\w-]+)/);
+    if (m) {
+      id = m[2];
+      short = m[1] === 'shorts';
+    } else if (url.pathname === '/watch') id = url.searchParams.get('v');
+  }
+  if (id && !YT_ID.test(id)) id = null;
+  const listRaw = url.searchParams.get('list');
+  const list = listRaw && /^[\w-]{10,64}$/.test(listRaw) ? listRaw : null;
+  if (!id && !list) return null;
+  return { id, list, start: parseStart(url.searchParams.get('t') ?? url.searchParams.get('start')), short };
+}
+
+/** Design id and share token of a Canva design address. */
+export function parseCanva(raw: string): { id: string; token: string | null } | null {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (url.hostname.replace(/^www\./, '') !== 'canva.com') return null;
+  const m = url.pathname.match(/^\/design\/([\w-]{6,})(?:\/([\w-]{6,}))?/);
+  if (!m) return null;
+  const token = m[2] && !/^(edit|view|watch|present)$/.test(m[2]) ? m[2] : null;
+  return { id: m[1], token };
+}
+
+/** The page Canva shows inside an iframe for a design shared publicly. */
+export const canvaEmbedUrl = (c: { id: string; token: string | null }) =>
+  `https://www.canva.com/design/${c.id}${c.token ? `/${c.token}` : ''}/view?embed`;
 
 const LABELS: Record<LinkProviderId, string> = {
   'google-slides': 'Google Slides',
@@ -82,16 +144,25 @@ export function detectLinkProvider(raw: string): LinkProvider {
     const fileId = url.pathname.match(/\/file\/d\/([\w-]+)/)?.[1] ?? url.searchParams.get('id');
     return make('google-drive', fileId ? `https://drive.google.com/file/d/${fileId}/preview` : null, 1 / 1.3);
   }
-  if (host === 'youtube.com' || host === 'm.youtube.com' || host === 'youtu.be') {
-    const videoId =
-      host === 'youtu.be'
-        ? url.pathname.slice(1)
-        : (url.searchParams.get('v') ?? url.pathname.match(/\/(?:embed|shorts|live)\/([\w-]+)/)?.[1] ?? null);
-    return make('youtube', videoId ? `https://www.youtube-nocookie.com/embed/${videoId}` : null);
+  if (/^(m\.|music\.)?youtube\.com$|^youtu\.be$|^youtube-nocookie\.com$/.test(host)) {
+    const y = parseYoutube(raw);
+    if (!y) return make('youtube', null);
+    const q = new URLSearchParams({ rel: '0' });
+    if (y.id && y.list) q.set('list', y.list);
+    if (y.start) q.set('start', String(y.start));
+    const embed = y.id
+      ? `https://www.youtube-nocookie.com/embed/${y.id}?${q}`
+      : `https://www.youtube-nocookie.com/embed/videoseries?list=${y.list}&rel=0`;
+    return {
+      ...make('youtube', embed, y.short ? 9 / 16 : 16 / 9),
+      kind: y.short ? 'short' : y.id ? 'video' : 'playlist',
+      thumbnailUrl: y.id ? `https://i.ytimg.com/vi/${y.id}/hqdefault.jpg` : null,
+    };
   }
-  if (host === 'canva.com' && url.pathname.startsWith('/design/')) {
-    const path = url.pathname.replace(/\/(edit|view)\/?$/, '');
-    return make('canva', `https://www.canva.com${path}/view?embed`);
+  if (host === 'canva.link') return { ...make('canva', null), kind: 'design', needsResolve: true };
+  if (host === 'canva.com') {
+    const c = parseCanva(raw);
+    if (c) return { ...make('canva', canvaEmbedUrl(c)), kind: 'design' };
   }
   if (host === 'figma.com') {
     return make('figma', `https://www.figma.com/embed?embed_host=kaned&url=${encodeURIComponent(raw)}`);
@@ -101,3 +172,26 @@ export function detectLinkProvider(raw: string): LinkProvider {
   if (host === 'github.com') return make('github', null);
   return make('web', null);
 }
+
+/** What the API found out about a YouTube or Canva link before it is posted. */
+export interface LinkPreviewDto {
+  /** The address to save: short links (canva.link) followed to the design. */
+  url: string;
+  provider: LinkProvider;
+  title: string | null;
+  /** Channel or designer name. */
+  author: string | null;
+  thumbnailUrl: string | null;
+  /**
+   * ok: shows inside Kaned. private: the owner has to share it publicly
+   * (private video, embedding turned off, Canva design not public).
+   * missing: no such video or design. unknown: could not be checked.
+   */
+  status: 'ok' | 'private' | 'missing' | 'unknown';
+}
+
+/** Hosts the API will look up for a preview; anything else is answered from the address alone. */
+export const isPreviewableLink = (raw: string) => {
+  const p = detectLinkProvider(raw);
+  return p.id === 'youtube' || p.id === 'canva';
+};

@@ -7,6 +7,8 @@ import { FileIcon } from '@/components/ui/FileBadge';
 import { RatingInline } from '@/components/ui/Stars';
 import { Viewer } from '@/components/paper/Paper';
 import { GithubViewer } from '@/components/library/GithubViewer';
+import { LinkViewer } from '@/components/library/LinkViewer';
+import { isPreviewableLink } from '@kaned/shared';
 import { useGithubDocument } from '@/components/library/useGithubDocument';
 import { useDownload } from '@/features/library/queries';
 import { fmtInt, timeAgo } from '@/lib/format';
@@ -52,6 +54,10 @@ export function QuickPreview({
           {gh.target ? (
             <div className="pv-github">
               <GithubViewer gh={gh} />
+            </div>
+          ) : doc.format === 'LINK' && doc.linkUrl && isPreviewableLink(doc.linkUrl) ? (
+            <div className="pv-link">
+              <LinkViewer doc={doc} url={doc.linkUrl} onOpen={() => onDownload(doc)} />
             </div>
           ) : (
             <Viewer doc={doc} thumbs={false} onDownload={() => onDownload(doc)} downloading={downloading} />

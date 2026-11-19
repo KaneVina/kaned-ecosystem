@@ -6,6 +6,7 @@ import { catalogRouter } from './modules/catalog/catalog.routes.js';
 import { documentsRouter } from './modules/documents/documents.routes.js';
 import { decksRouter } from './modules/decks/decks.routes.js';
 import { gradesRouter } from './modules/grades/grades.routes.js';
+import { linksRouter } from './modules/links/links.routes.js';
 import { uploadsRouter } from './modules/uploads/uploads.routes.js';
 import { usersRouter } from './modules/users/users.routes.js';
 
@@ -22,5 +23,6 @@ api.use('/catalog', catalogRouter);
 api.use('/documents', documentsRouter);
 api.use('/decks', decksRouter);
 api.use('/grades', gradesRouter);
+api.use('/links', linksRouter);
 api.use('/uploads', uploadsRouter);
 api.use('/users', usersRouter);

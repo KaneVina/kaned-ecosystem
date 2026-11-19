@@ -8,6 +8,7 @@ import type {
   ReviewDto,
   ReviewInput,
   UploadSignatureDto,
+  LinkPreviewDto,
 } from '@kaned/shared';
 import { withKey, http } from '@/lib/api';
 import { queryKeys } from '@/lib/queryClient';
@@ -200,4 +201,18 @@ export async function uploadToCloudinary(
     bytes: Number(response.bytes ?? file.size),
     pages: typeof response.pages === 'number' ? response.pages : undefined,
   };
+}
+
+/** Title, cover and visibility of a YouTube or Canva link (null skips the lookup). */
+export function useLinkPreview(url: string | null) {
+  return useQuery({
+    queryKey: ['link-preview', url],
+    queryFn: async () => {
+      const { data } = await http.get<LinkPreviewDto>('/links/preview', { params: { url } });
+      return data;
+    },
+    enabled: Boolean(url),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
 }

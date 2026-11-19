@@ -26,6 +26,7 @@ import {
   type CreateDocumentInput,
   type DocumentSummaryDto,
   detectLinkProvider,
+  isPreviewableLink,
   isWebUrl,
   normalizeGithubInput,
   type FileFormat,
@@ -33,7 +34,9 @@ import {
 import { PageHead } from "@/components/ui/Panel";
 import { FileIcon } from "@/components/ui/FileBadge";
 import { DocCard } from "@/components/library/DocCard";
-import { useCreateDocument, uploadToCloudinary } from "./queries";
+import { useCreateDocument, useLinkPreview, uploadToCloudinary } from "./queries";
+import { LinkCheck } from "@/components/library/LinkCheck";
+import { providerTitle } from "@/components/library/LinkViewer";
 import { useIdempotencyKey } from "@/lib/useIdempotencyKey";
 import { useSubjects, useUniversities } from "@/features/catalog/queries";
 import { useAuth } from "@/providers/AuthProvider";
@@ -107,6 +110,16 @@ export function UploadPage() {
   const [ghStatus, setGhStatus] = useState<GithubStatus>("empty");
   const linkOk = isWebUrl(link.trim());
   const provider = linkOk ? detectLinkProvider(link.trim()) : null;
+  // YouTube and Canva links are checked on the server once typing stops: title, cover, who can see it.
+  const [linkQuery, setLinkQuery] = useState<string | null>(null);
+  useEffect(() => {
+    const next = source === "link" && linkOk && isPreviewableLink(link.trim()) ? link.trim() : null;
+    const t = setTimeout(() => setLinkQuery(next), next ? 450 : 0);
+    return () => clearTimeout(t);
+  }, [source, linkOk, link]);
+  const linkPreview = useLinkPreview(linkQuery);
+  const lp = linkPreview.data && linkQuery === link.trim() ? linkPreview.data : null;
+  const linkThumb = source === "link" ? (lp?.thumbnailUrl ?? provider?.thumbnailUrl ?? null) : null;
   // A finished upload is kept, so trying again after a failed save does not upload twice.
   const uploaded = useRef<{ file: File; url: string; publicId: string; bytes: number; pages?: number } | null>(null);
   const idempotency = useIdempotencyKey();
@@ -212,6 +225,16 @@ export function UploadPage() {
     [form],
   );
 
+  // A video or design title fills the form the same way.
+  useEffect(() => {
+    if (!lp?.title) return;
+    const kind = providerTitle(lp.provider);
+    suggestFromGithub({
+      title: lp.title.slice(0, 180),
+      description: `${kind} “${lp.title}”${lp.author ? ` của ${lp.author}` : ""}, xem trực tiếp trên Kaned.`.slice(0, 2000),
+    });
+  }, [lp?.title, lp?.author, lp?.provider, suggestFromGithub]);
+
   const checklist: Array<[string, boolean]> = [
     [source === "file" ? "Tệp tài liệu" : source === "link" ? "Liên kết" : "Liên kết GitHub", hasSource],
     ["Tiêu đề", (v.title ?? "").trim().length >= 10],
@@ -234,12 +257,12 @@ export function UploadPage() {
           type: v.type ?? "NOTES",
           format: source === "link" ? "LINK" : source === "github" ? "GITHUB" : (file?.format ?? "PDF"),
           fileBytes: source === "file" ? (file?.file.size ?? 1_200_000) : 0,
-          linkUrl: source === "link" && linkOk ? link.trim() : source === "github" ? ghUrl.trim() || null : null,
+          linkUrl: source === "link" && linkOk ? (lp?.url ?? link.trim()) : source === "github" ? ghUrl.trim() || null : null,
           guide: null,
           term: null,
           folder: null,
           pages: 12,
-          thumbnailUrl: null,
+          thumbnailUrl: linkThumb,
           year: Number(v.year) || 1,
           semester: v.semester ?? "S1",
           schoolYear: v.schoolYear ?? null,
@@ -279,9 +302,9 @@ export function UploadPage() {
       }
       try {
         const { rights: _rights, ...rest } = values;
-        let sourceFields: Pick<CreateDocumentInput, "format" | "fileUrl" | "filePublicId" | "fileBytes" | "pages" | "guide">;
+        let sourceFields: Pick<CreateDocumentInput, "format" | "fileUrl" | "filePublicId" | "fileBytes" | "pages" | "guide" | "thumbnailUrl">;
         if (source === "link") {
-          sourceFields = { format: "LINK", fileUrl: link.trim(), filePublicId: "", fileBytes: 0 };
+          sourceFields = { format: "LINK", fileUrl: lp?.url ?? link.trim(), filePublicId: "", fileBytes: 0, thumbnailUrl: linkThumb };
         } else if (source === "github") {
           sourceFields = { format: "GITHUB", fileUrl: normalizeGithubInput(ghUrl), filePublicId: "", fileBytes: 0, guide: guide.trim() || null };
         } else {
@@ -397,7 +420,7 @@ export function UploadPage() {
                       className="input"
                       type="url"
                       inputMode="url"
-                      placeholder="https://docs.google.com/presentation/d/…"
+                      placeholder="Google Slides, Drive, YouTube, Canva… https://"
                       value={link}
                       onChange={(e) => {
                         setLink(e.target.value);
@@ -422,6 +445,13 @@ export function UploadPage() {
                         Chuyển sang GitHub
                       </button>
                     </div>
+                  ) : provider && (provider.id === "youtube" || provider.id === "canva") ? (
+                    <LinkCheck
+                      provider={provider}
+                      preview={lp}
+                      loading={Boolean(linkQuery) && (linkPreview.isLoading || linkPreview.isFetching) || linkQuery !== link.trim()}
+                      onRetry={() => linkPreview.refetch()}
+                    />
                   ) : provider && (
                     <div className="up-link-ok">
                       <CircleCheck className="ic ic-sm" />
@@ -431,7 +461,9 @@ export function UploadPage() {
                       </span>
                     </div>
                   )}
-                  <p className="hint">Nhớ bật chia sẻ “Bất kỳ ai có đường liên kết đều xem được”, nếu không người khác sẽ không mở được.</p>
+                  {!(provider?.id === "youtube" || provider?.id === "canva") && (
+                    <p className="hint">Nhớ bật chia sẻ “Bất kỳ ai có đường liên kết đều xem được”, nếu không người khác sẽ không mở được.</p>
+                  )}
                 </div>
               ) : !file ? (
                 <div

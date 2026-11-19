@@ -51,6 +51,14 @@ export function DocThumb({ doc }: { doc: DocumentSummaryDto }) {
   const tone = subjectTone(doc.subject.code);
   const paper = useMemo(() => toPaperDoc(doc), [doc]);
   const [broken, setBroken] = useState(false);
+  // A YouTube video or Canva design shows its own cover, letterboxed on the page.
+  const media = useMemo(() => {
+    if (doc.format !== 'LINK' || !doc.linkUrl) return null;
+    const p = detectLinkProvider(doc.linkUrl);
+    if (p.id !== 'youtube' && p.id !== 'canva') return null;
+    const src = doc.thumbnailUrl ?? p.thumbnailUrl;
+    return src ? { id: p.id, src } : null;
+  }, [doc.format, doc.linkUrl, doc.thumbnailUrl]);
   return (
     <div
       className={cn('thumb', `thumb--${thumbKind(visualFormat(doc))}`)}
@@ -60,6 +68,17 @@ export function DocThumb({ doc }: { doc: DocumentSummaryDto }) {
       <div className="thumb-page">
         {doc.format === 'GITHUB' ? (
           <GithubThumb url={doc.linkUrl} />
+        ) : media && !broken ? (
+          <div className={cn('thumb-media', `is-${media.id}`)}>
+            <img src={media.src} alt="" loading="lazy" onError={() => setBroken(true)} />
+            {media.id === 'youtube' && (
+              <span className="tm-play" aria-hidden>
+                <svg viewBox="0 0 24 24">
+                  <path d="M8 5.5v13l11-6.5z" />
+                </svg>
+              </span>
+            )}
+          </div>
         ) : doc.thumbnailUrl && !broken ? (
           <img src={doc.thumbnailUrl} alt="" loading="lazy" className="thumb-img" onError={() => setBroken(true)} />
         ) : (
