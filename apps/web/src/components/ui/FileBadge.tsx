@@ -1,4 +1,4 @@
-import { FILE_FORMAT_COLORS, detectLinkProvider, type FileFormat } from '@kaned/shared';
+import { FILE_FORMAT_COLORS, detectLinkProvider, linkProviderLabel, type FileFormat, type LinkProviderId } from '@kaned/shared';
 import { fmtBytes } from '@/lib/format';
 import { cn } from '@/lib/cn';
 
@@ -11,12 +11,15 @@ export function FileBadge({
   format,
   bytes,
   linkUrl,
+  provider,
   solid,
   className,
 }: {
   format: FileFormat;
   bytes?: number;
   linkUrl?: string | null;
+  /** Where a link lives when its address is hidden (internal documents). */
+  provider?: LinkProviderId | null;
   solid?: boolean;
   className?: string;
 }) {
@@ -37,7 +40,7 @@ export function FileBadge({
         <svg viewBox="0 0 24 24" aria-hidden>
           <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" />
         </svg>
-        {linkUrl ? detectLinkProvider(linkUrl).label : 'Liên kết'}
+        {linkUrl ? detectLinkProvider(linkUrl).label : provider ? linkProviderLabel(provider) : 'Liên kết'}
       </span>
     );
   }

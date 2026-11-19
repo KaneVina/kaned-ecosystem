@@ -15,6 +15,7 @@ import {
   Hash,
   Link2,
   Star,
+  ShieldCheck,
 } from 'lucide-react';
 import { DOCUMENT_TYPE_LABELS, type DocumentSummaryDto } from '@kaned/shared';
 import { Avatar } from '@/components/ui/Avatar';
@@ -24,6 +25,8 @@ import { ErrorState, Skeleton } from '@/components/ui/Feedback';
 import { SectionHead } from '@/components/ui/Panel';
 import { Viewer } from '@/components/paper/Paper';
 import { LinkViewer } from '@/components/library/LinkViewer';
+import { ProtectedViewer } from '@/components/library/ProtectedViewer';
+import { InternalBadge } from '@/components/library/InternalBadge';
 import { GithubGetPanel, GithubViewer } from '@/components/library/GithubViewer';
 import { useGithubDocument } from '@/components/library/useGithubDocument';
 import { FileViewer, fileEmbedUrl } from '@/components/library/FileViewer';
@@ -112,6 +115,8 @@ export function DocumentDetailPage() {
   const label = data.format === 'PPTX' ? 'Slide' : data.format === 'XLSX' ? 'Trang tính' : 'Số trang';
   const isGithub = Boolean(gh.target);
   const isLink = data.format === 'LINK' && !isGithub;
+  // Lưu hành nội bộ may forbid downloading the file or opening the original link.
+  const canDownload = data.access?.canDownload ?? true;
 
   const startDownload = () => {
     if (isGithub) return gh.primary?.run();
@@ -177,7 +182,8 @@ export function DocumentDetailPage() {
               <Link className="badge badge-gray" to={`/app/library?type=${data.type}`}>
                 {DOCUMENT_TYPE_LABELS[data.type].vi}
               </Link>
-              <FileBadge format={data.format} bytes={data.fileBytes} linkUrl={data.linkUrl} />
+              <FileBadge format={data.format} bytes={data.fileBytes} linkUrl={data.linkUrl} provider={data.linkProvider} />
+              {data.internal && <InternalBadge long />}
             </div>
             <h1 className="t-h1 dp-title">{data.title}</h1>
             <div className="dp-meta">
@@ -204,7 +210,9 @@ export function DocumentDetailPage() {
 
         <div className="dp-layout">
           <div className="dp-main">
-            {isGithub ? (
+            {data.embed ? (
+              <ProtectedViewer doc={data} embed={data.embed} />
+            ) : isGithub ? (
               <>
                 <GithubViewer gh={gh} />
                 <GithubGetPanel doc={data} gh={gh} />
@@ -405,6 +413,14 @@ export function DocumentDetailPage() {
                     {!ghBusy && gh.primary.sub && <small>{gh.primary.sub}</small>}
                   </span>
                 </button>
+              ) : !canDownload ? (
+                <div className="dp-locked">
+                  <ShieldCheck className="ic ic-sm" />
+                  <div>
+                    <b>Chỉ xem trong Kaned</b>
+                    <span>{isLink ? 'Tài liệu lưu hành nội bộ, liên kết gốc được ẩn.' : 'Tài liệu lưu hành nội bộ, không cho phép tải về.'}</span>
+                  </div>
+                </div>
               ) : (
               <button
                 type="button"
@@ -431,23 +447,30 @@ export function DocumentDetailPage() {
                   <BookmarkIcon className="ic ic-sm" />
                   <span>{data.isBookmarked ? 'Đã lưu' : 'Lưu'}</span>
                 </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={async () => {
-                    await navigator.clipboard?.writeText(window.location.href);
-                    toast.success('Đã sao chép liên kết', 'Dán vào nhóm lớp để chia sẻ.');
-                  }}
-                >
-                  <Link2 className="ic ic-sm" />
-                  Chia sẻ
-                </button>
+                {data.access.canShare ? (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={async () => {
+                      await navigator.clipboard?.writeText(window.location.href);
+                      toast.success('Đã sao chép liên kết', data.internal ? 'Chỉ thành viên Kaned đăng nhập mới mở được.' : 'Dán vào nhóm lớp để chia sẻ.');
+                    }}
+                  >
+                    <Link2 className="ic ic-sm" />
+                    Chia sẻ
+                  </button>
+                ) : (
+                  <button type="button" className="btn btn-secondary" disabled title="Tài liệu lưu hành nội bộ không cho chia sẻ">
+                    <Link2 className="ic ic-sm" />
+                    Không chia sẻ
+                  </button>
+                )}
               </div>
               <dl className="file-facts">
                 <div>
                   <dt>Định dạng</dt>
                   <dd>
-                    <FileBadge format={data.format} bytes={data.fileBytes} linkUrl={data.linkUrl} />
+                    <FileBadge format={data.format} bytes={data.fileBytes} linkUrl={data.linkUrl} provider={data.linkProvider} />
                   </dd>
                 </div>
                 {isGithub && gh.target && (
@@ -588,6 +611,7 @@ export function DocumentDetailPage() {
         >
           <BookmarkIcon className="ic ic-sm" />
         </button>
+        {canDownload || isGithub ? (
         <button type="button" className="btn btn-primary dl-btn" style={{ flex: 1 }} onClick={startDownload} disabled={Boolean(gh.job)}>
           <span className="dl-fill" />
           <span className="dl-label">
@@ -595,6 +619,12 @@ export function DocumentDetailPage() {
             {isGithub ? (ghBusy ? `Đang gom tệp… ${Math.round((gh.job?.share ?? 0) * 100)}%` : (gh.primary?.label ?? 'Tải xuống')) : isLink ? 'Mở liên kết' : 'Tải xuống'}
           </span>
         </button>
+        ) : (
+          <span className="dp-locked is-bar">
+            <ShieldCheck className="ic ic-sm" />
+            Chỉ xem trong Kaned
+          </span>
+        )}
       </div>
 
       <QuickPreview

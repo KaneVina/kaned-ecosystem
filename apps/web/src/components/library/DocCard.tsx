@@ -3,6 +3,7 @@ import { Bookmark, BookmarkCheck, Building2, CalendarDays, Download, Eye } from 
 import { DOCUMENT_TYPE_LABELS, type DocumentSummaryDto } from '@kaned/shared';
 import { Avatar } from '@/components/ui/Avatar';
 import { FileBadge } from '@/components/ui/FileBadge';
+import { InternalBadge } from './InternalBadge';
 import { RatingInline } from '@/components/ui/Stars';
 import { DocThumb } from '@/components/paper/Paper';
 import { subjectTone } from '@/components/paper/profiles';
@@ -118,7 +119,8 @@ export function DocRow({ doc, onToggleBookmark, onPreview, onDownload }: CardPro
             Năm {doc.year}, {semesterVi(doc.semester)}
           </span>
           <span>
-            <FileBadge format={doc.format} bytes={doc.fileBytes} linkUrl={doc.linkUrl} />
+            <FileBadge format={doc.format} bytes={doc.fileBytes} linkUrl={doc.linkUrl} provider={doc.linkProvider} />
+            {doc.internal && <InternalBadge />}
           </span>
           <span className="row-user">
             <Avatar name={doc.uploader.name} src={doc.uploader.avatarUrl} size="xs" />
@@ -146,7 +148,7 @@ export function DocRow({ doc, onToggleBookmark, onPreview, onDownload }: CardPro
           </button>
         )}
         {onToggleBookmark && <BookmarkButton doc={doc} onToggle={onToggleBookmark} />}
-        {onDownload && (
+        {onDownload && doc.allowDownload !== false && (
           <button type="button" className="icon-btn" aria-label="Tải xuống" data-tip="Tải xuống" onClick={() => onDownload(doc)}>
             <Download className="ic" />
           </button>

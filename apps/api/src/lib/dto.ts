@@ -10,7 +10,7 @@ import type {
   UserSummaryDto,
   OAuthProviderId,
 } from '@kaned/shared';
-import { OAUTH_PROVIDERS, isExternalFormat } from '@kaned/shared';
+import { OAUTH_PROVIDERS, detectLinkProvider, isAlwaysHiddenLink, isExternalFormat } from '@kaned/shared';
 
 /* ------------------------------------------------- relational query parts */
 
@@ -94,6 +94,28 @@ interface DocumentLike {
   guide?: string | null;
   term?: { id: string; code: string; name: string } | null;
   folder?: { id: string; name: string } | null;
+  internal?: boolean;
+  allowDownload?: boolean;
+  allowShare?: boolean;
+}
+
+/**
+ * What an internal document lets viewers do. YouTube and Canva links are
+ * never handed out; other links only when downloads are allowed. GitHub
+ * documents need their address to list files, so it stays.
+ */
+export function documentPolicy(row: Pick<DocumentLike, 'format' | 'fileUrl' | 'internal' | 'allowDownload' | 'allowShare'>) {
+  const internal = Boolean(row.internal);
+  const isLink = row.format === 'LINK';
+  const forcedHidden = internal && isLink && isAlwaysHiddenLink(row.fileUrl);
+  const allowDownload = !internal || (row.allowDownload !== false && !forcedHidden);
+  return {
+    internal,
+    allowDownload,
+    allowShare: !internal || row.allowShare !== false,
+    /** The original link is withheld from viewers. */
+    hideLink: internal && isLink && !allowDownload,
+  };
 }
 
 /* --------------------------------------------------------------- mappers */
@@ -170,6 +192,7 @@ export function toDocumentSummary(
   row: DocumentLike,
   opts: { isBookmarked?: boolean } = {},
 ): DocumentSummaryDto {
+  const policy = documentPolicy(row);
   return {
     id: row.id,
     title: row.title,
@@ -178,7 +201,8 @@ export function toDocumentSummary(
     format: row.format,
     fileBytes: row.fileBytes,
     pages: row.pages,
-    thumbnailUrl: row.thumbnailUrl,
+    // An internal link's cover would give its address away (YouTube covers carry the video id), so it is served by Kaned.
+    thumbnailUrl: row.thumbnailUrl && policy.hideLink ? `/api/documents/${row.id}/cover` : row.thumbnailUrl,
     year: row.year,
     semester: row.semester,
     schoolYear: row.schoolYear,
@@ -195,7 +219,11 @@ export function toDocumentSummary(
     university: brief(row.university),
     uploader: toUserSummary(row.uploader),
     tags: row.tags.map((t) => t.tag.name),
-    linkUrl: isExternalFormat(row.format) ? row.fileUrl : null,
+    linkUrl: isExternalFormat(row.format) && !policy.hideLink ? row.fileUrl : null,
+    linkProvider: isExternalFormat(row.format) ? detectLinkProvider(row.fileUrl).id : null,
+    internal: policy.internal,
+    allowDownload: policy.allowDownload,
+    allowShare: policy.allowShare,
     guide: row.guide ?? null,
     term: row.term ? { id: row.term.id, code: row.term.code, name: row.term.name } : null,
     folder: row.folder ? { id: row.folder.id, name: row.folder.name } : null,

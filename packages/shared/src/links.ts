@@ -195,3 +195,12 @@ export const isPreviewableLink = (raw: string) => {
   const p = detectLinkProvider(raw);
   return p.id === 'youtube' || p.id === 'canva';
 };
+
+/** Links an internal document never shows to viewers, whatever the download setting. */
+export const isAlwaysHiddenLink = (raw: string) => {
+  const id = detectLinkProvider(raw).id;
+  return id === 'youtube' || id === 'canva';
+};
+
+/** "YouTube", "Canva", "Google Drive"… for a provider id. */
+export const linkProviderLabel = (id: LinkProviderId) => LABELS[id];

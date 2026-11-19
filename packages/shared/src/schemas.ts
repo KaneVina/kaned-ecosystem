@@ -124,6 +124,10 @@ export const createDocumentSchema = z.object({
   fileBytes: z.coerce.number().int().min(0).max(MAX_UPLOAD_BYTES).default(0),
   pages: z.coerce.number().int().min(1).max(5000).optional(),
   thumbnailUrl: z.string().url().optional().nullable(),
+  /** Lưu hành nội bộ, and what viewers may do with it. */
+  internal: z.boolean().default(false),
+  allowDownload: z.boolean().default(true),
+  allowShare: z.boolean().default(true),
 });
 export type CreateDocumentInput = z.infer<typeof createDocumentSchema>;
 

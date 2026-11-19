@@ -1,3 +1,4 @@
+import type { LinkProviderId } from './links.js';
 import type { PassCriteriaValues, PassCriterion } from './passCriteria.js';
 import type { AssessmentItem } from './assessment.js';
 /**
@@ -175,6 +176,17 @@ export interface DocumentSummaryDto {
   linkUrl: string | null;
   /** Uploader's notes on how to download and use it (GitHub documents). */
   guide: string | null;
+  /**
+   * Lưu hành nội bộ: only signed-in members see it, it carries a badge, and
+   * the original link of an embedded video or design is never sent to viewers.
+   */
+  internal: boolean;
+  /** Viewers may download the file or open the original link (always true unless internal). */
+  allowDownload: boolean;
+  /** Viewers may use the share button (always true unless internal). */
+  allowShare: boolean;
+  /** Where a LINK document lives (YouTube, Canva…), kept even when linkUrl is hidden. */
+  linkProvider: LinkProviderId | null;
   /** The university's own name for the term, e.g. "Spring 2026". */
   term: { id: string; code: string; name: string } | null;
   /** Folder inside the subject, e.g. "Đề thi". */
@@ -182,8 +194,25 @@ export interface DocumentSummaryDto {
   isBookmarked?: boolean;
 }
 
+/** An internal document's viewer: a Kaned page that holds the video or design, opened with a short-lived token. */
+export interface ProtectedEmbedDto {
+  src: string;
+  /** Width / height of the content. */
+  ratio: number;
+  provider: LinkProviderId | 'file';
+  /** "Video YouTube", "Thiết kế Canva", "PDF"… */
+  label: string;
+  /** Vertical video (YouTube Shorts). */
+  tall: boolean;
+}
+
 export interface DocumentDetailDto extends DocumentSummaryDto {
+  /** Empty when the viewer may not reach the original file or link. */
   fileUrl: string;
+  /** What this viewer may do. Owners and admins can always do everything. */
+  access: { canDownload: boolean; canShare: boolean; canSeeSource: boolean };
+  /** Set for internal documents that can be shown inside Kaned. */
+  embed: ProtectedEmbedDto | null;
   reviews: ReviewDto[];
   related: DocumentSummaryDto[];
   moreFromUploader: DocumentSummaryDto[];

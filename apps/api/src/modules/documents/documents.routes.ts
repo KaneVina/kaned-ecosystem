@@ -38,8 +38,16 @@ documentsRouter.get('/saved/mine', requireAuth, async (req, res) => {
   res.json(await service.listBookmarked(req.user!.id));
 });
 
+/** Cover picture of an internal link (see documentCover). Images carry no sign-in, so this is open. */
+documentsRouter.get('/:id/cover', async (req, res) => {
+  const cover = await service.documentCover(req.params.id);
+  if (!cover) return void res.status(404).end();
+  res.set({ 'Content-Type': cover.type, 'Cache-Control': 'public, max-age=86400', 'Cross-Origin-Resource-Policy': 'same-origin' });
+  res.send(Buffer.from(cover.body));
+});
+
 documentsRouter.get('/:id', optionalAuth, async (req, res) => {
-  res.json(await service.getDocument(req.params.id, req.user?.id));
+  res.json(await service.getDocument(req.params.id, req.user));
 });
 
 documentsRouter.patch('/:id', requireAuth, once, validateBody(updateDocumentSchema), async (req, res) => {
@@ -52,7 +60,7 @@ documentsRouter.delete('/:id', requireAuth, once, async (req, res) => {
 });
 
 documentsRouter.post('/:id/download', optionalAuth, once, async (req, res) => {
-  const result = await service.registerDownload(req.params.id);
+  const result = await service.registerDownload(req.params.id, req.user);
   void trackEvent(req.user?.id, 'download', { documentId: req.params.id, title: result.title }, req);
   res.json(result);
 });

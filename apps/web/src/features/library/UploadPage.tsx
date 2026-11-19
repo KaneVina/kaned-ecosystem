@@ -36,6 +36,7 @@ import { FileIcon } from "@/components/ui/FileBadge";
 import { DocCard } from "@/components/library/DocCard";
 import { useCreateDocument, useLinkPreview, uploadToCloudinary } from "./queries";
 import { LinkCheck } from "@/components/library/LinkCheck";
+import { InternalFields, type InternalValue } from "@/components/library/InternalFields";
 import { providerTitle } from "@/components/library/LinkViewer";
 import { useIdempotencyKey } from "@/lib/useIdempotencyKey";
 import { useSubjects, useUniversities } from "@/features/catalog/queries";
@@ -105,6 +106,7 @@ export function UploadPage() {
     params.get("source") === "github" ? "github" : "file",
   );
   const [link, setLink] = useState("");
+  const [access, setAccess] = useState<InternalValue>({ internal: false, allowDownload: true, allowShare: true });
   const [ghUrl, setGhUrl] = useState("");
   const [guide, setGuide] = useState("");
   const [ghStatus, setGhStatus] = useState<GithubStatus>("empty");
@@ -263,6 +265,10 @@ export function UploadPage() {
           folder: null,
           pages: 12,
           thumbnailUrl: linkThumb,
+          internal: access.internal,
+          allowDownload: !access.internal || access.allowDownload,
+          allowShare: !access.internal || access.allowShare,
+          linkProvider: source === "link" ? (provider?.id ?? null) : source === "github" ? "github" : null,
           year: Number(v.year) || 1,
           semester: v.semester ?? "S1",
           schoolYear: v.schoolYear ?? null,
@@ -316,7 +322,13 @@ export function UploadPage() {
           const u = uploaded.current!;
           sourceFields = { format: file!.format, fileUrl: u.url, filePublicId: u.publicId, fileBytes: u.bytes, pages: u.pages };
         }
-        const input: CreateDocumentInput = { ...rest, ...sourceFields };
+        const input: CreateDocumentInput = {
+          ...rest,
+          ...sourceFields,
+          internal: access.internal,
+          allowDownload: !access.internal || access.allowDownload,
+          allowShare: !access.internal || access.allowShare,
+        };
         const created = await createDocument.mutateAsync({ input, idempotencyKey: idempotency.keyFor(input) });
         idempotency.done();
         toast.success(
@@ -685,6 +697,7 @@ export function UploadPage() {
                 </p>
               </div>
             </div>
+            <InternalFields value={access} onChange={setAccess} source={source} provider={source === "link" ? provider : null} />
             <div className={cn("field", errors.rights && "invalid")}>
               <label className="check check-top">
                 <input type="checkbox" {...form.register("rights")} />

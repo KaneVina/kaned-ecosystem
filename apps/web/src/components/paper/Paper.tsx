@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp, Download, Lock, Maximize2, ZoomIn, ZoomOut } fr
 import { detectLinkProvider, parseGithubUrl, type FileFormat, type DocumentSummaryDto } from '@kaned/shared';
 import { FileBadge } from '@/components/ui/FileBadge';
 import { fmtBytes } from '@/lib/format';
+import { InternalBadge } from '@/components/library/InternalBadge';
 import { cn } from '@/lib/cn';
 import { renderPage, thumbKind, type PaperDoc } from './render';
 import { subjectTone } from './profiles';
@@ -53,12 +54,13 @@ export function DocThumb({ doc }: { doc: DocumentSummaryDto }) {
   const [broken, setBroken] = useState(false);
   // A YouTube video or Canva design shows its own cover, letterboxed on the page.
   const media = useMemo(() => {
-    if (doc.format !== 'LINK' || !doc.linkUrl) return null;
-    const p = detectLinkProvider(doc.linkUrl);
-    if (p.id !== 'youtube' && p.id !== 'canva') return null;
-    const src = doc.thumbnailUrl ?? p.thumbnailUrl;
-    return src ? { id: p.id, src } : null;
-  }, [doc.format, doc.linkUrl, doc.thumbnailUrl]);
+    if (doc.format !== 'LINK') return null;
+    const p = doc.linkUrl ? detectLinkProvider(doc.linkUrl) : null;
+    const id = p?.id ?? doc.linkProvider;
+    if (id !== 'youtube' && id !== 'canva') return null;
+    const src = doc.thumbnailUrl ?? p?.thumbnailUrl;
+    return src ? { id, src } : null;
+  }, [doc.format, doc.linkUrl, doc.linkProvider, doc.thumbnailUrl]);
   return (
     <div
       className={cn('thumb', `thumb--${thumbKind(visualFormat(doc))}`)}
@@ -86,7 +88,8 @@ export function DocThumb({ doc }: { doc: DocumentSummaryDto }) {
         )}
       </div>
       <span className="thumb-ft">
-        <FileBadge format={doc.format} bytes={doc.fileBytes} linkUrl={doc.linkUrl} />
+        <FileBadge format={doc.format} bytes={doc.fileBytes} linkUrl={doc.linkUrl} provider={doc.linkProvider} />
+        {doc.internal && <InternalBadge />}
       </span>
     </div>
   );

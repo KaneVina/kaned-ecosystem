@@ -432,6 +432,12 @@ export const documents = pgTable(
     thumbnailUrl: text('thumbnail_url'),
     /** The uploader's notes on downloading and using it (GitHub documents). */
     guide: text('guide'),
+    /** Lưu hành nội bộ: signed-in members only, original link hidden from viewers. */
+    internal: boolean('internal').notNull().default(false),
+    /** With internal: may viewers download the file or open the original link. */
+    allowDownload: boolean('allow_download').notNull().default(true),
+    /** With internal: may viewers use the share button. */
+    allowShare: boolean('allow_share').notNull().default(true),
 
     year: integer('year').notNull(),
     semester: semesterEnum('semester').notNull(),

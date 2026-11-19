@@ -25,7 +25,12 @@ import { storage } from '../../lib/storage.js';
 import { foldVietnamese, slugify } from '../../lib/slug.js';
 import { isExternalFormat, isPreviewableLink, isWebUrl, parseGithubUrl } from '@kaned/shared';
 import { previewLink } from '../links/links.service.js';
-import { documentWith, toDocumentSummary, toReview, userWith } from '../../lib/dto.js';
+import { documentPolicy, documentWith, toDocumentSummary, toReview, userWith } from '../../lib/dto.js';
+import { protectedEmbed } from './embed.js';
+
+/** Who is looking: owners and admins always see everything of their own documents. */
+export type Viewer = { id: string; role: string } | undefined;
+const manages = (viewer: Viewer, uploaderId: string) => Boolean(viewer && (viewer.id === uploaderId || viewer.role === 'ADMIN'));
 
 function buildFilters(query: DocumentQuery): SQL[] {
   const filters: SQL[] = [eq(documents.status, 'PUBLISHED')];
@@ -111,7 +116,8 @@ export async function listDocuments(
   query: DocumentQuery,
   viewerId?: string,
 ): Promise<Paginated<DocumentSummaryDto>> {
-  const where = and(...buildFilters(query));
+  // Lưu hành nội bộ: signed-in members only.
+  const where = and(...buildFilters(query), viewerId ? undefined : eq(documents.internal, false));
 
   const [[total], rows] = await Promise.all([
     db.select({ value: count() }).from(documents).where(where),
@@ -169,12 +175,14 @@ export async function documentFacets(query: DocumentQuery) {
   };
 }
 
-export async function getDocument(id: string, viewerId?: string): Promise<DocumentDetailDto> {
+export async function getDocument(id: string, viewer?: Viewer): Promise<DocumentDetailDto> {
+  const viewerId = viewer?.id;
   const row = await db.query.documents.findFirst({
     where: eq(documents.id, id),
     with: documentWith,
   });
   if (!row || row.status === 'REMOVED') throw ApiError.notFound('That document is no longer here.');
+  if (row.internal && !viewer) throw ApiError.unauthorized('Tài liệu lưu hành nội bộ: đăng nhập để xem.');
 
   // Fire and forget: counting a view must never slow the response down.
   void db
@@ -195,6 +203,7 @@ export async function getDocument(id: string, viewerId?: string): Promise<Docume
         eq(documents.status, 'PUBLISHED'),
         ne(documents.id, id),
         or(eq(documents.subjectId, row.subjectId), eq(documents.type, row.type)),
+        viewer ? undefined : eq(documents.internal, false),
       ),
       with: documentWith,
       orderBy: desc(documents.downloads),
@@ -205,6 +214,7 @@ export async function getDocument(id: string, viewerId?: string): Promise<Docume
         eq(documents.status, 'PUBLISHED'),
         eq(documents.uploaderId, row.uploaderId),
         ne(documents.id, id),
+        viewer ? undefined : eq(documents.internal, false),
       ),
       with: documentWith,
       orderBy: desc(documents.createdAt),
@@ -213,10 +223,19 @@ export async function getDocument(id: string, viewerId?: string): Promise<Docume
     bookmarkSet(viewerId, [id]),
   ]);
 
+  const policy = documentPolicy(row);
+  const manager = manages(viewer, row.uploaderId);
+  // The original file or link stays on the server when viewers may not have it.
+  const withheld = policy.internal && !policy.allowDownload && !manager;
+  const summary = toDocumentSummary(row, { isBookmarked: bookmarked.has(id) });
+  const embed = policy.internal && !policy.allowDownload && viewer ? protectedEmbed(row, viewer.id) : null;
   return {
-    ...toDocumentSummary(row, { isBookmarked: bookmarked.has(id) }),
+    ...summary,
+    linkUrl: manager && isExternalFormat(row.format) ? row.fileUrl : summary.linkUrl,
     views: row.views + 1,
-    fileUrl: storage.deliveryUrl(row),
+    fileUrl: withheld ? '' : storage.deliveryUrl(row),
+    access: { canDownload: manager || policy.allowDownload, canShare: manager || policy.allowShare, canSeeSource: manager || !policy.hideLink },
+    embed,
     reviews: reviewRows.map(toReview),
     related: related.map((d) => toDocumentSummary(d)),
     moreFromUploader: moreFromUploader.map((d) => toDocumentSummary(d)),
@@ -322,6 +341,9 @@ export async function createDocument(
       pages: input.pages ?? null,
       thumbnailUrl: thumbnailUrl ?? (isLink ? null : storage.thumbnailFor(input.filePublicId, input.format)),
       guide: input.guide?.trim() || null,
+      internal: input.internal ?? false,
+      allowDownload: input.allowDownload ?? true,
+      allowShare: input.allowShare ?? true,
       year: input.year,
       semester: input.semester,
       schoolYear: input.schoolYear ?? null,
@@ -395,6 +417,9 @@ export async function updateDocument(
       ...(input.lecturer !== undefined ? { lecturer: input.lecturer?.trim() || null } : {}),
       ...(input.period !== undefined ? { period: input.period?.trim() || null } : {}),
       ...(input.guide !== undefined ? { guide: input.guide?.trim() || null } : {}),
+      internal: input.internal,
+      allowDownload: input.allowDownload,
+      allowShare: input.allowShare,
       language: input.language,
       subjectId: input.subjectId,
       universityId: input.universityId,
@@ -424,8 +449,19 @@ export async function deleteDocument(id: string, userId: string, role: string) {
   if (!isExternalFormat(doc.format) && doc.filePublicId) await storage.destroy(doc.filePublicId);
 }
 
-/** Counts the download and hands back the file URL. */
-export async function registerDownload(id: string) {
+/** Counts the download and hands back the file URL, unless an internal document forbids it. */
+export async function registerDownload(id: string, viewer?: Viewer) {
+  const doc = await db.query.documents.findFirst({
+    where: eq(documents.id, id),
+    columns: { uploaderId: true, format: true, fileUrl: true, internal: true, allowDownload: true, allowShare: true, status: true },
+  });
+  if (!doc || doc.status === 'REMOVED') throw ApiError.notFound('That document is no longer here.');
+  if (doc.internal && !viewer) throw ApiError.unauthorized('Tài liệu lưu hành nội bộ: đăng nhập để xem.');
+  if (!documentPolicy(doc).allowDownload && !manages(viewer, doc.uploaderId)) {
+    throw ApiError.forbidden(
+      doc.format === 'LINK' ? 'Tài liệu lưu hành nội bộ: chỉ xem được trong Kaned.' : 'Tài liệu lưu hành nội bộ: không cho phép tải về.',
+    );
+  }
   const [row] = await db
     .update(documents)
     .set({ downloads: sql`${documents.downloads} + 1` })
@@ -441,6 +477,24 @@ export async function registerDownload(id: string) {
   if (!row) throw ApiError.notFound('That document is no longer here.');
   const { filePublicId: _id, ...rest } = row;
   return { ...rest, fileUrl: storage.deliveryUrl(row, { attachment: true }) };
+}
+
+/** The cover picture of an internal link, served by Kaned so its address (a YouTube id) stays hidden. */
+const COVER_HOSTS = /^(i\.ytimg\.com|img\.youtube\.com|([\w-]+\.)*canva\.com|res\.cloudinary\.com)$/;
+export async function documentCover(id: string): Promise<{ type: string; body: ArrayBuffer } | null> {
+  const doc = await db.query.documents.findFirst({ where: eq(documents.id, id), columns: { thumbnailUrl: true, status: true } });
+  if (!doc?.thumbnailUrl || doc.status === 'REMOVED') return null;
+  let url: URL;
+  try {
+    url = new URL(doc.thumbnailUrl);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== 'https:' || !COVER_HOSTS.test(url.hostname)) return null;
+  const r = await fetch(url, { signal: AbortSignal.timeout(6000) }).catch(() => null);
+  const type = r?.headers.get('content-type') ?? '';
+  if (!r?.ok || !type.startsWith('image/')) return null;
+  return { type, body: await r.arrayBuffer() };
 }
 
 export async function toggleBookmark(documentId: string, userId: string) {

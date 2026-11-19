@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Bookmark, BookmarkCheck, Download, Eye, X } from 'lucide-react';
+import { Bookmark, BookmarkCheck, Download, Eye, ShieldCheck, X } from 'lucide-react';
 import type { DocumentSummaryDto } from '@kaned/shared';
 import { Modal } from '@/components/ui/Modal';
 import { FileIcon } from '@/components/ui/FileBadge';
@@ -51,7 +51,18 @@ export function QuickPreview({
               <X className="ic" />
             </button>
           </div>
-          {gh.target ? (
+          {doc.internal ? (
+            <div className="pv-internal">
+              <ShieldCheck className="ic" />
+              <div>
+                <b>Tài liệu lưu hành nội bộ</b>
+                <p>Mở trang tài liệu để xem. {doc.allowDownload ? '' : 'Tài liệu chỉ xem trong Kaned, không tải về hay mở liên kết gốc.'}</p>
+                <Link to={`/app/library/${doc.id}`} className="btn btn-primary btn-sm" onClick={onClose}>
+                  Mở trang tài liệu
+                </Link>
+              </div>
+            </div>
+          ) : gh.target ? (
             <div className="pv-github">
               <GithubViewer gh={gh} />
             </div>
@@ -92,7 +103,7 @@ export function QuickPreview({
                 <Download className="ic ic-sm" />
                 {gh.primary.label}
               </button>
-            ) : (
+            ) : doc.allowDownload === false ? null : (
               <button type="button" className={cn('btn btn-primary', downloading && 'is-loading')} onClick={() => onDownload(doc)}>
                 <Download className="ic ic-sm" />
                 Tải xuống

@@ -17,6 +17,7 @@ import {
   type Semester,
 } from '@kaned/shared';
 import { Field } from '@/components/ui/Field';
+import { InternalFields } from '@/components/library/InternalFields';
 import { mergeTags, PlacementFields, TagInput, TypePicker } from '@/components/documents/DocumentFields';
 import { GithubSource, githubStatusMessage, githubStatusUsable, type GithubStatus } from '@/components/documents/GithubSource';
 import { useAuth } from '@/providers/AuthProvider';
@@ -50,6 +51,9 @@ interface Draft {
   lecturer: string;
   period: string;
   status: DocumentStatus;
+  internal: boolean;
+  allowDownload: boolean;
+  allowShare: boolean;
 }
 
 const blank = (): Draft => ({
@@ -70,6 +74,9 @@ const blank = (): Draft => ({
   lecturer: '',
   period: '',
   status: 'PUBLISHED',
+  internal: false,
+  allowDownload: true,
+  allowShare: true,
 });
 
 const fromDoc = (d: AdminDocumentDto): Draft => ({
@@ -90,6 +97,9 @@ const fromDoc = (d: AdminDocumentDto): Draft => ({
   lecturer: d.lecturer ?? '',
   period: d.period ?? '',
   status: d.status,
+  internal: d.internal,
+  allowDownload: d.allowDownload,
+  allowShare: d.allowShare,
 });
 
 export interface DocumentDefaults {
@@ -175,6 +185,9 @@ export function DocumentEditor({ doc, open, onClose, defaults }: { doc: AdminDoc
       period: draft.period || undefined,
       language: 'Vietnamese',
       ...(draft.source === 'github' ? { guide: draft.guide.trim() || null } : {}),
+      internal: draft.internal,
+      allowDownload: !draft.internal || draft.allowDownload,
+      allowShare: !draft.internal || draft.allowShare,
     };
 
     try {
@@ -425,6 +438,16 @@ export function DocumentEditor({ doc, open, onClose, defaults }: { doc: AdminDoc
             });
           }}
           errors={{ universityId: Boolean(errors.universityId), subjectId: Boolean(errors.subjectId), semester: Boolean(errors.semester), year: Boolean(errors.year) }}
+        />
+      </section>
+
+      <section className="sheet-section">
+        <h3>Chế độ lưu hành</h3>
+        <InternalFields
+          value={{ internal: draft.internal, allowDownload: draft.allowDownload, allowShare: draft.allowShare }}
+          onChange={(v) => setDraft((d) => ({ ...d, ...v }))}
+          source={draft.source}
+          provider={draft.source === 'link' && isWebUrl(draft.link.trim()) ? detectLinkProvider(draft.link.trim()) : null}
         />
       </section>
 
