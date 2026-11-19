@@ -27,6 +27,7 @@ import { isExternalFormat, isPreviewableLink, isWebUrl, parseGithubUrl } from '@
 import { previewLink } from '../links/links.service.js';
 import { documentPolicy, documentWith, toDocumentSummary, toReview, userWith } from '../../lib/dto.js';
 import { protectedEmbed } from './embed.js';
+import { lecturerForDocument } from '../lecturers/lecturers.service.js';
 
 /** Who is looking: owners and admins always see everything of their own documents. */
 export type Viewer = { id: string; role: string } | undefined;
@@ -316,6 +317,8 @@ export async function createDocument(
   const term = await termFields(input.academicTermId, subject.universityId);
   const folderId = await assertFolder(input.folderId, subject.id);
   const isLink = isExternalFormat(input.format);
+  // A lecturer picked from the directory: the profile's name is the one shown.
+  const lecturerRef = await lecturerForDocument(input.lecturerId);
   // YouTube and Canva: save the full design address and a cover picture.
   let fileUrl = input.fileUrl;
   let thumbnailUrl = input.thumbnailUrl ?? null;
@@ -347,7 +350,8 @@ export async function createDocument(
       year: input.year,
       semester: input.semester,
       schoolYear: input.schoolYear ?? null,
-      lecturer: input.lecturer?.trim() || null,
+      lecturer: lecturerRef ? lecturerRef.fullName.slice(0, 120) : input.lecturer?.trim() || null,
+      lecturerId: lecturerRef?.id ?? null,
       period: input.period?.trim() || null,
       ...term,
       folderId,
@@ -414,7 +418,7 @@ export async function updateDocument(
       year: input.year,
       semester: input.semester,
       schoolYear: input.schoolYear,
-      ...(input.lecturer !== undefined ? { lecturer: input.lecturer?.trim() || null } : {}),
+      ...(input.lecturerId !== undefined || input.lecturer !== undefined ? await lecturerFields(input) : {}),
       ...(input.period !== undefined ? { period: input.period?.trim() || null } : {}),
       ...(input.guide !== undefined ? { guide: input.guide?.trim() || null } : {}),
       internal: input.internal,
@@ -447,6 +451,13 @@ export async function deleteDocument(id: string, userId: string, role: string) {
   const doc = await assertCanEdit(id, userId, role);
   await db.delete(documents).where(eq(documents.id, id));
   if (!isExternalFormat(doc.format) && doc.filePublicId) await storage.destroy(doc.filePublicId);
+}
+
+/** Lecturer text and link for an update: a picked profile wins; typing a name by hand drops the link. */
+async function lecturerFields(input: { lecturer?: string | null; lecturerId?: string | null }) {
+  const ref = await lecturerForDocument(input.lecturerId);
+  if (ref) return { lecturer: ref.fullName.slice(0, 120), lecturerId: ref.id };
+  return { ...(input.lecturer !== undefined ? { lecturer: input.lecturer?.trim() || null } : {}), lecturerId: null };
 }
 
 /** Counts the download and hands back the file URL, unless an internal document forbids it. */

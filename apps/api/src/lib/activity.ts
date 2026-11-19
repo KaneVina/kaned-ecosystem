@@ -12,6 +12,7 @@ export type ActivityEntity =
   | 'document'
   | 'folder'
   | 'deck'
+  | 'lecturer'
   | 'user';
 
 /** Records what an admin did. Never fails the request it describes. */

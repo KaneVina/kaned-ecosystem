@@ -149,6 +149,8 @@ export interface CurrentUserDto extends UserSummaryDto {
 
 export interface DocumentSummaryDto {
   lecturer?: string | null;
+  /** Set when the lecturer was picked from the directory: the name opens their profile. */
+  lecturerId?: string | null;
   period?: string | null;
   id: string;
   title: string;

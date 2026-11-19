@@ -672,6 +672,7 @@ export function UploadPage() {
                 period: v.period ?? "",
                 year: v.year ?? "",
                 lecturer: v.lecturer ?? "",
+                lecturerId: v.lecturerId ?? null,
               }}
               onChange={(patch) => {
                 for (const [key, val] of Object.entries(patch)) {

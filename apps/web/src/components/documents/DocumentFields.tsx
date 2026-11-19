@@ -1,3 +1,4 @@
+import { LecturerInput } from './LecturerInput';
 import { useEffect, useMemo, useState } from 'react';
 import { CircleAlert, Plus, X } from 'lucide-react';
 import { DOCUMENT_TYPES, DOCUMENT_TYPE_LABELS, SEMESTERS, SEMESTER_LABELS, STUDY_YEARS, type DocumentType, type Semester } from '@kaned/shared';
@@ -148,6 +149,8 @@ export interface Placement {
   period: string;
   year: number | string;
   lecturer: string;
+  /** Set when the lecturer was picked from the directory. */
+  lecturerId?: string | null;
 }
 
 export type PlacementErrors = Partial<Record<'universityId' | 'subjectId' | 'semester' | 'year', boolean>>;
@@ -320,14 +323,12 @@ export function PlacementFields({
         <label className="label" htmlFor={id('lecturer')}>
           Giảng viên
         </label>
-        <input
+        <LecturerInput
           id={id('lecturer')}
-          className="input"
-          maxLength={120}
-          placeholder="vd. Nguyễn Văn A"
-          autoComplete="off"
+          universityId={value.universityId}
           value={value.lecturer}
-          onChange={(e) => onChange({ lecturer: e.target.value })}
+          lecturerId={value.lecturerId ?? null}
+          onChange={(patch) => onChange(patch)}
         />
       </div>
     </div>

@@ -5,6 +5,13 @@ import type {
   DeckInput,
   DeckListQuery,
   DeckUpdate,
+  LecturerDetailDto,
+  LecturerDto,
+  LecturerImport,
+  LecturerImportResult,
+  LecturerInput,
+  LecturerQuery,
+  LecturerUpdate,
   AcademicTermDto,
   AcademicTermInput,
   ActivityDto,
@@ -213,6 +220,7 @@ function useWrite<TVars, TResult>(request: (vars: TVars, key: string) => Promise
       void client.invalidateQueries({ queryKey: ['documents'] });
       void client.invalidateQueries({ queryKey: ['grades'] });
       void client.invalidateQueries({ queryKey: ['decks'] });
+      void client.invalidateQueries({ queryKey: ['lecturers'] });
     },
   });
 }
@@ -295,3 +303,13 @@ export const useDeckAdmin = (id?: string) =>
 export const useCreateDeck = () => useWrite((input: DeckInput, key) => send<AdminDeckDto>('post', '/decks', key, input));
 export const useUpdateDeck = () => useWrite(({ id, input }: { id: string; input: DeckUpdate }, key) => send<AdminDeckDto>('patch', `/decks/${id}`, key, input));
 export const useDeleteDeck = () => useWrite((id: string, key) => send<void>('delete', `/decks/${id}`, key));
+
+/* lecturer directory */
+export const useLecturersAdmin = (q: LecturerQuery) =>
+  useQuery({ queryKey: [...adminKeys.all, 'lecturers', q], queryFn: () => get<Paginated<LecturerDto>>('/lecturers', q), placeholderData: keepPreviousData });
+export const useSaveLecturer = () =>
+  useWrite(({ id, input }: { id?: string; input: LecturerInput | LecturerUpdate }, key) =>
+    id ? send<LecturerDetailDto>('patch', `/lecturers/${id}`, key, input) : send<LecturerDetailDto>('post', '/lecturers', key, input),
+  );
+export const useDeleteLecturer = () => useWrite((id: string, key) => send<void>('delete', `/lecturers/${id}`, key));
+export const useImportLecturers = () => useWrite((input: LecturerImport, key) => send<LecturerImportResult>('post', '/lecturers/import', key, input));

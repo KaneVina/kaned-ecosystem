@@ -27,6 +27,8 @@ import { Viewer } from '@/components/paper/Paper';
 import { LinkViewer } from '@/components/library/LinkViewer';
 import { ProtectedViewer } from '@/components/library/ProtectedViewer';
 import { InternalBadge } from '@/components/library/InternalBadge';
+import { LecturerDialog } from '@/features/lecturers/LecturerDialog';
+import { initials } from '@/features/lecturers/LecturerProfile';
 import { GithubGetPanel, GithubViewer } from '@/components/library/GithubViewer';
 import { useGithubDocument } from '@/components/library/useGithubDocument';
 import { FileViewer, fileEmbedUrl } from '@/components/library/FileViewer';
@@ -60,6 +62,7 @@ export function DocumentDetailPage() {
   const createReview = useCreateReview(id);
 
   const [rating, setRating] = useState(0);
+  const [lecturerOpen, setLecturerOpen] = useState<string | null>(null);
   const [hover, setHover] = useState(0);
   const [comment, setComment] = useState('');
   const [reviewError, setReviewError] = useState('');
@@ -280,7 +283,21 @@ export function DocumentDetailPage() {
                 {data.lecturer && (
                   <div>
                     <dt>Giảng viên</dt>
-                    <dd>{data.lecturer}</dd>
+                    <dd>
+                      {data.lecturerId ? (
+                        <button type="button" className="lec-name-btn" onClick={() => setLecturerOpen(data.lecturerId!)}>
+                          <span className="lec-mini" aria-hidden>
+                            {initials(data.lecturer)}
+                          </span>
+                          {data.lecturer}
+                          <ChevronRight className="ic ic-xs" />
+                        </button>
+                      ) : (
+                        <Link to={`/app/lecturers?q=${encodeURIComponent(data.lecturer)}`} title="Tìm giảng viên này trong danh bạ">
+                          {data.lecturer}
+                        </Link>
+                      )}
+                    </dd>
                   </div>
                 )}
               </dl>
@@ -637,6 +654,7 @@ export function DocumentDetailPage() {
         onDownload={(d) => (d.id === data.id ? startDownload() : download.mutate(d.id, { onSuccess: ({ fileUrl }) => window.open(fileUrl, '_blank', 'noopener') }))}
         downloading={download.isPending}
       />
+      <LecturerDialog id={lecturerOpen} onClose={() => setLecturerOpen(null)} />
     </>
   );
 }

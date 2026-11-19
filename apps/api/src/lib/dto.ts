@@ -95,6 +95,7 @@ interface DocumentLike {
   term?: { id: string; code: string; name: string } | null;
   folder?: { id: string; name: string } | null;
   internal?: boolean;
+  lecturerId?: string | null;
   allowDownload?: boolean;
   allowShare?: boolean;
 }
@@ -207,6 +208,7 @@ export function toDocumentSummary(
     semester: row.semester,
     schoolYear: row.schoolYear,
     lecturer: row.lecturer ?? null,
+    lecturerId: row.lecturerId ?? null,
     period: row.period ?? null,
     language: row.language,
     downloads: row.downloads,

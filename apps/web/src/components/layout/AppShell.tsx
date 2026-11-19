@@ -21,6 +21,7 @@ import {
   X,
   type LucideIcon,
   Settings,
+  Contact,
 } from 'lucide-react';
 import { useAuth } from '@/providers/AuthProvider';
 import { useActivityTracker } from '@/lib/activity';
@@ -65,6 +66,13 @@ export const TOOLS: Tool[] = [
     description: 'Luyện trắc nghiệm, lật thẻ, thi thử và mẹo nhớ theo từng môn',
     icon: Layers,
     tone: 'amber',
+  },
+  {
+    to: '/app/lecturers',
+    label: 'Tra cứu giảng viên',
+    description: 'Thông tin liên hệ, bộ môn và tài liệu môn giảng viên dạy',
+    icon: Contact,
+    tone: 'teal',
   },
   {
     to: null,

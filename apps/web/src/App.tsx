@@ -16,6 +16,8 @@ import { UploadPage } from '@/features/library/UploadPage';
 import { SubjectsWorkspace } from '@/features/subjects/SubjectsWorkspace';
 import { GpaPage } from '@/features/gpa/GpaPage';
 import { DecksPage } from '@/features/decks/DecksPage';
+import { LecturersPage } from '@/features/lecturers/LecturersPage';
+import { LecturerPage } from '@/features/lecturers/LecturerPage';
 import { DeckPage } from '@/features/decks/DeckPage';
 import { ProfilePage } from '@/features/profile/ProfilePage';
 import { useAuth } from '@/providers/AuthProvider';
@@ -36,6 +38,7 @@ const UserDetailPage = lazy(() => admin().then((m) => ({ default: m.UserDetailPa
 const GradesPage = lazy(() => admin().then((m) => ({ default: m.GradesPage })));
 const ActivityPage = lazy(() => admin().then((m) => ({ default: m.ActivityPage })));
 const AdminDecksPage = lazy(() => admin().then((m) => ({ default: m.DecksPage })));
+const AdminLecturersPage = lazy(() => admin().then((m) => ({ default: m.LecturersPage })));
 
 /** Shown while the refresh cookie is exchanged for a session. */
 function Booting() {
@@ -92,6 +95,8 @@ export default function App() {
         <Route path="subjects/:code" element={<SubjectsWorkspace />} />
         <Route path="tools/gpa" element={<GpaPage />} />
         <Route path="flashcards" element={<DecksPage />} />
+        <Route path="lecturers" element={<LecturersPage />} />
+        <Route path="lecturers/:id" element={<LecturerPage />} />
         <Route path="flashcards/:id" element={<DeckPage />} />
         <Route path="flashcards/:id/:mode" element={<DeckPage />} />
         <Route path="saved" element={<ProfilePage defaultTab="saved" />} />
@@ -131,6 +136,7 @@ export default function App() {
         <Route path="grades" element={<RequireStaff adminOnly><GradesPage /></RequireStaff>} />
         <Route path="activity" element={<ActivityPage />} />
         <Route path="decks" element={<AdminDecksPage />} />
+        <Route path="lecturers" element={<AdminLecturersPage />} />
         <Route path="*" element={<NotFoundPage inShell />} />
       </Route>
 

@@ -11,6 +11,10 @@ import {
   createDocumentSchema,
   deckInputSchema,
   deckListQuerySchema,
+  lecturerImportSchema,
+  lecturerInputSchema,
+  lecturerQuerySchema,
+  lecturerUpdateSchema,
   deckUpdateSchema,
   type DeckListQuery,
   curriculumAddSchema,
@@ -50,6 +54,7 @@ import * as people from './people.service.js';
 import * as folders from './folders.service.js';
 import { getCurriculum } from '../catalog/catalog.service.js';
 import * as deckAdmin from '../decks/decks.service.js';
+import * as lecturerAdmin from '../lecturers/lecturers.service.js';
 
 /**
  * /api/admin — the dashboard's API.
@@ -211,6 +216,25 @@ adminRouter.get('/users', adminOnly, validateQuery(adminUserQuerySchema), async 
 adminRouter.patch('/users/:id/role', adminOnly, validateBody(userRoleSchema), async (req, res) =>
   res.json(await people.setRole(actor(req), req.params.id, req.body.role)),
 );
+
+/* lecturer directory: anyone on staff reads, admins change and import */
+adminRouter.get('/lecturers', validateQuery(lecturerQuerySchema), async (_req, res) =>
+  res.json(await lecturerAdmin.listLecturers(parsedQuery<Parameters<typeof lecturerAdmin.listLecturers>[0]>(res))),
+);
+adminRouter.get('/lecturers/:id', async (req, res) => res.json(await lecturerAdmin.getLecturer(req.params.id, actor(req))));
+adminRouter.post('/lecturers', adminOnly, validateBody(lecturerInputSchema), async (req, res) =>
+  res.status(201).json(await lecturerAdmin.createLecturer(actor(req), req.body)),
+);
+adminRouter.post('/lecturers/import', adminOnly, validateBody(lecturerImportSchema), async (req, res) =>
+  res.json(await lecturerAdmin.importLecturers(actor(req), req.body)),
+);
+adminRouter.patch('/lecturers/:id', adminOnly, validateBody(lecturerUpdateSchema), async (req, res) =>
+  res.json(await lecturerAdmin.updateLecturer(actor(req), req.params.id, req.body)),
+);
+adminRouter.delete('/lecturers/:id', adminOnly, async (req, res) => {
+  await lecturerAdmin.deleteLecturer(actor(req), req.params.id);
+  res.status(204).end();
+});
 
 /* study decks: anyone on staff reads, admins import and change */
 adminRouter.get('/decks', validateQuery(deckListQuerySchema), async (_req, res) => res.json(await deckAdmin.listDecksAdmin(parsedQuery<DeckListQuery>(res))));

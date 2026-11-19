@@ -113,6 +113,8 @@ export const createDocumentSchema = z.object({
   folderId: z.string().uuid().nullish(),
   /** Lecturer who taught it, optional. */
   lecturer: z.string().trim().max(120).nullish(),
+  /** The lecturer's profile in the directory, when picked from the suggestions. */
+  lecturerId: z.string().uuid().nullish(),
   /** The school's own teaching period, e.g. FPT "Block 10 - Half 1". */
   period: z.string().trim().max(40).nullish(),
   /** How to download and use it, written by the uploader (GitHub documents). */

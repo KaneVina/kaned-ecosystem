@@ -49,6 +49,7 @@ interface Draft {
   schoolYear: string;
   tags: string[];
   lecturer: string;
+  lecturerId: string | null;
   period: string;
   status: DocumentStatus;
   internal: boolean;
@@ -72,6 +73,7 @@ const blank = (): Draft => ({
   schoolYear: '',
   tags: [],
   lecturer: '',
+  lecturerId: null,
   period: '',
   status: 'PUBLISHED',
   internal: false,
@@ -95,6 +97,7 @@ const fromDoc = (d: AdminDocumentDto): Draft => ({
   schoolYear: d.schoolYear ?? '',
   tags: d.tags,
   lecturer: d.lecturer ?? '',
+  lecturerId: d.lecturerId ?? null,
   period: d.period ?? '',
   status: d.status,
   internal: d.internal,
@@ -182,6 +185,7 @@ export function DocumentEditor({ doc, open, onClose, defaults }: { doc: AdminDoc
       schoolYear: draft.schoolYear || undefined,
       tags: mergeTags(draft.tags, tagDraft),
       lecturer: draft.lecturer.trim() || undefined,
+      lecturerId: draft.lecturerId,
       period: draft.period || undefined,
       language: 'Vietnamese',
       ...(draft.source === 'github' ? { guide: draft.guide.trim() || null } : {}),

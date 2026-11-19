@@ -151,6 +151,36 @@ export const academicTerms = pgTable(
   }),
 );
 
+/** Lecturer directory: looked up by students, linked from documents. */
+export const lecturers = pgTable(
+  'lecturers',
+  {
+    id: id(),
+    universityId: text('university_id')
+      .notNull()
+      .references(() => universities.id, { onDelete: 'cascade' }),
+    code: varchar('code', { length: 32 }).notNull(),
+    fullName: text('full_name').notNull(),
+    /** Bộ môn. */
+    department: text('department'),
+    /** MALE | FEMALE | OTHER */
+    gender: varchar('gender', { length: 8 }),
+    phone: varchar('phone', { length: 32 }),
+    email: varchar('email', { length: 160 }),
+    description: text('description'),
+    /** Portfolio, GitHub, LinkedIn… as { label, url }. */
+    links: jsonb('links').$type<Array<{ label: string | null; url: string }>>().notNull().default([]),
+    /** Name, code, department and email without accents, lower case, for search. */
+    search: text('search').notNull().default(''),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => ({
+    uniqueCode: uniqueIndex('lecturers_university_code_idx').on(t.universityId, t.code),
+    universityIdx: index('lecturers_university_idx').on(t.universityId),
+  }),
+);
+
 export const subjects = pgTable(
   'subjects',
   {
@@ -443,6 +473,7 @@ export const documents = pgTable(
     semester: semesterEnum('semester').notNull(),
     schoolYear: varchar('school_year', { length: 20 }),
     lecturer: varchar('lecturer', { length: 120 }),
+    lecturerId: text('lecturer_id').references(() => lecturers.id, { onDelete: 'set null' }),
     period: varchar('period', { length: 40 }),
     academicTermId: text('academic_term_id').references(() => academicTerms.id, { onDelete: 'set null' }),
     /** Optional folder inside the subject; deleting a folder moves its documents up (service) or out. */
@@ -470,6 +501,7 @@ export const documents = pgTable(
     subjectIdx: index('documents_subject_idx').on(t.subjectId),
     universityIdx: index('documents_university_idx').on(t.universityId),
     uploaderIdx: index('documents_uploader_idx').on(t.uploaderId),
+    lecturerIdx: index('documents_lecturer_idx').on(t.lecturerId),
     typeIdx: index('documents_type_idx').on(t.type),
     downloadsIdx: index('documents_downloads_idx').on(t.downloads),
     statusCreatedIdx: index('documents_status_created_idx').on(t.status, t.createdAt),
@@ -817,6 +849,7 @@ export const documentRelations = relations(documents, ({ one, many }) => ({
   uploader: one(users, { fields: [documents.uploaderId], references: [users.id] }),
   term: one(academicTerms, { fields: [documents.academicTermId], references: [academicTerms.id] }),
   folder: one(subjectFolders, { fields: [documents.folderId], references: [subjectFolders.id] }),
+  lecturerRef: one(lecturers, { fields: [documents.lecturerId], references: [lecturers.id] }),
   tags: many(documentTags),
   reviews: many(reviews),
   bookmarks: many(bookmarks),
@@ -883,3 +916,8 @@ export type AcademicTermRow = typeof academicTerms.$inferSelect;
 export type FacultyRow = typeof faculties.$inferSelect;
 export type SubjectFolderRow = typeof subjectFolders.$inferSelect;
 export type DeckRow = typeof decks.$inferSelect;
+
+export const lecturerRelations = relations(lecturers, ({ one, many }) => ({
+  university: one(universities, { fields: [lecturers.universityId], references: [universities.id] }),
+  documents: many(documents),
+}));
