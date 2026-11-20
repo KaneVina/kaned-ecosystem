@@ -1221,3 +1221,16 @@ a.ghv-name:hover span { color: var(--violet-600); text-decoration: underline; te
 .int-note.is-warn { background: var(--red-50); color: #8C2A25; }
 @media (max-width: 560px) { .int-opts .switch-row { padding-left: 16px; } .int-note { margin-left: 16px; } }
 .int-box .switch-row { border-bottom: 0; }
+
+/* ── Announcement: white on purple, scrolling right to left ── */
+.announce { position: relative; z-index: 60; display: flex; align-items: center; height: 36px; background: #5B3FD6; color: #fff; overflow: hidden; }
+.announce-track { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; }
+.announce-text { display: inline-block; padding-left: 100%; font-size: 14px; font-weight: 600; letter-spacing: .01em; animation: announce-run 14s linear infinite; }
+.announce:hover .announce-text { animation-play-state: paused; }
+@keyframes announce-run { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+.announce-x { flex: none; width: 36px; height: 36px; display: grid; place-items: center; border: 0; background: #5B3FD6; color: #fff; cursor: pointer; box-shadow: -10px 0 12px #5B3FD6; }
+.announce-x:hover { background: #4B31C2; }
+.announce-x:focus-visible { outline: 2px solid #fff; outline-offset: -4px; }
+@media (prefers-reduced-motion: reduce) {
+  .announce-text { animation: none; padding-left: 16px; }
+}
