@@ -434,3 +434,6 @@
 .dk-qhead:has(> .dk-star) { position: relative; padding-right: 44px; min-height: 36px; }
 .dk-qhead > .dk-star { position: absolute; top: -4px; right: -6px; }
 .dk-qhead:has(> .dk-star) > .spacer { display: none; }
+
+/* Pick-several questions: square markers (checkbox-like), single-answer ones stay round (radio-like). */
+.dk-opts.is-multi .dk-key { border-radius: 8px; }

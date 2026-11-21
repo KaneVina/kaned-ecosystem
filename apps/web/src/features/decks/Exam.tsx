@@ -379,7 +379,7 @@ function ExamRun() {
               </button>
             </div>
             <QText text={q.text} />
-            <ol className="dk-opts">
+            <ol className={cn('dk-opts', q.answers.length > 1 && 'is-multi')}>
               {perm.map((k, pos) => (
                 <li key={k}>
                   <button type="button" className={cn('dk-opt', sel.includes(k) && 'is-sel')} aria-pressed={sel.includes(k)} onClick={() => choose(k)}>

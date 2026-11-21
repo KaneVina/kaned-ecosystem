@@ -234,7 +234,7 @@ export function Practice() {
               </button>
             </div>
             <QText text={q.text} />
-            <ol className="dk-opts">
+            <ol className={cn('dk-opts', multi && 'is-multi')}>
               {perm.map((k, pos) => {
                 const picked = res ? res.sel.includes(k) : sel.includes(k);
                 const right = q.answers.includes(k);
