@@ -6,8 +6,8 @@ import { Router } from 'express';
  * id to show it again to people who closed the previous one; null hides it.
  */
 export const ANNOUNCEMENT: { id: string; text: string } | null = {
-  id: '2026-11-20-duy-minh',
-  text: 'Thằng Duy Minh lén học bài he!',
+  id: '2026-11-21-chao-mung',
+  text: 'Chào mừng đến với hệ sinh thái Kaned!',
 };
 
 export const announcementRouter = Router();

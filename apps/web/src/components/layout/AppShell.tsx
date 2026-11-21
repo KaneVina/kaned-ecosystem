@@ -316,19 +316,27 @@ export function AppShell() {
               <Compass className="ic" />
               Thư viện học liệu
             </Link>
-            <Link to="/app/subjects">
-              <BookOpen className="ic" />
-              Môn học & điều kiện
-            </Link>
-            <Link to="/app/tools/gpa">
-              <Calculator className="ic" />
-              Tính GPA
-            </Link>
             <Link to="/app/saved">
               <Bookmark className="ic" />
               Đã lưu
               <span className="menu-count">{saved?.length ?? 0}</span>
             </Link>
+            <p className="drawer-label">Công cụ</p>
+            {TOOLS.map((tool) =>
+              tool.to ? (
+                <Link key={tool.label} to={tool.to}>
+                  <tool.icon className="ic" />
+                  {tool.label}
+                </Link>
+              ) : (
+                <span key={tool.label} className="drawer-soon" aria-disabled="true">
+                  <tool.icon className="ic" />
+                  {tool.label}
+                  <span className="badge badge-gray">Sắp có</span>
+                </span>
+              ),
+            )}
+            <p className="drawer-label">Tài khoản</p>
             <Link to="/app/settings">
               <Settings className="ic" />
               Cài đặt tài khoản

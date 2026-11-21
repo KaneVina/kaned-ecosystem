@@ -1234,3 +1234,22 @@ a.ghv-name:hover span { color: var(--violet-600); text-decoration: underline; te
 @media (prefers-reduced-motion: reduce) {
   .announce-text { animation: none; padding-left: 16px; }
 }
+
+/* Mobile drawer: tools group */
+.drawer-label { margin: 10px 10px 2px; font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-4); }
+.drawer-soon { display: flex; align-items: center; gap: 12px; padding: 11px 10px; font-size: 15.5px; font-weight: 500; color: var(--ink-3); }
+.drawer-soon .ic { color: var(--ink-4); }
+.drawer-soon .badge { margin-left: auto; }
+
+/* Document viewer bar: keep title and buttons from overlapping on narrow screens */
+.lv-bar { flex-wrap: wrap; row-gap: 10px; }
+.lv-bar .lv-where { flex: 1 1 120px; min-width: 0; }
+.lv-bar .lv-where b, .lv-bar .lv-where span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lv-bar .spacer { display: none; }
+.lv-bar .btn { flex: none; white-space: nowrap; }
+@media (max-width: 520px) {
+  .lv-bar { padding: 10px 12px; gap: 10px; }
+  .lv-bar .lv-ic { width: 36px; height: 36px; }
+  .lv-bar .lv-where { flex-basis: calc(100% - 60px); }
+  .lv-bar .btn { flex: 1 1 0; justify-content: center; }
+}
