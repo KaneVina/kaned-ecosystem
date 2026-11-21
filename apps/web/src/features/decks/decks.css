@@ -253,9 +253,15 @@
 .dk-hist small { color: var(--ink-3); font-size: 12.5px; }
 .dk-exam-bar { position: sticky; top: var(--nav-h); z-index: 20; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 0; margin: -12px 0 14px; background: linear-gradient(var(--bg) 82%, transparent); }
 .dk-timer { position: relative; overflow: hidden; display: inline-flex; align-items: center; gap: 8px; height: 46px; padding: 0 16px; border-radius: var(--r-md); background: var(--paper); border: 1px solid var(--line); font-size: 21px; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 130px; }
-.dk-timer i { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--violet); transition: width 1s linear; }
+@property --p { syntax: '<angle>'; inherits: true; initial-value: 360deg; }
+/* Countdown border: the ring is full at the start and is eaten clockwise as time runs out. */
+.dk-timer.has-ring { --ring: var(--violet); border-color: transparent; }
+.dk-timer.has-ring::before { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 3px; pointer-events: none;
+  background: conic-gradient(from 0deg, var(--ring) var(--p), color-mix(in srgb, var(--ring) 14%, transparent) 0);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
+  transition: --p 1s linear; }
+.dk-timer.has-ring.is-low { --ring: var(--red); border-color: transparent; }
 .dk-timer.is-low { color: var(--red); border-color: var(--red); animation: lowPulse 1s ease-in-out infinite; }
-.dk-timer.is-low i { background: var(--red); }
 @keyframes lowPulse { 50% { box-shadow: 0 0 0 5px rgba(207, 58, 49, .16); } }
 .dk-eprog { flex: 1 1 220px; min-width: 180px; max-width: 520px; background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-md); padding: 7px 14px 9px; }
 .dk-eprog > div:first-child { display: flex; justify-content: space-between; font-size: 13px; color: var(--ink-3); margin-bottom: 6px; font-variant-numeric: tabular-nums; }
@@ -406,3 +412,18 @@
 .dk-plan .ic { flex: none; margin-top: 2px; color: var(--violet); }
 .dk-plan b { color: var(--ink); }
 @media (max-width: 520px) { .dk-conf-q { width: 100%; } .dk-conf-btn { flex: 1; justify-content: center; } }
+
+/* "Tự nhập" number box under the exam presets */
+.dk-custom { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin-top: 10px; }
+.dk-custom > label { font-size: 13.5px; font-weight: 600; color: var(--ink-2); }
+.dk-custom-box { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border-radius: var(--r); border: 1.5px solid var(--line-2); background: var(--paper); transition: border-color .15s, box-shadow .15s; }
+.dk-custom-box:focus-within { border-color: var(--violet); box-shadow: 0 0 0 3px color-mix(in srgb, var(--violet) 16%, transparent); }
+.dk-custom.is-set .dk-custom-box { border-color: var(--ink); }
+.dk-custom.is-warn .dk-custom-box { border-color: #D9822B; }
+.dk-custom-input { width: 4.2ch; min-width: 0; border: 0; outline: 0; background: none; font: inherit; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; color: var(--ink); }
+.dk-custom-input::placeholder { font-weight: 500; color: var(--ink-4); }
+.dk-custom-box > span { font-size: 14px; color: var(--ink-3); }
+.dk-custom > small { flex-basis: 100%; font-size: 12.5px; color: var(--ink-3); }
+.dk-custom.is-warn > small { color: #A85A0F; }
+@media (min-width: 561px) { .dk-custom > small { flex-basis: auto; } }
+.dk-custom-input, .dk-custom-input:focus, .dk-custom-input:focus-visible { border: 0 !important; outline: 0 !important; box-shadow: none !important; background: none !important; height: auto; padding: 0; }

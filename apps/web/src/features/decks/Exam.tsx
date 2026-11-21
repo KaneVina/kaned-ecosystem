@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type CSSProperties } from 'react';
 import { ChevronLeft, ChevronRight, Flag, Lightbulb, Play, RotateCcw, Send, Shuffle, Timer } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { cn } from '@/lib/cn';
@@ -10,6 +10,7 @@ import { Inline, Notes, QText, Ring, StudyAids, confetti, hasAids } from './part
 
 const COUNTS = [20, 30, 50, 100];
 const MINUTES = [15, 30, 45, 60, 90];
+const MAX_MINUTES = 300;
 
 interface Ask {
   title: string;
@@ -24,6 +25,87 @@ export function Exam() {
   if (E.phase === 'run') return <ExamRun />;
   if (E.phase === 'result') return <ExamResult />;
   return <ExamSetup />;
+}
+
+/**
+ * "Tự nhập" box beside the preset chips. The number can never leave 1..max:
+ * typing past the max snaps to the max and says why, and an empty or zero box
+ * goes back to the current choice when it loses focus.
+ */
+function CustomNumber({
+  value,
+  presets,
+  max,
+  unit,
+  noun,
+  onChange,
+}: {
+  value: number;
+  presets: number[];
+  max: number;
+  unit: string;
+  noun: string;
+  onChange: (n: number) => void;
+}) {
+  const shown = (v: number) => (v > 0 && !presets.includes(v) && v < max + 1 ? String(v) : '');
+  const [draft, setDraft] = useState(() => shown(value));
+  const [clamped, setClamped] = useState(false);
+  const id = useId();
+  const parsed = draft === '' ? NaN : Number(draft);
+
+  // A chip (or a scope change) picked another value: the box should not keep the old number.
+  useEffect(() => {
+    if (parsed !== value) {
+      setDraft(shown(value));
+      setClamped(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  const hint = clamped
+    ? `Tối đa ${fmtInt(max)} ${noun}, đã đặt về mức này.`
+    : parsed === 0
+      ? 'Nhập từ 1 trở lên.'
+      : `Nhập từ 1 đến ${fmtInt(max)} ${noun}.`;
+
+  return (
+    <div className={cn('dk-custom', (clamped || parsed === 0) && 'is-warn', Number.isFinite(parsed) && parsed > 0 && 'is-set')}>
+      <label htmlFor={id}>Tự nhập</label>
+      <span className="dk-custom-box">
+        <input
+          id={id}
+          className="dk-custom-input"
+          inputMode="numeric"
+          autoComplete="off"
+          placeholder="Số"
+          value={draft}
+          disabled={max < 1}
+          aria-describedby={`${id}-hint`}
+          onChange={(e) => {
+            const raw = e.target.value.replace(/\D/g, '').replace(/^0+(?=\d)/, '').slice(0, 4);
+            const n = raw === '' ? NaN : Number(raw);
+            if (Number.isFinite(n) && n > max) {
+              setDraft(String(max));
+              setClamped(true);
+              onChange(max);
+              return;
+            }
+            setClamped(false);
+            setDraft(raw);
+            if (Number.isFinite(n) && n >= 1) onChange(n);
+          }}
+          onBlur={() => {
+            if (!(parsed >= 1)) setDraft(shown(value));
+            setClamped(false);
+          }}
+        />
+        <span aria-hidden>{unit}</span>
+      </span>
+      <small id={`${id}-hint`} role={clamped ? 'alert' : undefined}>
+        {hint}
+      </small>
+    </div>
+  );
 }
 
 function ExamSetup() {
@@ -72,10 +154,11 @@ function ExamSetup() {
                 {n} câu
               </button>
             ))}
-            <button type="button" className="dk-chip" aria-pressed={E.n === 0} onClick={() => setExam({ ...E, n: 0 })}>
+            <button type="button" className="dk-chip" aria-pressed={E.n === 0 || E.n >= avail} onClick={() => setExam({ ...E, n: 0 })}>
               Tất cả {fmtInt(avail)} câu
             </button>
           </div>
+          <CustomNumber value={E.n} presets={COUNTS} max={avail} unit="câu" noun="câu" onChange={(n) => setExam({ ...E, n })} />
         </div>
         <div className="dk-field">
           <span className="label">Thời gian</span>
@@ -89,6 +172,7 @@ function ExamSetup() {
               Không giới hạn
             </button>
           </div>
+          <CustomNumber value={E.min} presets={MINUTES} max={MAX_MINUTES} unit="phút" noun="phút" onChange={(min) => setExam({ ...E, min })} />
         </div>
         <label className="switch-row dk-field-switch">
           <span>
@@ -229,10 +313,13 @@ function ExamRun() {
   return (
     <>
       <div className="dk-exam-bar">
-        <span className={cn('dk-timer', E.end && left < 300_000 && 'is-low')} title={E.end ? 'Thời gian còn lại' : 'Thời gian đã làm'}>
+        <span
+          className={cn('dk-timer', E.end > 0 && 'has-ring', E.end && left < 300_000 && 'is-low')}
+          style={E.end > 0 ? ({ ['--p' as string]: `${Math.max(0, Math.min(1, left / (E.end - E.t0))) * 360}deg` } as CSSProperties) : undefined}
+          title={E.end ? 'Thời gian còn lại' : 'Thời gian đã làm'}
+        >
           <Timer className="ic ic-sm" />
           <span>{E.end ? clock(left) : clock(now - E.t0)}</span>
-          {E.end > 0 && <i style={{ width: `${(left / (E.end - E.t0)) * 100}%` }} />}
         </span>
         <div className="dk-eprog">
           <div>

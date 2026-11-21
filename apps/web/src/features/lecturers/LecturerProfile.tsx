@@ -201,9 +201,9 @@ export function LecturerCard({ l }: { l: LecturerDto }) {
       <LecturerAvatar l={l} size={52} />
       <div className="lec-card-main">
         <b className="clamp-1">{l.fullName}</b>
-        <span className="lec-card-sub clamp-1">
+        <span className="lec-card-sub">
           <span className="lec-code">{l.code}</span>
-          {l.department ?? (l.kind === 'STAFF' ? 'Chưa rõ đơn vị' : 'Chưa rõ bộ môn')}
+          <span className="lec-card-dept">{l.department ?? (l.kind === 'STAFF' ? 'Chưa rõ đơn vị' : 'Chưa rõ bộ môn')}</span>
         </span>
         <span className="lec-card-foot">
           <span className={cn('lec-kind', `is-${l.kind.toLowerCase()}`)}>{LECTURER_KIND_LABELS[l.kind]}</span>
