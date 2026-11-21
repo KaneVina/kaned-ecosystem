@@ -16,6 +16,29 @@
       rel="stylesheet"
     />
     <title>Kaned Ecosystem</title>
+    <script>
+      // Self-heal: a tab restored from before a deploy can ask for script/style files that no longer exist
+      // (the page then shows up as unstyled text). Reload once to fetch the current page.
+      (function () {
+        function heal() {
+          try {
+            var last = Number(sessionStorage.getItem('kaned.heal') || 0);
+            if (Date.now() - last < 60000) return;
+            sessionStorage.setItem('kaned.heal', String(Date.now()));
+          } catch (e) {}
+          location.reload();
+        }
+        addEventListener(
+          'error',
+          function (e) {
+            var t = e.target;
+            if (t && t !== window && ((t.tagName === 'LINK' && t.rel === 'stylesheet' && /\/assets\//.test(t.href)) || (t.tagName === 'SCRIPT' && /\/assets\//.test(t.src)))) heal();
+          },
+          true,
+        );
+        addEventListener('vite:preloadError', heal);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
