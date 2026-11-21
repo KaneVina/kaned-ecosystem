@@ -100,9 +100,9 @@ export function DocRow({ doc, onToggleBookmark, onPreview, onDownload }: CardPro
       <div className="row-main">
         <div className="doc-kicker">
           <span className="kdot" style={{ ['--tc' as string]: tone.c }} />
-          {doc.subject.nameVi}
+          <span className="clamp-1">{doc.subject.nameVi}</span>
           <span className="row-sep" />
-          {DOCUMENT_TYPE_LABELS[doc.type].vi}
+          <span className="row-type">{DOCUMENT_TYPE_LABELS[doc.type].vi}</span>
         </div>
         <h3 className="row-title">
           <Link to={`/app/library/${doc.id}`} className="stretched">
@@ -143,7 +143,7 @@ export function DocRow({ doc, onToggleBookmark, onPreview, onDownload }: CardPro
       </div>
       <div className="row-actions">
         {onPreview && (
-          <button type="button" className="icon-btn" aria-label="Xem nhanh" data-tip="Xem nhanh" onClick={() => onPreview(doc)}>
+          <button type="button" className="icon-btn row-pv" aria-label="Xem nhanh" data-tip="Xem nhanh" onClick={() => onPreview(doc)}>
             <Eye className="ic" />
           </button>
         )}
