@@ -40,7 +40,7 @@ export const storage = {
     // public id must keep the extension or the delivered file has none and
     // viewers cannot tell what it is.
     const ext = (filename.split('.').pop() ?? '').toLowerCase();
-    const keepExt = /^(docx?|pptx?|xlsx?|html?|md|markdown)$/.test(ext) ? `.${ext}` : '';
+    const keepExt = /^(docx?|pptx?|xlsx?|html?|md|markdown|drawio|dio)$/.test(ext) ? `.${ext}` : '';
     const publicId = `${safeName || 'document'}-${crypto.randomBytes(6).toString('hex')}${keepExt}`;
     const folder = `${env.CLOUDINARY_FOLDER}/${userId}`;
 
@@ -129,7 +129,7 @@ export const storage = {
     // Cloudinary can draw a page only from a PDF.
     if (format && format !== 'PDF') return null;
     // Word / PowerPoint / Excel files are stored raw; Cloudinary can only draw PDFs and images.
-    if (/\.(docx?|pptx?|xlsx?|html?|md|markdown|zip|rar)$/i.test(publicId)) return null;
+    if (/\.(docx?|pptx?|xlsx?|html?|md|markdown|drawio|dio|zip|rar)$/i.test(publicId)) return null;
     return cloudinary.url(publicId, {
       resource_type: 'image',
       format: 'jpg',

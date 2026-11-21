@@ -31,7 +31,7 @@ import { cn } from '@/lib/cn';
 import { useCreateDocumentAdmin, useUpdateDocumentAdmin } from './api';
 import { Sheet } from './ui';
 
-const EXT: Record<string, FileFormat> = { pdf: 'PDF', docx: 'DOCX', pptx: 'PPTX', xlsx: 'XLSX', html: 'HTML', htm: 'HTML', md: 'MD', markdown: 'MD' };
+const EXT: Record<string, FileFormat> = { pdf: 'PDF', docx: 'DOCX', pptx: 'PPTX', xlsx: 'XLSX', html: 'HTML', htm: 'HTML', md: 'MD', markdown: 'MD', drawio: 'DRAWIO', dio: 'DRAWIO' };
 
 interface Draft {
   source: 'file' | 'link' | 'github';
@@ -149,7 +149,7 @@ export function DocumentEditor({ doc, open, onClose, defaults }: { doc: AdminDoc
 
   const accept = (f: File) => {
     const format = MIME_TO_FORMAT[f.type] ?? EXT[(f.name.split('.').pop() ?? '').toLowerCase()];
-    if (!format) return setErrors((e) => ({ ...e, fileUrl: 'Chỉ nhận PDF, DOCX, PPTX, XLSX, HTML hoặc MD.' }));
+    if (!format) return setErrors((e) => ({ ...e, fileUrl: 'Chỉ nhận PDF, DOCX, PPTX, XLSX, HTML, MD hoặc draw.io.' }));
     if (f.size > MAX_UPLOAD_BYTES) return setErrors((e) => ({ ...e, fileUrl: `Tệp vượt quá ${fmtBytes(MAX_UPLOAD_BYTES)}.` }));
     setFile({ file: f, format });
     setErrors(({ fileUrl: _, ...rest }) => rest);
@@ -374,12 +374,12 @@ export function DocumentEditor({ doc, open, onClose, defaults }: { doc: AdminDoc
               >
                 <FileUp className="ic ic-lg" />
                 <b>Kéo thả tệp vào đây, hoặc bấm để chọn</b>
-                <span>PDF, DOCX, PPTX, XLSX, HTML, MD · tối đa {fmtBytes(MAX_UPLOAD_BYTES)}</span>
+                <span>PDF, DOCX, PPTX, XLSX, HTML, MD, draw.io · tối đa {fmtBytes(MAX_UPLOAD_BYTES)}</span>
                 <input
                   ref={picker}
                   type="file"
                   hidden
-                  accept=".pdf,.docx,.pptx,.xlsx,.html,.htm,.md,.markdown"
+                  accept=".pdf,.docx,.pptx,.xlsx,.html,.htm,.md,.markdown,.drawio,.dio"
                   onChange={(e) => {
                     const f = e.target.files?.[0];
                     if (f) accept(f);

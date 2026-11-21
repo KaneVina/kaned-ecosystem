@@ -243,6 +243,7 @@ export function DocumentsPage() {
             <option value="PDF">PDF</option>
             <option value="DOCX">Word</option>
             <option value="PPTX">PowerPoint</option>
+            <option value="DRAWIO">draw.io</option>
             <option value="XLSX">Excel</option>
           </select>
           {filtersOn && (

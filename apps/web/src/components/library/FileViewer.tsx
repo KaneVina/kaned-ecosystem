@@ -11,10 +11,40 @@ export function fileEmbedUrl(doc: Pick<DocumentDetailDto, 'fileUrl' | 'format'>)
   const url = doc.fileUrl;
   if (!/^https:\/\//.test(url) || /\/\/(localhost|127\.0\.0\.1)/.test(url)) return null;
   if (doc.format === 'PDF') return `${url}#view=FitH`;
-  if (doc.format === 'HTML' || doc.format === 'MD') return url;
+  if (doc.format === 'HTML' || doc.format === 'MD' || doc.format === 'DRAWIO') return url;
   // Microsoft's free viewer renders Word, PowerPoint and Excel files from a public URL.
   if (OFFICE.has(doc.format)) return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
   return null;
+}
+
+/**
+ * draw.io's own viewer draws a diagram handed to it in the address hash
+ * (raw-deflated, base64, URL-encoded), read-only, with zoom and layers.
+ */
+async function drawioViewerUrl(xml: string): Promise<string> {
+  const bytes = new TextEncoder().encode(encodeURIComponent(xml));
+  const packed = await new Response(new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer();
+  let bin = '';
+  new Uint8Array(packed).forEach((b) => (bin += String.fromCharCode(b)));
+  return `https://viewer.diagrams.net/?lightbox=1&nav=1&layers=1&border=10&toolbar=zoom%20layers#R${encodeURIComponent(btoa(bin))}`;
+}
+
+function useDrawio(doc: DocumentDetailDto) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    if (doc.format !== 'DRAWIO') return;
+    let alive = true;
+    fetch(doc.fileUrl)
+      .then((r) => (r.ok ? r.text() : Promise.reject(new Error(String(r.status)))))
+      .then(drawioViewerUrl)
+      .then((u) => alive && setUrl(u))
+      .catch(() => alive && setFailed(true));
+    return () => {
+      alive = false;
+    };
+  }, [doc.fileUrl, doc.format]);
+  return { url, failed };
 }
 
 /** The uploaded file itself, inside the page. */
@@ -49,6 +79,8 @@ export function FileViewer({ doc, embedUrl, onDownload }: { doc: DocumentDetailD
   const [loaded, setLoaded] = useState(false);
   const isText = doc.format === 'HTML' || doc.format === 'MD';
   const text = useTextDocument(doc);
+  const drawio = useDrawio(doc);
+  const isDrawio = doc.format === 'DRAWIO';
   return (
     <section className="panel link-viewer" aria-label="Xem tài liệu">
       <header className="lv-bar">
@@ -60,7 +92,7 @@ export function FileViewer({ doc, embedUrl, onDownload }: { doc: DocumentDetailD
           <span className="clamp-1">{doc.title}</span>
         </div>
         <span className="spacer" />
-        <a className="btn btn-ghost btn-sm" href={embedUrl.replace('/embed.aspx', '/view.aspx')} target="_blank" rel="noopener noreferrer">
+        <a className="btn btn-ghost btn-sm" href={isDrawio ? (drawio.url ?? undefined) : embedUrl.replace('/embed.aspx', '/view.aspx')} target="_blank" rel="noopener noreferrer">
           <ExternalLink className="ic ic-sm" />
           Toàn màn hình
         </a>
@@ -74,7 +106,17 @@ export function FileViewer({ doc, embedUrl, onDownload }: { doc: DocumentDetailD
           <span className="spin" />
           Đang mở tài liệu…
         </div>
-        {isText ? (
+        {isDrawio ? (
+          drawio.failed ? (
+            <div className="lv-loading" style={{ opacity: 1 }}>
+              Không mở được sơ đồ. Bấm Tải về để mở bằng draw.io.
+            </div>
+          ) : (
+            drawio.url && (
+              <iframe src={drawio.url} sandbox="allow-scripts allow-same-origin allow-popups" title={doc.title} onLoad={() => setLoaded(true)} />
+            )
+          )
+        ) : isText ? (
           text.failed ? (
             <div className="lv-loading" style={{ opacity: 1 }}>
               Không mở được tệp. Bấm Tải về để xem.

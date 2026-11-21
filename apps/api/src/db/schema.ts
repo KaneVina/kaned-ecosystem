@@ -46,7 +46,7 @@ export const documentTypeEnum = pgEnum('document_type', [
  * LINK: the document is a URL (Google Slides, Canva, YouTube…) instead of an uploaded file.
  * GITHUB: a GitHub repository, folder or file.
  */
-export const fileFormatEnum = pgEnum('file_format', ['PDF', 'DOCX', 'PPTX', 'XLSX', 'HTML', 'MD', 'LINK', 'GITHUB']);
+export const fileFormatEnum = pgEnum('file_format', ['PDF', 'DOCX', 'PPTX', 'XLSX', 'HTML', 'MD', 'LINK', 'GITHUB', 'DRAWIO']);
 export const documentStatusEnum = pgEnum('document_status', [
   'PENDING',
   'PUBLISHED',

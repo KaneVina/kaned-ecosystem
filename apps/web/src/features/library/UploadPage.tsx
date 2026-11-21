@@ -62,6 +62,8 @@ const EXT_TO_FORMAT: Record<string, FileFormat> = {
   htm: "HTML",
   md: "MD",
   markdown: "MD",
+  drawio: "DRAWIO",
+  dio: "DRAWIO",
 };
 
 /** The form's own schema: the API's, minus what the upload fills in, plus the rights box. */
@@ -182,11 +184,11 @@ export function UploadPage() {
     const format = MIME_TO_FORMAT[f.type] ?? EXT_TO_FORMAT[ext];
     if (!format) {
       setFileError(
-        `“${f.name}” là file .${ext || "?"}. Hãy tải lên PDF, Word, PowerPoint, Excel, HTML hoặc Markdown.`,
+        `“${f.name}” là file .${ext || "?"}. Hãy tải lên PDF, Word, PowerPoint, Excel, HTML, draw.io hoặc Markdown.`,
       );
       toast.error(
         "Định dạng không hỗ trợ",
-        "Kaned nhận PDF, DOCX, PPTX, XLSX, HTML và MD.",
+        "Kaned nhận PDF, DOCX, PPTX, XLSX, HTML, MD và draw.io.",
       );
       return;
     }
@@ -387,7 +389,7 @@ export function UploadPage() {
                 <h2 className="t-h3">Nguồn tài liệu</h2>
                 <p>
                   {source === "file"
-                    ? `PDF, Word, PowerPoint, Excel, HTML hoặc Markdown (.md), tối đa ${fmtBytes(MAX_UPLOAD_BYTES)}.`
+                    ? `PDF, Word, PowerPoint, Excel, HTML, Markdown (.md) hoặc draw.io (.drawio), tối đa ${fmtBytes(MAX_UPLOAD_BYTES)}.`
                     : source === "link"
                       ? "Google Slides, Docs, Drive, Canva, YouTube, Notion… hoặc bất kỳ trang nào."
                       : "Tài liệu bạn để trên GitHub. Kaned tự tạo nút tải ZIP, danh sách tệp và lệnh git cho người xem."}
@@ -504,7 +506,7 @@ export function UploadPage() {
                     ref={input}
                     type="file"
                     hidden
-                    accept=".pdf,.docx,.pptx,.xlsx,.html,.htm,.md,.markdown"
+                    accept=".pdf,.docx,.pptx,.xlsx,.html,.htm,.md,.markdown,.drawio,.dio"
                     onChange={(e) => {
                       const f = e.target.files?.[0];
                       if (f) accept(f);

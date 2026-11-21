@@ -1,3 +1,4 @@
+import { deflateRawSync } from 'node:zlib';
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { marked } from 'marked';
 import { detectLinkProvider, parseYoutube, type ProtectedEmbedDto } from '@kaned/shared';
@@ -50,7 +51,7 @@ export function readEmbedToken(token: string): { documentId: string; userId: str
 }
 
 const OFFICE = new Set(['DOCX', 'DOC', 'PPTX', 'PPT', 'XLSX', 'XLS']);
-const FILE_LABEL: Record<string, string> = { PDF: 'Tệp PDF', DOCX: 'Tài liệu Word', DOC: 'Tài liệu Word', PPTX: 'Bài trình chiếu', PPT: 'Bài trình chiếu', XLSX: 'Bảng tính', XLS: 'Bảng tính', HTML: 'Trang HTML', MD: 'Ghi chú Markdown' };
+const FILE_LABEL: Record<string, string> = { PDF: 'Tệp PDF', DOCX: 'Tài liệu Word', DOC: 'Tài liệu Word', DRAWIO: 'Sơ đồ draw.io', PPTX: 'Bài trình chiếu', PPT: 'Bài trình chiếu', XLSX: 'Bảng tính', XLS: 'Bảng tính', HTML: 'Trang HTML', MD: 'Ghi chú Markdown' };
 
 /** The viewer description for a protected document, or null when it cannot be shown inside Kaned. */
 export function protectedEmbed(row: Row, userId: string): ProtectedEmbedDto | null {
@@ -62,7 +63,7 @@ export function protectedEmbed(row: Row, userId: string): ProtectedEmbedDto | nu
     return { src, ratio: p.ratio, provider: p.id, label, tall: p.kind === 'short' };
   }
   if (row.format === 'GITHUB') return null;
-  if (row.format === 'PDF' || OFFICE.has(row.format) || row.format === 'HTML' || row.format === 'MD') {
+  if (row.format === 'PDF' || OFFICE.has(row.format) || row.format === 'HTML' || row.format === 'MD' || row.format === 'DRAWIO') {
     return { src, ratio: 1 / 1.3, provider: 'file', label: FILE_LABEL[row.format] ?? row.format, tall: false };
   }
   return null;
@@ -127,6 +128,15 @@ export async function renderEmbed(row: Row): Promise<EmbedPage> {
   }
   if (OFFICE.has(row.format)) {
     return block(sandboxed(`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`));
+  }
+  if (row.format === 'DRAWIO') {
+    try {
+      const xml = await fetchText(url);
+      const packed = deflateRawSync(Buffer.from(encodeURIComponent(xml))).toString('base64');
+      return block(sandboxed(`https://viewer.diagrams.net/?lightbox=1&nav=1&layers=1&border=10&toolbar=zoom%20layers#R${encodeURIComponent(packed)}`));
+    } catch {
+      return blockedPage('Không mở được sơ đồ này.');
+    }
   }
   if (row.format === 'HTML' || row.format === 'MD') {
     try {

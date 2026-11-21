@@ -34,7 +34,7 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, { en: string; vi: string
  * LINK is a document that lives elsewhere (Google Slides, Canva, YouTube…);
  * GITHUB is one kept in a GitHub repository, folder or file.
  */
-export const FILE_FORMATS = ['PDF', 'DOCX', 'PPTX', 'XLSX', 'HTML', 'MD', 'LINK', 'GITHUB'] as const;
+export const FILE_FORMATS = ['PDF', 'DOCX', 'PPTX', 'XLSX', 'HTML', 'MD', 'DRAWIO', 'LINK', 'GITHUB'] as const;
 export type FileFormat = (typeof FILE_FORMATS)[number];
 
 /** Formats stored as an address instead of an uploaded file. */
@@ -43,7 +43,7 @@ export const isExternalFormat = (format: string): format is (typeof EXTERNAL_FOR
   format === 'LINK' || format === 'GITHUB';
 
 /** Formats that are uploaded as files. */
-export const UPLOAD_FORMATS = ['PDF', 'DOCX', 'PPTX', 'XLSX', 'HTML', 'MD'] as const;
+export const UPLOAD_FORMATS = ['PDF', 'DOCX', 'PPTX', 'XLSX', 'HTML', 'MD', 'DRAWIO'] as const;
 
 export const FILE_FORMAT_LABELS: Record<FileFormat, string> = {
   PDF: 'PDF',
@@ -52,6 +52,7 @@ export const FILE_FORMAT_LABELS: Record<FileFormat, string> = {
   XLSX: 'Excel',
   HTML: 'HTML',
   MD: 'Markdown',
+  DRAWIO: 'draw.io',
   LINK: 'Liên kết',
   GITHUB: 'GitHub',
 };
@@ -65,6 +66,7 @@ export const FILE_FORMAT_COLORS: Record<FileFormat, string> = {
   GITHUB: '#24292F',
   HTML: '#C2410C',
   MD: '#475467',
+  DRAWIO: '#F08705',
 };
 
 export const MIME_TO_FORMAT: Record<string, FileFormat> = {
@@ -78,6 +80,8 @@ export const MIME_TO_FORMAT: Record<string, FileFormat> = {
   'text/html': 'HTML',
   'text/markdown': 'MD',
   'text/x-markdown': 'MD',
+  'application/vnd.jgraph.mxfile': 'DRAWIO',
+  'application/x-drawio': 'DRAWIO',
 };
 
 export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024; // 50 MB
