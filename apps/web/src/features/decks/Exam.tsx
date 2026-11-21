@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight, Flag, Lightbulb, Play, RotateCcw, Send, Shuffle, Timer } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { cn } from '@/lib/cn';
@@ -14,7 +14,7 @@ const MAX_MINUTES = 300;
 
 interface Ask {
   title: string;
-  text: string;
+  text: ReactNode;
   ok: string;
   danger?: boolean;
   onOk: () => void;
@@ -278,7 +278,12 @@ function ExamRun() {
     setAsk({
       title: 'Nộp bài?',
       text: blank
-        ? `Bạn còn ${blank} câu chưa trả lời${fl ? ` và ${fl} câu đang đánh dấu xem lại` : ''}. Câu bỏ trống tính là sai.`
+        ? (
+            <>
+              Bạn còn <b className="dk-blank">{blank} câu chưa trả lời</b>
+              {fl ? ` và ${fl} câu đang đánh dấu xem lại` : ''}. Câu bỏ trống tính là sai.
+            </>
+          )
         : fl
           ? `Bạn đã trả lời hết, còn ${fl} câu đang đánh dấu xem lại.`
           : 'Bạn đã trả lời hết các câu. Nộp bài để xem điểm và đáp án.',
