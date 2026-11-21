@@ -437,3 +437,20 @@
 
 /* Pick-several questions: square markers (checkbox-like), single-answer ones stay round (radio-like). */
 .dk-opts.is-multi .dk-key { border-radius: 8px; }
+
+/* Exam bar mirrors the page grid: timer + progress + subject code end flush with the question card,
+   the action buttons end flush with the answer sheet column. */
+.dk-exam-bar { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 26px; }
+.dk-exam-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.dk-exam-left .dk-eprog { flex: 1 1 auto; min-width: 0; max-width: none; }
+.dk-exam-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
+.dk-exam-subj { flex: none; display: inline-flex; align-items: center; gap: 8px; height: 46px; padding: 0 16px; border-radius: var(--r-md); background: var(--paper); border: 1px solid var(--line); font-size: 15px; font-weight: 700; letter-spacing: .02em; color: var(--ink); }
+.dk-exam-subj i { width: 9px; height: 9px; border-radius: 50%; }
+@media (max-width: 1100px) { .dk-exam-bar { grid-template-columns: minmax(0, 1fr) auto; gap: 14px; } }
+@media (max-width: 860px) {
+  .dk-exam-bar { display: flex; flex-wrap: wrap; gap: 8px; }
+  .dk-exam-left, .dk-exam-actions { display: contents; }
+  .dk-exam-actions > :first-child { margin-left: auto; }
+  .dk-exam-subj { display: none; }
+  .dk-exam-left .dk-eprog { order: 3; flex-basis: 100%; }
+}

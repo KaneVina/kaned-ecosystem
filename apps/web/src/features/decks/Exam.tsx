@@ -215,7 +215,7 @@ function ExamSetup() {
 }
 
 function ExamRun() {
-  const { m, exam: E, setExam } = useDeckCtx();
+  const { deck, m, exam: E, setExam } = useDeckCtx();
   const [, tick] = useState(0);
   const [ask, setAsk] = useState<Ask | null>(null);
   const [dir, setDir] = useState(0);
@@ -318,45 +318,52 @@ function ExamRun() {
   return (
     <>
       <div className="dk-exam-bar">
-        <span
-          className={cn('dk-timer', E.end > 0 && 'has-ring', E.end && left < 300_000 && 'is-low')}
-          style={E.end > 0 ? ({ ['--p' as string]: `${Math.max(0, Math.min(1, left / (E.end - E.t0))) * 360}deg` } as CSSProperties) : undefined}
-          title={E.end ? 'Thời gian còn lại' : 'Thời gian đã làm'}
-        >
-          <Timer className="ic ic-sm" />
-          <span>{E.end ? clock(left) : clock(now - E.t0)}</span>
-        </span>
-        <div className="dk-eprog">
-          <div>
-            <span>
-              Đã trả lời <b>{answered} / {n}</b>
-            </span>
-            <span>{Math.round((answered / n) * 100)}%</span>
+        <div className="dk-exam-left">
+          <span
+            className={cn('dk-timer', E.end > 0 && 'has-ring', E.end && left < 300_000 && 'is-low')}
+            style={E.end > 0 ? ({ ['--p' as string]: `${Math.max(0, Math.min(1, left / (E.end - E.t0))) * 360}deg` } as CSSProperties) : undefined}
+            title={E.end ? 'Thời gian còn lại' : 'Thời gian đã làm'}
+          >
+            <Timer className="ic ic-sm" />
+            <span>{E.end ? clock(left) : clock(now - E.t0)}</span>
+          </span>
+          <div className="dk-eprog">
+            <div>
+              <span>
+                Đã trả lời <b>{answered} / {n}</b>
+              </span>
+              <span>{Math.round((answered / n) * 100)}%</span>
+            </div>
+            <div className="dk-bar">
+              <i className="is-violet" style={{ width: `${(answered / n) * 100}%` }} />
+            </div>
           </div>
-          <div className="dk-bar">
-            <i className="is-violet" style={{ width: `${(answered / n) * 100}%` }} />
-          </div>
+          <span className="dk-exam-subj" title={deck.subject.nameVi}>
+            <i style={{ background: deck.subject.university.color }} />
+            {deck.subject.code}
+          </span>
         </div>
-        <span className="spacer" />
-        <button
-          type="button"
-          className="btn btn-ghost btn-sm"
-          onClick={() =>
-            setAsk({
-              title: 'Huỷ bài thi?',
-              text: 'Bài đang làm sẽ không được lưu.',
-              ok: 'Huỷ bài',
-              danger: true,
-              onOk: () => setExam((s) => ({ ...s, phase: 'setup' })),
-            })
-          }
-        >
-          Huỷ bài
-        </button>
-        <button type="button" className="btn btn-primary" onClick={askSubmit}>
-          <Send className="ic ic-sm" />
-          Nộp bài
-        </button>
+        <div className="dk-exam-actions">
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() =>
+              setAsk({
+                title: 'Huỷ bài thi?',
+                text: 'Bài đang làm sẽ không được lưu.',
+                ok: 'Huỷ bài',
+                danger: true,
+                onOk: () => setExam((s) => ({ ...s, phase: 'setup' })),
+              })
+            }
+          >
+            Huỷ bài
+          </button>
+          <button type="button" className="btn btn-primary" onClick={askSubmit}>
+            <Send className="ic ic-sm" />
+            Nộp bài
+          </button>
+        </div>
       </div>
 
       <div className="dk-study">
