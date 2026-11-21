@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useScrollLock } from '@/lib/scrollLock';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/cn';
@@ -24,6 +25,8 @@ export function Modal({ open, onClose, title, description, size = 'md', footer, 
   const panel = useRef<HTMLDivElement>(null);
   const returnTo = useRef<HTMLElement | null>(null);
 
+  useScrollLock(open);
+
   useEffect(() => {
     if (open) {
       returnTo.current = document.activeElement as HTMLElement;
@@ -32,11 +35,9 @@ export function Modal({ open, onClose, title, description, size = 'md', footer, 
         setShown(true);
         panel.current?.focus();
       });
-      document.body.classList.add('no-scroll');
       return () => cancelAnimationFrame(raf);
     }
     setShown(false);
-    document.body.classList.remove('no-scroll');
     const t = setTimeout(() => {
       setMounted(false);
       returnTo.current?.focus?.();

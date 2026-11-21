@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
+import { useScrollLock } from '@/lib/scrollLock';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, Search, X, type LucideIcon } from 'lucide-react';
@@ -563,15 +564,14 @@ export function Sheet({
 
   useEffect(() => {
     if (!open) return;
-    document.body.classList.add('no-scroll');
     const raf = requestAnimationFrame(() =>
       panel.current?.querySelector<HTMLElement>('.sheet-body input:not([type=hidden]):not([type=radio]):not([type=checkbox]), .sheet-body select, .sheet-body textarea')?.focus({ preventScroll: true }),
     );
     return () => {
       cancelAnimationFrame(raf);
-      document.body.classList.remove('no-scroll');
     };
   }, [open]);
+  useScrollLock(open);
 
   if (!mounted) return null;
   return createPortal(

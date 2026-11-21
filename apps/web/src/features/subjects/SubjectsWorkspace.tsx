@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useScrollLock } from '@/lib/scrollLock';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Columns3, GraduationCap, Info, Lightbulb, ListTree, RotateCcw, Save, Search } from 'lucide-react';
 import {
@@ -130,9 +131,7 @@ export function SubjectsWorkspace() {
     return () => window.removeEventListener('keydown', onKey);
   }, [mobileOpen]);
 
-  useEffect(() => {
-    document.body.classList.toggle('no-scroll', mobileOpen && (view === 'kanban' || window.innerWidth <= 1000));
-  }, [mobileOpen, view]);
+  useScrollLock(mobileOpen && (view === 'kanban' || window.innerWidth <= 1000));
 
   const save = async () => {
     try {

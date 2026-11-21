@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useScrollLock } from '@/lib/scrollLock';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   Bookmark,
@@ -183,9 +184,7 @@ export function AppShell() {
     window.scrollTo({ top: 0 });
   }, [pageKey]);
 
-  useEffect(() => {
-    document.body.classList.toggle('no-scroll', drawer);
-  }, [drawer]);
+  useScrollLock(drawer);
 
   const signOut = async () => {
     await logout();

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useScrollLock } from '@/lib/scrollLock';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, LayoutGrid, List, Search, SlidersHorizontal } from 'lucide-react';
 import {
@@ -72,9 +73,7 @@ export function LibraryPage() {
     return () => clearTimeout(t);
   }, [search, filters, setFilters]);
 
-  useEffect(() => {
-    document.body.classList.toggle('no-scroll', panelOpen);
-  }, [panelOpen]);
+  useScrollLock(panelOpen);
 
   const subjects = subjectPage?.items ?? [];
   const subjectById = useMemo(() => new Map(subjects.map((s) => [s.id, s])), [subjects]);
