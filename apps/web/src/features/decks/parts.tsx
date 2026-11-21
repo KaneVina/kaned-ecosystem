@@ -8,6 +8,9 @@ import { fmtInt } from '@/lib/format';
 import { useDeckCtx } from './context';
 import { countsOf, highlight, type Scope } from './model';
 
+/** Lets long identifiers like `a.b(c(d))` wrap after . ( , ; : and before camelCase humps instead of running off the card. */
+const breakable = (x: string) => x.split(/(?<=[.(,;:\]\[{}<>=+\-/_])|(?<=[a-z])(?=[A-Z])/).flatMap((part, i) => (i ? [<wbr key={i} />, part] : [part]));
+
 /** **bold** and `code` inside a line, optionally with search matches marked. */
 export function Inline({ text, terms }: { text: string; terms?: string[] }) {
   const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
@@ -19,7 +22,7 @@ export function Inline({ text, terms }: { text: string; terms?: string[] }) {
           <b key={i}>{t(p.slice(2, -2))}</b>
         ) : p.startsWith('`') && p.endsWith('`') && p.length > 2 ? (
           <code key={i} className="dk-ic">
-            {t(p.slice(1, -1))}
+            {terms?.length ? t(p.slice(1, -1)) : breakable(p.slice(1, -1))}
           </code>
         ) : (
           <Fragment key={i}>{t(p)}</Fragment>

@@ -379,7 +379,8 @@
 /* code in questions and answers */
 .dk-codeblock { margin: 10px 0; padding: 14px 16px; border-radius: var(--r-md); background: #1F2330; color: #E6E8EF; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace; font-size: 13.5px; font-weight: 400; line-height: 1.6; white-space: pre; overflow-x: auto; tab-size: 2; letter-spacing: 0; }
 .dk-codeblock mark { background: rgba(231, 160, 51, .45); color: #fff; }
-.dk-ic { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .88em; font-weight: 500; padding: 1px 6px; border-radius: 5px; background: var(--sunk); border: 1px solid var(--line); color: var(--violet-700); white-space: break-spaces; }
+.dk-ic { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .88em; font-weight: 500; padding: 1px 6px; border-radius: 5px; background: var(--sunk); border: 1px solid var(--line); color: var(--violet-700); white-space: break-spaces; overflow-wrap: anywhere; word-break: break-word; max-width: 100%; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.dk-qtext, .dk-opt, .dk-opt-text, .dk-exp, .dk-card { min-width: 0; overflow-wrap: anywhere; }
 .dk-opt.is-ok .dk-ic, .dk-opt.is-bad .dk-ic { background: rgba(255,255,255,.7); }
 .dk-hint-btn { margin-top: 12px; color: #9A6412; }
 .dk-hint-btn:hover { background: var(--amber-50); color: #7A4F0E; }
