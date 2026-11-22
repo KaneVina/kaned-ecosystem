@@ -44,7 +44,7 @@ async function request(text: string, to: Lang, signal: AbortSignal): Promise<Res
 
 function skip(node: Node | null) {
   const el = node instanceof Element ? node : node?.parentElement;
-  return !el || Boolean(el.closest('input, textarea, select, [contenteditable="true"], [data-no-translate], .tr-pop, .tr-btn'));
+  return !el || Boolean(el.closest('input, textarea, select, [contenteditable="true"], [data-no-translate], .tr-pop'));
 }
 
 function readSelection(): Sel | null {
@@ -65,41 +65,33 @@ export function SelectionTranslate() {
   const enabled = useTranslateEnabled();
   const toast = useToast();
   const [sel, setSel] = useState<Sel | null>(null);
-  const [open, setOpen] = useState(false);
   const timer = useRef<number>();
 
-  // Show the "Dịch" button once a selection settles (after mouse-up, or when touch handles stop moving).
+  // Translate as soon as a selection settles (after mouse-up, or when touch handles stop moving).
+  // Selection events only ever open or move the card; closing is an explicit act (outside click, Esc, ×),
+  // so clicking inside the card never makes it vanish.
   useEffect(() => {
     if (!enabled) {
       setSel(null);
-      setOpen(false);
       return;
     }
     const check = (delay: number) => {
       window.clearTimeout(timer.current);
       timer.current = window.setTimeout(() => {
         const next = readSelection();
-        setSel((prev) => {
-          if (next && prev && prev.text === next.text) return { ...next };
-          if (!next && prev && open) return prev; // keep the card while it is open
-          return next;
-        });
-        if (next) setOpen((o) => (o && sel && sel.text === next.text ? o : false));
+        if (next) setSel((prev) => (prev && prev.text === next.text && prev.x === next.x && prev.bottom === next.bottom ? prev : next));
       }, delay);
     };
     const onUp = (e: Event) => {
-      if ((e.target as Element | null)?.closest?.('.tr-pop, .tr-btn')) return;
+      if ((e.target as Element | null)?.closest?.('.tr-pop')) return;
       check(10);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setOpen(false);
-        setSel(null);
-      } else if (e.shiftKey) check(30);
+      if (e.key === 'Escape') setSel(null);
+      else if (e.shiftKey) check(30);
     };
     const onChange = () => {
-      if (!window.getSelection()?.toString()) check(120);
-      else check(450);
+      if (window.getSelection()?.toString()) check(450);
     };
     document.addEventListener('mouseup', onUp);
     document.addEventListener('touchend', onUp);
@@ -112,21 +104,19 @@ export function SelectionTranslate() {
       document.removeEventListener('keyup', onKey);
       document.removeEventListener('selectionchange', onChange);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, open]);
+  }, [enabled]);
 
-  // Close when the person clicks elsewhere or scrolls the selection away.
   useEffect(() => {
     if (!sel) return;
     const onDown = (e: Event) => {
-      if ((e.target as Element | null)?.closest?.('.tr-pop, .tr-btn')) return;
-      setOpen(false);
-      if (!window.getSelection()?.toString()) setSel(null);
+      if ((e.target as Element | null)?.closest?.('.tr-pop')) return;
+      window.clearTimeout(timer.current);
+      setSel(null);
     };
+    // Follow the selection while the page scrolls under it.
     const onScroll = () => {
       const s = readSelection();
-      if (s) setSel(s);
-      else if (!open) setSel(null);
+      if (s) setSel((prev) => (prev && prev.text === s.text ? s : prev));
     };
     document.addEventListener('pointerdown', onDown, true);
     window.addEventListener('scroll', onScroll, true);
@@ -136,20 +126,16 @@ export function SelectionTranslate() {
       window.removeEventListener('scroll', onScroll, true);
       window.removeEventListener('resize', onScroll);
     };
-  }, [sel, open]);
+  }, [sel]);
 
   const disable = useCallback(() => {
     setTranslateEnabled(false);
-    setOpen(false);
     setSel(null);
     toast.success('Đã tắt dịch khi bôi đen', 'Bật lại trong Cài đặt tài khoản.');
   }, [toast]);
 
   if (!enabled || !sel) return null;
-  return createPortal(
-    open ? <Card sel={sel} onClose={() => setOpen(false)} onDisable={disable} /> : <Trigger sel={sel} onOpen={() => setOpen(true)} />,
-    document.body,
-  );
+  return createPortal(<Card key={sel.text} sel={sel} onClose={() => setSel(null)} onDisable={disable} />, document.body);
 }
 
 function place(sel: Sel, w: number, h: number) {
@@ -159,23 +145,6 @@ function place(sel: Sel, w: number, h: number) {
   const below = sel.bottom + 10;
   const top = below + h > vh - 10 && sel.top - h - 10 > 10 ? sel.top - h - 10 : Math.max(10, Math.min(below, vh - h - 10));
   return { left, top };
-}
-
-function Trigger({ sel, onOpen }: { sel: Sel; onOpen: () => void }) {
-  const { left, top } = place(sel, 84, 38);
-  return (
-    <button
-      type="button"
-      className="tr-btn"
-      style={{ left, top }}
-      // Keep the selection alive while pressing.
-      onMouseDown={(e) => e.preventDefault()}
-      onClick={onOpen}
-    >
-      <Languages className="ic ic-sm" />
-      Dịch
-    </button>
-  );
 }
 
 function Card({ sel, onClose, onDisable }: { sel: Sel; onClose: () => void; onDisable: () => void }) {

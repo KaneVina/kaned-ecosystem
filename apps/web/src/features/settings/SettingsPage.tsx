@@ -281,7 +281,7 @@ function TranslatePanel() {
       <PanelHead
         icon={<Languages className="ic" />}
         title="Dịch khi bôi đen"
-        description="Bôi đen một đoạn chữ trên trang để hiện nút Dịch. Kaned tự nhận ngôn ngữ và dịch sang tiếng Việt (hoặc tiếng Anh nếu đoạn đó là tiếng Việt). Cài đặt lưu trên thiết bị này."
+        description="Bôi đen một đoạn chữ trên trang là Kaned tự dịch ngay, không cần bấm thêm. Kaned tự nhận ngôn ngữ và dịch sang tiếng Việt (hoặc tiếng Anh nếu đoạn đó là tiếng Việt). Cài đặt lưu trên thiết bị này."
         actions={
           <label className="st-switch">
             <input type="checkbox" role="switch" checked={on} onChange={(e) => setTranslateEnabled(e.target.checked)} />
