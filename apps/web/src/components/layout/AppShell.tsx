@@ -25,6 +25,7 @@ import {
   Contact,
 } from 'lucide-react';
 import { useAuth } from '@/providers/AuthProvider';
+import { SelectionTranslate } from '@/components/ui/SelectionTranslate';
 import { useActivityTracker } from '@/lib/activity';
 import { STAFF_ROLES } from '@kaned/shared';
 import { useToast } from '@/providers/ToastProvider';
@@ -365,6 +366,7 @@ export function AppShell() {
       <main id="app" tabIndex={-1} className="page-in">
         <Outlet />
       </main>
+      <SelectionTranslate />
 
       <SiteFooter
         columns={[

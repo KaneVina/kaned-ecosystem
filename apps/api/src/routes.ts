@@ -11,6 +11,7 @@ import { linksRouter } from './modules/links/links.routes.js';
 import { announcementRouter } from './modules/site/announcement.routes.js';
 import { lecturersRouter } from './modules/lecturers/lecturers.routes.js';
 import { uploadsRouter } from './modules/uploads/uploads.routes.js';
+import { translateRouter } from './modules/translate/translate.routes.js';
 import { usersRouter } from './modules/users/users.routes.js';
 
 /**
@@ -31,4 +32,5 @@ api.use('/links', linksRouter);
 api.use('/announcement', announcementRouter);
 api.use('/lecturers', lecturersRouter);
 api.use('/uploads', uploadsRouter);
+api.use('/translate', translateRouter);
 api.use('/users', usersRouter);

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Activity, KeyRound, Link2, Mail, ShieldCheck } from 'lucide-react';
+import { Activity, KeyRound, Languages, Link2, Mail, ShieldCheck } from 'lucide-react';
+import { setTranslateEnabled, useTranslateEnabled } from '@/lib/translatePref';
 import {
   OAUTH_PROVIDER_LABELS,
   OAUTH_PROVIDERS,
@@ -273,6 +274,25 @@ function LinkedAccountsPanel({ security, problem, onDismiss }: { security: Accou
 
 /* ──────────────────────────────── page ──────────────────────────────── */
 
+function TranslatePanel() {
+  const on = useTranslateEnabled();
+  return (
+    <Panel>
+      <PanelHead
+        icon={<Languages className="ic" />}
+        title="Dịch khi bôi đen"
+        description="Bôi đen một đoạn chữ trên trang để hiện nút Dịch. Kaned tự nhận ngôn ngữ và dịch sang tiếng Việt (hoặc tiếng Anh nếu đoạn đó là tiếng Việt). Cài đặt lưu trên thiết bị này."
+        actions={
+          <label className="st-switch">
+            <input type="checkbox" role="switch" checked={on} onChange={(e) => setTranslateEnabled(e.target.checked)} />
+            <span>{on ? 'Đang bật' : 'Đang tắt'}</span>
+          </label>
+        }
+      />
+    </Panel>
+  );
+}
+
 export function SettingsPage() {
   const { user } = useAuth();
   const location = useLocation();
@@ -314,6 +334,7 @@ export function SettingsPage() {
             />
           </>
         )}
+        <TranslatePanel />
         <Panel>
           <PanelHead
             icon={<Activity className="ic" />}
