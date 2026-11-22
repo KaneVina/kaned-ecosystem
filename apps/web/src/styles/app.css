@@ -1268,3 +1268,24 @@ a.ghv-name:hover span { color: var(--violet-600); text-decoration: underline; te
 @media (max-width: 860px) {
   .doc-row .row-stats { padding-right: 92px; min-height: 44px; }
 }
+
+/* search history dropdown */
+.ex-search { position: relative; }
+.sh-panel { position: absolute; z-index: 40; left: 0; right: 0; top: calc(100% + 6px); background: var(--paper); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 18px 44px rgba(20, 16, 50, .16), 0 2px 8px rgba(20, 16, 50, .06); padding: 6px; animation: shIn .16s var(--ease-out); }
+@keyframes shIn { from { opacity: 0; transform: translateY(-4px); } }
+.sh-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px 6px; font-size: 12.5px; font-weight: 600; color: var(--ink-3); }
+.sh-head button { all: unset; cursor: pointer; font-size: 12.5px; font-weight: 600; color: var(--violet); padding: 3px 8px; border-radius: 7px; transition: background .15s; }
+.sh-head button:hover { background: color-mix(in srgb, var(--violet) 10%, transparent); }
+.sh-head button:focus-visible { outline: 2px solid var(--violet); }
+.sh-panel ul { list-style: none; margin: 0; padding: 0; }
+.sh-panel li { display: flex; align-items: center; border-radius: 10px; transition: background .12s; }
+.sh-panel li:hover, .sh-panel li.is-hi { background: var(--sunk); }
+.sh-item { all: unset; box-sizing: border-box; flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 10px 10px; cursor: pointer; font-size: 14.5px; color: var(--ink); }
+.sh-item .ic { color: var(--ink-4, var(--ink-3)); flex: none; }
+.sh-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sh-item:focus-visible { outline: 2px solid var(--violet); border-radius: 10px; }
+.sh-del { all: unset; box-sizing: border-box; flex: none; width: 32px; height: 32px; margin-right: 4px; display: grid; place-items: center; border-radius: 8px; color: var(--ink-3); cursor: pointer; transition: background .15s, color .15s, transform .12s; }
+.sh-del:hover { background: color-mix(in srgb, var(--red) 12%, transparent); color: var(--red); }
+.sh-del:active { transform: scale(.9); }
+.sh-del:focus-visible { outline: 2px solid var(--violet); }
+@media (prefers-reduced-motion: reduce) { .sh-panel { animation: none; } }

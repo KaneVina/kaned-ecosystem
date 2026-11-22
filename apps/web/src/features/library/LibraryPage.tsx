@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import { useScrollLock } from '@/lib/scrollLock';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, LayoutGrid, List, Search, SlidersHorizontal } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, LayoutGrid, List, Search, SlidersHorizontal, X } from 'lucide-react';
+import { useSearchHistory } from '@/lib/searchHistory';
 import {
   DOCUMENT_SORTS,
   DOCUMENT_SORT_LABELS,
@@ -46,6 +47,34 @@ export function LibraryPage() {
   const [view, setView] = useState<View>(readView);
   const [search, setSearch] = useState(filters.q ?? '');
   const [searchFocus, setSearchFocus] = useState(false);
+  const history = useSearchHistory();
+  const [hi, setHi] = useState(-1);
+  const needle = search.trim().toLowerCase();
+  const suggestions = history.items.filter((x) => x.toLowerCase() !== needle && (!needle || x.toLowerCase().includes(needle)));
+  const showHistory = searchFocus && suggestions.length > 0;
+  const pick = (q: string) => {
+    setSearch(q);
+    history.add(q);
+    setHi(-1);
+    setFilters({ ...filters, q, page: 1 });
+  };
+  const onSearchKey = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      if (showHistory && hi >= 0) {
+        e.preventDefault();
+        pick(suggestions[hi]);
+      } else history.add(search);
+    } else if (showHistory && e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHi((i) => (i + 1) % suggestions.length);
+    } else if (showHistory && e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHi((i) => (i <= 0 ? suggestions.length - 1 : i - 1));
+    } else if (e.key === 'Escape') {
+      setHi(-1);
+      (e.target as HTMLInputElement).blur();
+    }
+  };
   const [preview, setPreview] = useState<DocumentSummaryDto | null>(null);
 
   const sort = filters.sort ?? (filters.q ? 'relevance' : 'downloads');
@@ -160,9 +189,21 @@ export function LibraryPage() {
               className={cn('input input-lg', !search && !searchFocus && 'has-tw')}
               value={search}
               onFocus={() => setSearchFocus(true)}
-              onBlur={() => setSearchFocus(false)}
-              onChange={(e) => setSearch(e.target.value)}
+              onBlur={() => {
+                setSearchFocus(false);
+                setHi(-1);
+                history.add(search);
+              }}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setHi(-1);
+              }}
+              onKeyDown={onSearchKey}
               autoComplete="off"
+              role="combobox"
+              aria-expanded={showHistory}
+              aria-controls="lib-q-history"
+              aria-autocomplete="list"
             />
             {!search && !searchFocus && (
               <span className="ex-tw" aria-hidden>
@@ -171,6 +212,30 @@ export function LibraryPage() {
             )}
             <kbd className="ex-kbd">/</kbd>
           </div>
+          {showHistory && (
+            // Keep focus in the input while clicking inside the panel.
+            <div className="sh-panel" id="lib-q-history" onMouseDown={(e) => e.preventDefault()}>
+              <div className="sh-head">
+                <span>Tìm kiếm gần đây</span>
+                <button type="button" onClick={history.clear}>
+                  Xóa tất cả
+                </button>
+              </div>
+              <ul role="listbox" aria-label="Lịch sử tìm kiếm">
+                {suggestions.map((q, i) => (
+                  <li key={q} role="option" aria-selected={i === hi} className={cn(i === hi && 'is-hi')}>
+                    <button type="button" className="sh-item" onClick={() => pick(q)} onMouseEnter={() => setHi(i)}>
+                      <Clock className="ic ic-sm" aria-hidden />
+                      <span>{q}</span>
+                    </button>
+                    <button type="button" className="sh-del" aria-label={`Xóa “${q}” khỏi lịch sử`} onClick={() => history.remove(q)}>
+                      <X className="ic ic-sm" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </PageHead>
 
