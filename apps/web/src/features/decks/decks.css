@@ -454,3 +454,18 @@
   .dk-exam-subj { display: none; }
   .dk-exam-left .dk-eprog { order: 3; flex-basis: 100%; }
 }
+
+/* Confirm-before-exam dialog */
+.dk-confirm { margin: 0; display: grid; gap: 0; border: 1px solid var(--line); border-radius: var(--r-md); overflow: hidden; }
+.dk-confirm > div { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; padding: 12px 14px; }
+.dk-confirm > div + div { border-top: 1px solid var(--line); }
+.dk-confirm dt { font-size: 13.5px; color: var(--ink-3); }
+.dk-confirm dd { margin: 0; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.dk-confirm dd small { display: block; margin-top: 2px; font-size: 13px; font-weight: 500; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.dk-confirm-rules { margin: 14px 2px 0; padding-left: 18px; display: grid; gap: 6px; font-size: 13.5px; color: var(--ink-2); }
+.dk-confirm-rules b { color: var(--red); }
+
+/* Exam room: only the exam stays on screen */
+html.exam-live .nav, html.exam-live .announce, html.exam-live .page-head, html.exam-live .sf, html.exam-live .crumbs { display: none !important; }
+html.exam-live { --nav-h: 0px; }
+html.exam-live .dk-body { padding-top: 26px; }

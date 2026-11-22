@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight, Flag, Lightbulb, Play, RotateCcw, Send, Shuffle, Timer } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
+import { useAuth } from '@/providers/AuthProvider';
 import { cn } from '@/lib/cn';
 import { fmtInt } from '@/lib/format';
 import { useDeckCtx } from './context';
@@ -18,6 +19,9 @@ interface Ask {
   ok: string;
   danger?: boolean;
   onOk: () => void;
+  /** Label of the other button (default “Làm tiếp”) and what it does besides closing. */
+  cancel?: string;
+  onCancel?: () => void;
 }
 
 export function Exam() {
@@ -112,7 +116,27 @@ function ExamSetup() {
   const { m, state, settings, setSetting, exam: E, setExam } = useDeckCtx();
   const avail = poolOf(m, state, E.ch, 'all', false).length;
 
+  const { user } = useAuth();
+  const { deck } = useDeckCtx();
+  const [confirming, setConfirming] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!confirming) return;
+    setNow(Date.now());
+    const t = setInterval(() => setNow(Date.now()), 5000);
+    return () => clearInterval(t);
+  }, [confirming]);
+  const count = E.n ? Math.min(E.n, avail) : avail;
+  const hm = (ts: number) => new Date(ts).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const dmy = (ts: number) => new Date(ts).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
   const start = () => {
+    // Fullscreen has to be requested from the click itself.
+    try {
+      void document.documentElement.requestFullscreen?.().catch(() => {});
+    } catch {
+      /* not supported (e.g. iPhone): the exam still runs, just not fullscreen */
+    }
     let ids = shuffle(poolOf(m, state, E.ch, 'all', false));
     if (E.n) ids = ids.slice(0, E.n);
     const perm = Object.fromEntries(ids.map((id) => [id, makePerm(m.QI.get(id)!, settings.shuf)]));
@@ -181,11 +205,80 @@ function ExamSetup() {
           </span>
           <input type="checkbox" className="switch" checked={settings.shuf} onChange={(e) => setSetting('shuf', e.target.checked)} />
         </label>
-        <button type="button" className="btn btn-primary btn-lg" onClick={start} disabled={!avail}>
+        <button type="button" className="btn btn-primary btn-lg" onClick={() => setConfirming(true)} disabled={!avail}>
           <Play className="ic ic-sm" />
           Bắt đầu làm bài
         </button>
       </div>
+
+      <Modal
+        open={confirming}
+        onClose={() => setConfirming(false)}
+        title="Xác nhận vào phòng thi"
+        description="Kiểm tra thông tin trước khi bắt đầu. Đồng hồ chạy ngay khi bạn xác nhận."
+        size="sm"
+        footer={
+          <>
+            <button type="button" className="btn btn-secondary" onClick={() => setConfirming(false)}>
+              Quay lại
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                setConfirming(false);
+                start();
+              }}
+            >
+              <Play className="ic ic-sm" />
+              Xác nhận, bắt đầu thi
+            </button>
+          </>
+        }
+      >
+        <dl className="dk-confirm">
+          <div>
+            <dt>Thí sinh</dt>
+            <dd>{user?.name ?? '—'}</dd>
+          </div>
+          <div>
+            <dt>Môn thi</dt>
+            <dd>
+              {deck.subject.code} · {deck.subject.nameVi}
+            </dd>
+          </div>
+          <div>
+            <dt>Số câu</dt>
+            <dd>{fmtInt(count)} câu trắc nghiệm</dd>
+          </div>
+          <div>
+            <dt>Thời gian</dt>
+            <dd>
+              {E.min ? (
+                <>
+                  {E.min} phút
+                  <small>
+                    {hm(now)} – {hm(now + E.min * 60_000)}, {dmy(now)}
+                  </small>
+                </>
+              ) : (
+                <>
+                  Không giới hạn
+                  <small>
+                    Bắt đầu lúc {hm(now)}, {dmy(now)}
+                  </small>
+                </>
+              )}
+            </dd>
+          </div>
+        </dl>
+        <ul className="dk-confirm-rules">
+          <li>Bài thi mở toàn màn hình, chỉ hiện đồng hồ, tiến độ và danh sách câu hỏi.</li>
+          <li>
+            <b>Thoát giữa chừng thì bài không được lưu.</b>
+          </li>
+        </ul>
+      </Modal>
 
       <div className="panel dk-panel">
         <h3>
@@ -219,6 +312,73 @@ function ExamRun() {
   const [, tick] = useState(0);
   const [ask, setAsk] = useState<Ask | null>(null);
   const [dir, setDir] = useState(0);
+
+  // --- Exam-room mode: nothing but the exam on screen, and leaving costs the attempt. ---
+  const leave = useCallback(
+    (steps = 0) => {
+      setExam((x) => ({ ...x, phase: 'setup' }));
+      if (steps) window.history.go(-steps);
+    },
+    [setExam],
+  );
+  useEffect(() => {
+    document.documentElement.classList.add('exam-live');
+    window.scrollTo({ top: 0 });
+    return () => {
+      document.documentElement.classList.remove('exam-live');
+      if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+    };
+  }, []);
+  // Closing or reloading the tab: the browser's own confirmation.
+  useEffect(() => {
+    const h = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', h);
+    return () => window.removeEventListener('beforeunload', h);
+  }, []);
+  // The Back button: stay on the exam and ask first.
+  useEffect(() => {
+    window.history.pushState({ kanedExam: true }, '');
+    const onPop = () => {
+      window.history.pushState({ kanedExam: true }, '');
+      setAsk({
+        title: 'Thoát khỏi bài thi?',
+        text: <>Nếu thoát, <b className="dk-blank">bài đang làm sẽ không được lưu</b>.</>,
+        ok: 'Thoát, không lưu',
+        danger: true,
+        cancel: 'Tiếp tục thi',
+        onOk: () => leave(2),
+      });
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [leave]);
+  // Leaving fullscreen with Esc counts as trying to leave.
+  useEffect(() => {
+    let was = Boolean(document.fullscreenElement);
+    const onFs = () => {
+      if (document.fullscreenElement) {
+        was = true;
+        return;
+      }
+      if (!was) return;
+      was = false;
+      setAsk({
+        title: 'Bạn đã thoát toàn màn hình',
+        text: <>Thoát bài thi thì <b className="dk-blank">bài đang làm sẽ không được lưu</b>. Bạn muốn làm tiếp hay thoát?</>,
+        ok: 'Thoát, không lưu',
+        danger: true,
+        cancel: 'Làm tiếp, vào lại toàn màn hình',
+        onCancel: () => void document.documentElement.requestFullscreen?.().catch(() => {}),
+        onOk: () => leave(),
+      });
+    };
+    document.addEventListener('fullscreenchange', onFs);
+    return () => document.removeEventListener('fullscreenchange', onFs);
+  }, [leave]);
+
   const id = E.ids[E.idx];
   const q = m.QI.get(id)!;
   const perm = E.perm[id];
@@ -353,7 +513,7 @@ function ExamRun() {
                 text: 'Bài đang làm sẽ không được lưu.',
                 ok: 'Huỷ bài',
                 danger: true,
-                onOk: () => setExam((s) => ({ ...s, phase: 'setup' })),
+                onOk: () => leave(),
               })
             }
           >
@@ -445,8 +605,16 @@ function ExamRun() {
         size="sm"
         footer={
           <>
-            <button type="button" className="btn btn-secondary" onClick={() => setAsk(null)}>
-              Làm tiếp
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => {
+                const fn = ask?.onCancel;
+                setAsk(null);
+                fn?.();
+              }}
+            >
+              {ask?.cancel ?? 'Làm tiếp'}
             </button>
             <button
               type="button"
