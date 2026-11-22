@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { ChevronLeft, ChevronRight, Flag, Lightbulb, Play, RotateCcw, Send, Shuffle, Timer } from 'lucide-react';
+import { BookOpen, CalendarClock, ChevronLeft, ChevronRight, Flag, Lightbulb, ListChecks, Play, User, RotateCcw, Send, Shuffle, Timer } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/providers/AuthProvider';
 import { cn } from '@/lib/cn';
@@ -309,6 +309,7 @@ function ExamSetup() {
 
 function ExamRun() {
   const { deck, m, exam: E, setExam } = useDeckCtx();
+  const { user } = useAuth();
   const [, tick] = useState(0);
   const [ask, setAsk] = useState<Ask | null>(null);
   const [dir, setDir] = useState(0);
@@ -477,6 +478,36 @@ function ExamRun() {
 
   return (
     <>
+      <div className="dk-room">
+      <div className="dk-room-top">
+        <ul className="dk-room-info" aria-label="Thông tin bài thi">
+          <li>
+            <User className="ic ic-sm" />
+            <span>Thí sinh</span>
+            <b>{user?.name ?? '—'}</b>
+          </li>
+          <li>
+            <BookOpen className="ic ic-sm" />
+            <span>Môn thi</span>
+            <b>
+              {deck.subject.code} · {deck.subject.nameVi}
+            </b>
+          </li>
+          <li>
+            <ListChecks className="ic ic-sm" />
+            <span>Số câu</span>
+            <b>{n} câu</b>
+          </li>
+          <li>
+            <CalendarClock className="ic ic-sm" />
+            <span>{E.end ? 'Thời gian' : 'Bắt đầu'}</span>
+            <b>
+              {new Date(E.t0).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })}
+              {E.end ? ` – ${new Date(E.end).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })}` : ''},{' '}
+              {new Date(E.t0).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+            </b>
+          </li>
+        </ul>
       <div className="dk-exam-bar">
         <div className="dk-exam-left">
           <span
@@ -526,6 +557,7 @@ function ExamRun() {
         </div>
       </div>
 
+      </div>
       <div className="dk-study">
         <div className="dk-study-main">
           <article key={id} className={cn('dk-card', dir > 0 ? 'enter-r' : dir < 0 ? 'enter-l' : '')}>
@@ -595,6 +627,7 @@ function ExamRun() {
             sub={`${answered} / ${n}`}
           />
         </aside>
+      </div>
       </div>
 
       <Modal

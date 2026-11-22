@@ -469,3 +469,21 @@
 html.exam-live .nav, html.exam-live .announce, html.exam-live .page-head, html.exam-live .sf, html.exam-live .crumbs { display: none !important; }
 html.exam-live { --nav-h: 0px; }
 html.exam-live .dk-body { padding-top: 26px; }
+
+/* Exam room layout: full-height, info strip on top, question centred in the remaining space */
+.dk-room-info { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 10px; }
+.dk-room-info li { display: inline-flex; align-items: center; gap: 8px; min-width: 0; padding: 8px 14px; border-radius: 999px; background: var(--paper); border: 1px solid var(--line); font-size: 13.5px; color: var(--ink-3); }
+.dk-room-info li .ic { color: var(--violet); flex: none; }
+.dk-room-info li b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (min-width: 861px) {
+  html.exam-live .dk-body { min-height: 100dvh; display: flex; flex-direction: column; padding-top: 22px; padding-bottom: 28px; }
+  html.exam-live .dk-room { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  html.exam-live .dk-room-top { position: sticky; top: 0; z-index: 20; background: linear-gradient(var(--bg) 88%, transparent); padding-bottom: 6px; }
+  html.exam-live .dk-room .dk-exam-bar { position: static; margin: 0; padding: 0 0 6px; background: none; }
+  html.exam-live .dk-room .dk-study { margin-block: auto; padding-block: 18px; }
+  html.exam-live .dk-room .dk-side { position: static; }
+}
+@media (max-width: 860px) {
+  .dk-room-info { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: -2px; padding-bottom: 2px; }
+  .dk-room-info li { flex: none; font-size: 12.5px; padding: 6px 11px; }
+}
