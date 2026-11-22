@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { BookOpen, CalendarClock, ChevronLeft, ChevronRight, Flag, Lightbulb, ListChecks, Play, User, RotateCcw, Send, Shuffle, Timer } from 'lucide-react';
+import { BookOpen, CalendarClock, ChevronLeft, ChevronRight, Flag, Lightbulb, ListChecks, Play, RotateCcw, Send, Shuffle, Timer } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/providers/AuthProvider';
 import { cn } from '@/lib/cn';
@@ -127,8 +127,6 @@ function ExamSetup() {
     return () => clearInterval(t);
   }, [confirming]);
   const count = E.n ? Math.min(E.n, avail) : avail;
-  const hm = (ts: number) => new Date(ts).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
-  const dmy = (ts: number) => new Date(ts).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
   const start = () => {
     // Fullscreen has to be requested from the click itself.
@@ -480,83 +478,92 @@ function ExamRun() {
     <>
       <div className="dk-room">
       <div className="dk-room-top">
-        <ul className="dk-room-info" aria-label="Thông tin bài thi">
-          <li>
-            <User className="ic ic-sm" />
-            <span>Thí sinh</span>
-            <b>{user?.name ?? '—'}</b>
-          </li>
-          <li>
-            <BookOpen className="ic ic-sm" />
-            <span>Môn thi</span>
-            <b>
-              {deck.subject.code} · {deck.subject.nameVi}
-            </b>
-          </li>
-          <li>
-            <ListChecks className="ic ic-sm" />
-            <span>Số câu</span>
-            <b>{n} câu</b>
-          </li>
-          <li>
-            <CalendarClock className="ic ic-sm" />
-            <span>{E.end ? 'Thời gian' : 'Bắt đầu'}</span>
-            <b>
-              {new Date(E.t0).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })}
-              {E.end ? ` – ${new Date(E.end).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })}` : ''},{' '}
-              {new Date(E.t0).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-            </b>
-          </li>
-        </ul>
-      <div className="dk-exam-bar">
-        <div className="dk-exam-left">
-          <span
-            className={cn('dk-timer', E.end > 0 && 'has-ring', E.end && left < 300_000 && 'is-low')}
-            style={E.end > 0 ? ({ ['--p' as string]: `${Math.max(0, Math.min(1, left / (E.end - E.t0))) * 360}deg` } as CSSProperties) : undefined}
-            title={E.end ? 'Thời gian còn lại' : 'Thời gian đã làm'}
-          >
-            <Timer className="ic ic-sm" />
-            <span>{E.end ? clock(left) : clock(now - E.t0)}</span>
-          </span>
-          <div className="dk-eprog">
-            <div>
-              <span>
-                Đã trả lời <b>{answered} / {n}</b>
+        <div className="dk-room-grid">
+          <section className="dk-rcard dk-rinfo" aria-label="Thông tin bài thi">
+            <div className="dk-rwho">
+              <span className="dk-avatar" aria-hidden>
+                {initials(user?.name)}
               </span>
-              <span>{Math.round((answered / n) * 100)}%</span>
+              <div>
+                <b>{user?.name ?? 'Thí sinh'}</b>
+                <span>Thí sinh</span>
+              </div>
+              <span className="dk-exam-subj" title={deck.subject.nameVi}>
+                <i style={{ background: deck.subject.university.color }} />
+                {deck.subject.code}
+              </span>
             </div>
-            <div className="dk-bar">
-              <i className="is-violet" style={{ width: `${(answered / n) * 100}%` }} />
+            <dl className="dk-rfacts">
+              <div>
+                <dt>
+                  <BookOpen className="ic ic-sm" />
+                  Môn thi
+                </dt>
+                <dd>{deck.subject.nameVi}</dd>
+              </div>
+              <div>
+                <dt>
+                  <ListChecks className="ic ic-sm" />
+                  Số câu
+                </dt>
+                <dd>{n} câu</dd>
+              </div>
+              <div>
+                <dt>
+                  <CalendarClock className="ic ic-sm" />
+                  {E.end ? 'Khung giờ' : 'Bắt đầu'}
+                </dt>
+                <dd>
+                  {hm(E.t0)}
+                  {E.end ? ` – ${hm(E.end)}` : ''} · {dmy(E.t0)}
+                </dd>
+              </div>
+            </dl>
+            <div className="dk-eprog">
+              <div>
+                <span>
+                  Đã trả lời <b>{answered} / {n}</b>
+                </span>
+                <span>{Math.round((answered / n) * 100)}%</span>
+              </div>
+              <div className="dk-bar">
+                <i className="is-violet" style={{ width: `${(answered / n) * 100}%` }} />
+              </div>
             </div>
-          </div>
-          <span className="dk-exam-subj" title={deck.subject.nameVi}>
-            <i style={{ background: deck.subject.university.color }} />
-            {deck.subject.code}
-          </span>
+          </section>
+          <section className="dk-rcard dk-rtimer" aria-label="Đồng hồ">
+            <span
+              className={cn('dk-timer', E.end > 0 && 'has-ring', E.end && left < 300_000 && 'is-low')}
+              style={E.end > 0 ? ({ ['--p' as string]: `${Math.max(0, Math.min(1, left / (E.end - E.t0))) * 360}deg` } as CSSProperties) : undefined}
+              title={E.end ? 'Thời gian còn lại' : 'Thời gian đã làm'}
+            >
+              <Timer className="ic ic-sm" />
+              <span>{E.end ? clock(left) : clock(now - E.t0)}</span>
+            </span>
+            <small>{E.end ? 'Thời gian còn lại' : 'Thời gian đã làm'}</small>
+            <div className="dk-exam-actions">
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() =>
+                  setAsk({
+                    title: 'Huỷ bài thi?',
+                    text: 'Bài đang làm sẽ không được lưu.',
+                    ok: 'Huỷ bài',
+                    danger: true,
+                    onOk: () => leave(),
+                  })
+                }
+              >
+                Huỷ bài
+              </button>
+              <button type="button" className="btn btn-primary" onClick={askSubmit}>
+                <Send className="ic ic-sm" />
+                Nộp bài
+              </button>
+            </div>
+          </section>
         </div>
-        <div className="dk-exam-actions">
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm"
-            onClick={() =>
-              setAsk({
-                title: 'Huỷ bài thi?',
-                text: 'Bài đang làm sẽ không được lưu.',
-                ok: 'Huỷ bài',
-                danger: true,
-                onOk: () => leave(),
-              })
-            }
-          >
-            Huỷ bài
-          </button>
-          <button type="button" className="btn btn-primary" onClick={askSubmit}>
-            <Send className="ic ic-sm" />
-            Nộp bài
-          </button>
-        </div>
-      </div>
-
       </div>
       <div className="dk-study">
         <div className="dk-study-main">
@@ -613,19 +620,7 @@ function ExamRun() {
           </article>
         </div>
         <aside className="dk-side">
-          <AnswerSheet
-            ids={E.ids}
-            current={E.idx}
-            cls={(x) => ((E.ans[x] ?? []).length ? 'is-ans' : '')}
-            flagged={(x) => Boolean(E.flag[x])}
-            onGo={go}
-            legend={[
-              ['is-ans', 'Đã trả lời'],
-              ['is-flag', 'Xem lại'],
-            ]}
-            title="Phiếu trả lời"
-            sub={`${answered} / ${n}`}
-          />
+          <ExamSheet ids={E.ids} ans={E.ans} flag={E.flag} current={E.idx} onGo={go} />
         </aside>
       </div>
       </div>
@@ -664,6 +659,92 @@ function ExamRun() {
         }
       />
     </>
+  );
+}
+
+const hm = (ts: number) => new Date(ts).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
+const dmy = (ts: number) => new Date(ts).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+function initials(name?: string | null) {
+  const w = (name ?? '').trim().split(/\s+/).filter(Boolean);
+  if (!w.length) return '?';
+  return (w.length === 1 ? w[0].slice(0, 2) : w[w.length - 2][0] + w[w.length - 1][0]).toUpperCase();
+}
+
+type SheetFilter = 'all' | 'todo' | 'flag';
+
+function ExamSheet({
+  ids,
+  ans,
+  flag,
+  current,
+  onGo,
+}: {
+  ids: string[];
+  ans: Record<string, number[]>;
+  flag: Record<string, boolean>;
+  current: number;
+  onGo: (i: number) => void;
+}) {
+  const [f, setF] = useState<SheetFilter>('all');
+  const done = (x: string) => (ans[x] ?? []).length > 0;
+  const nDone = ids.filter(done).length;
+  const nFlag = ids.filter((x) => flag[x]).length;
+  const nTodo = ids.length - nDone;
+  const show = (x: string) => f === 'all' || (f === 'todo' && !done(x)) || (f === 'flag' && flag[x]);
+  const nextTodo = () => {
+    for (let k = 1; k <= ids.length; k++) {
+      const i = (current + k) % ids.length;
+      if (!done(ids[i])) return i;
+    }
+    return -1;
+  };
+  const nx = nextTodo();
+  const tabs: [SheetFilter, string, number][] = [
+    ['all', 'Tất cả', ids.length],
+    ['todo', 'Chưa làm', nTodo],
+    ['flag', 'Đánh dấu', nFlag],
+  ];
+  return (
+    <div className="dk-rcard dk-xsheet">
+      <div className="dk-xs-head">
+        <h3>Phiếu trả lời</h3>
+        <span>
+          <b>{nDone}</b> / {ids.length}
+        </span>
+      </div>
+      <div className="dk-xs-tabs" role="tablist">
+        {tabs.map(([k, label, c]) => (
+          <button key={k} type="button" role="tab" aria-selected={f === k} className={cn(f === k && 'is-on')} onClick={() => setF(k)}>
+            {label}
+            <em>{c}</em>
+          </button>
+        ))}
+      </div>
+      <div className="dk-xs-grid">
+        {ids.map((x, i) => (
+          <button
+            key={x}
+            type="button"
+            className={cn('dk-xq', done(x) && 'is-ans', flag[x] && 'is-flag', i === current && 'is-cur', !show(x) && 'is-dim')}
+            aria-current={i === current ? 'true' : undefined}
+            aria-label={`Câu ${i + 1}${done(x) ? ', đã trả lời' : ', chưa trả lời'}${flag[x] ? ', đánh dấu xem lại' : ''}`}
+            onClick={() => onGo(i)}
+          >
+            {i + 1}
+          </button>
+        ))}
+      </div>
+      <div className="dk-legend">
+        <span><i className="dk-lg is-cur" />Đang làm</span>
+        <span><i className="dk-lg is-ans" />Đã trả lời</span>
+        <span><i className="dk-lg is-flag" />Xem lại</span>
+      </div>
+      <button type="button" className="btn btn-secondary dk-xs-next" disabled={nx < 0} onClick={() => nx >= 0 && onGo(nx)}>
+        {nx < 0 ? 'Đã trả lời hết' : 'Tới câu chưa làm kế tiếp'}
+        {nx >= 0 && <ChevronRight className="ic ic-sm" />}
+      </button>
+    </div>
   );
 }
 
