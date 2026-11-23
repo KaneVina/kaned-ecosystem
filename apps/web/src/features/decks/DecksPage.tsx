@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Layers, Search } from 'lucide-react';
+import { Clock, Layers, Search } from 'lucide-react';
 import { foldVi, STAFF_ROLES, type DeckSummaryDto } from '@kaned/shared';
 import { PageHead } from '@/components/ui/Panel';
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/Feedback';
 import { useAuth } from '@/providers/AuthProvider';
-import { fmtInt, timeAgo } from '@/lib/format';
+import { fmtDateTime, fmtInt, fmtRelative, timeAgo } from '@/lib/format';
 import { useDecks } from './api';
 import { summaryCounts, useStudySettings } from './model';
 import { BigSearch } from './parts';
@@ -144,6 +144,10 @@ function DeckCard({ d }: { d: DeckSummaryDto }) {
         {d.tipCount > 0 && <span>{fmtInt(d.tipCount)} mẹo</span>}
         {d.chapterCount > 0 && <span>{fmtInt(d.chapterCount)} chương</span>}
       </div>
+      <p className="dk-deck-upd" title={fmtDateTime(d.updatedAt)}>
+        <Clock className="ic ic-xs" />
+        Cập nhật {fmtRelative(d.updatedAt)}
+      </p>
       <div className="dk-deck-prog">
         <div className="dk-bar">
           <i className="is-ok" style={{ width: `${okp}%` }} />

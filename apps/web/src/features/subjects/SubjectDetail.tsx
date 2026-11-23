@@ -8,6 +8,7 @@ import { useDecks } from '@/features/decks/api';
 import { srsOn, summaryCounts } from '@/features/decks/model';
 import { isInvalidScore, parseScore, type DraftEntry } from '@/features/grades/queries';
 import { cn } from '@/lib/cn';
+import { fmtRelative } from '@/lib/format';
 import { RequirementList } from './RequirementList';
 import { PassCriteriaPanel } from './PassCriteriaPanel';
 import { AssessmentPanel } from './AssessmentPanel';
@@ -90,7 +91,7 @@ export function SubjectDetail({
               <span>
                 <b>{d.title}</b>
                 <small>
-                  {d.questionCount} câu{d.tipCount ? ` · ${d.tipCount} mẹo` : ''}
+                  {d.questionCount} câu{d.tipCount ? ` · ${d.tipCount} mẹo` : ''} · cập nhật {fmtRelative(d.updatedAt)}
                   {d.progress?.seen ? ` · đã thuộc ${Math.round((summaryCounts(d.progress, srsOn()).ok / Math.max(1, d.questionCount)) * 100)}%` : ''}
                 </small>
               </span>
