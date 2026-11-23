@@ -26,7 +26,9 @@ export interface LinkProvider {
   /** Aspect ratio of the embed, width / height. */
   ratio: number;
   /** What it is, when it matters for the layout: a vertical Short, a playlist, a Canva design. */
-  kind?: 'video' | 'short' | 'playlist' | 'design';
+  kind?: 'video' | 'short' | 'playlist' | 'design' | 'folder';
+  /** Google Drive folder id, when the address is a folder. */
+  folderId?: string;
   /** A picture to show on cards, when it can be worked out from the address alone. */
   thumbnailUrl?: string | null;
   /** A short link (canva.link) that must be followed on the server before it can be shown. */
@@ -141,6 +143,10 @@ export function detectLinkProvider(raw: string): LinkProvider {
     }
   }
   if (host === 'drive.google.com') {
+    const folderId = url.pathname.match(/\/folders\/([\w-]{10,})/)?.[1];
+    if (folderId) {
+      return { ...make('google-drive', `https://drive.google.com/embeddedfolderview?id=${folderId}#list`, 4 / 3), kind: 'folder', folderId };
+    }
     const fileId = url.pathname.match(/\/file\/d\/([\w-]+)/)?.[1] ?? url.searchParams.get('id');
     return make('google-drive', fileId ? `https://drive.google.com/file/d/${fileId}/preview` : null, 1 / 1.3);
   }
@@ -204,3 +210,27 @@ export const isAlwaysHiddenLink = (raw: string) => {
 
 /** "YouTube", "Canva", "Google Drive"… for a provider id. */
 export const linkProviderLabel = (id: LinkProviderId) => LABELS[id];
+
+
+/** One thing inside a Google Drive folder. */
+export interface DriveEntryDto {
+  id: string;
+  name: string;
+  kind: 'folder' | 'file';
+  /** MIME type when Google tells us, e.g. application/pdf. */
+  mime: string | null;
+  size: number | null;
+  modifiedAt: string | null;
+  /** Date as Drive printed it, when only that is known ("Nov 3, 2026"). */
+  modifiedText?: string | null;
+}
+
+/** What is inside a public Google Drive folder. */
+export interface DriveFolderDto {
+  id: string;
+  name: string | null;
+  entries: DriveEntryDto[];
+  /** ok, or private (not shared with "anyone with the link"), or unknown (Google could not be asked). */
+  status: 'ok' | 'private' | 'unknown';
+  truncated: boolean;
+}

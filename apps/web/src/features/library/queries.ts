@@ -9,6 +9,7 @@ import type {
   ReviewInput,
   UploadSignatureDto,
   LinkPreviewDto,
+  DriveFolderDto,
 } from '@kaned/shared';
 import { withKey, http } from '@/lib/api';
 import { queryKeys } from '@/lib/queryClient';
@@ -213,6 +214,20 @@ export function useLinkPreview(url: string | null) {
     },
     enabled: Boolean(url),
     staleTime: 5 * 60_000,
+    retry: false,
+  });
+}
+
+/** What is inside a Google Drive folder (null skips the lookup). */
+export function useDriveFolder(id: string | null) {
+  return useQuery({
+    queryKey: ['drive-folder', id],
+    queryFn: async () => {
+      const { data } = await http.get<DriveFolderDto>('/links/drive-folder', { params: { id } });
+      return data;
+    },
+    enabled: Boolean(id),
+    staleTime: 2 * 60_000,
     retry: false,
   });
 }

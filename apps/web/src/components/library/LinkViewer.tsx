@@ -4,11 +4,13 @@ import { detectLinkProvider, type DocumentDetailDto, type DocumentSummaryDto, ty
 import { DocPage, toPaperDoc } from '@/components/paper/Paper';
 import { useLinkPreview } from '@/features/library/queries';
 import { cn } from '@/lib/cn';
+import { DriveFolder } from '@/components/library/DriveFolder';
 
 /** "Video YouTube", "Danh sách phát YouTube", "Thiết kế Canva"… */
 export function providerTitle(p: LinkProvider) {
   if (p.id === 'youtube') return p.kind === 'playlist' ? 'Danh sách phát YouTube' : p.kind === 'short' ? 'YouTube Shorts' : 'Video YouTube';
   if (p.id === 'canva') return 'Thiết kế Canva';
+  if (p.kind === 'folder') return 'Thư mục Google Drive';
   return p.label;
 }
 
@@ -86,6 +88,8 @@ export function LinkViewer({ doc, url, onOpen }: { doc: DocumentDetailDto | Docu
             Đang mở thiết kế Canva…
           </div>
         </div>
+      ) : provider.folderId ? (
+        <DriveFolder folderId={provider.folderId} rootName={doc.title} fallbackEmbed={provider.embedUrl!} />
       ) : provider.embedUrl ? (
         <EmbedFrame provider={provider} title={doc.title} />
       ) : (
