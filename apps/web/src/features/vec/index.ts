@@ -1,0 +1,11 @@
+export { default as HubPage } from './HubPage';
+export { default as StudentPage } from './StudentPage';
+export { default as LecturerPage } from './LecturerPage';
+export { default as CreatePage } from './CreatePage';
+export { default as ResultPage } from './ResultPage';
+export { default as HistoryPage } from './HistoryPage';
+export { default as RoomPage } from './RoomPage';
+import SessionPage from './SessionPage';
+import { createElement } from 'react';
+export const MonitorPage = () => createElement(SessionPage, { tab: 'monitor' });
+export const SessionResultsPage = () => createElement(SessionPage, { tab: 'results' });

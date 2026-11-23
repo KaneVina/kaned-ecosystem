@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import {
   announceSchema,
+  answerItemSchema,
   answersPutSchema,
   confirmCodeSchema,
   decideRequestSchema,
@@ -24,6 +25,7 @@ import {
 import { env } from '../../env.js';
 import { ApiError } from '../../lib/errors.js';
 import { requireAuth } from '../../middleware/auth.js';
+import { idempotent } from '../../middleware/idempotency.js';
 import { validateBody } from '../../middleware/validate.js';
 import { timingSafeEqual } from 'node:crypto';
 import * as sessions from './vec.sessions.js';
@@ -84,7 +86,7 @@ vecRouter.post('/join/enter', writeLimiter, validateBody(joinEnterSchema), wrap(
 
 /* ── hosting ── */
 vecRouter.get('/sessions', wrap((r) => sessions.listHosted(u(r))));
-vecRouter.post('/sessions', writeLimiter, validateBody(sessionInputSchema), async (req, res) => {
+vecRouter.post('/sessions', writeLimiter, idempotent(), validateBody(sessionInputSchema), async (req, res) => {
   res.status(201).json(await sessions.createSession(u(req), req.body));
 });
 vecRouter.get('/sessions/:id', wrap((r) => sessions.getHosted(id(r), u(r), role(r))));
@@ -120,7 +122,7 @@ vecRouter.post('/attempts/:id/start', wrap((r) => attempts.startAttempt(r, id(r)
 vecRouter.post('/attempts/:id/claim', validateBody(z.object({ connectionId: z.string().max(80).optional() })), wrap((r) => attempts.claimConnection(r, id(r), u(r), r.body.connectionId)));
 vecRouter.get('/attempts/:id/paper', wrap((r) => attempts.getPaper(id(r), u(r))));
 vecRouter.put('/attempts/:id/answers', validateBody(answersPutSchema), wrap((r) => attempts.saveAnswers(id(r), u(r), r.body.items)));
-vecRouter.post('/attempts/:id/submit', validateBody(z.object({ items: answersPutSchema.shape.items.optional() })), wrap((r) => attempts.submitAttempt(id(r), u(r), r.body.items)));
+vecRouter.post('/attempts/:id/submit', validateBody(z.object({ items: z.array(answerItemSchema).max(50).optional() })), wrap((r) => attempts.submitAttempt(id(r), u(r), r.body.items)));
 vecRouter.post('/attempts/:id/heartbeat', validateBody(heartbeatSchema), wrap((r) => attempts.heartbeat(r, id(r), u(r), r.body)));
 vecRouter.post('/attempts/:id/violations', validateBody(violationSchema), wrap((r) => attempts.reportViolation(id(r), u(r), r.body.type, r.body.data)));
 vecRouter.get('/attempts/:id/result', wrap((r) => attempts.attemptResult(id(r), u(r))));

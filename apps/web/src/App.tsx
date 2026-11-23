@@ -24,6 +24,16 @@ import { useAuth } from '@/providers/AuthProvider';
 import { STAFF_ROLES } from '@kaned/shared';
 
 // The admin area is its own chunk: students never download it.
+const vecPage = <T extends string>(name: T) => lazy(() => import('@/features/vec').then((m) => ({ default: (m as unknown as Record<T, () => ReactNode>)[name] as () => ReactNode })));
+const VecHub = vecPage('HubPage');
+const VecStudent = vecPage('StudentPage');
+const VecLecturer = vecPage('LecturerPage');
+const VecCreate = vecPage('CreatePage');
+const VecMonitor = vecPage('MonitorPage');
+const VecResults = vecPage('SessionResultsPage');
+const VecResult = vecPage('ResultPage');
+const VecHistory = vecPage('HistoryPage');
+const VecRoom = vecPage('RoomPage');
 const admin = () => import('@/features/admin');
 const AdminShell = lazy(() => admin().then((m) => ({ default: m.AdminShell })));
 const OverviewPage = lazy(() => admin().then((m) => ({ default: m.OverviewPage })));
@@ -86,6 +96,8 @@ export default function App() {
       <Route path="/auth/callback" element={<OAuthCallbackPage />} />
       <Route path="/welcome" element={<RequireAuth><WelcomePage /></RequireAuth>} />
 
+      <Route path="/app/vec/room/:attemptId" element={<RequireAuth><Suspense fallback={null}><VecRoom /></Suspense></RequireAuth>} />
+
       <Route path="/app" element={<RequireAuth><AppShell /></RequireAuth>}>
         <Route index element={<DashboardPage />} />
         <Route path="library" element={<LibraryPage />} />
@@ -102,6 +114,16 @@ export default function App() {
         <Route path="saved" element={<ProfilePage defaultTab="saved" />} />
         <Route path="profile" element={<ProfilePage defaultTab="uploads" />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="vec" element={<Suspense fallback={null}><VecHub /></Suspense>} />
+        <Route path="vec/student" element={<Suspense fallback={null}><VecStudent /></Suspense>} />
+        <Route path="vec/join" element={<Suspense fallback={null}><VecStudent /></Suspense>} />
+        <Route path="vec/lecturer" element={<Suspense fallback={null}><VecLecturer /></Suspense>} />
+        <Route path="vec/lecturer/new" element={<Suspense fallback={null}><VecCreate /></Suspense>} />
+        <Route path="vec/lecturer/:sessionId" element={<Suspense fallback={null}><VecMonitor /></Suspense>} />
+        <Route path="vec/lecturer/:sessionId/monitor" element={<Suspense fallback={null}><VecMonitor /></Suspense>} />
+        <Route path="vec/lecturer/:sessionId/results" element={<Suspense fallback={null}><VecResults /></Suspense>} />
+        <Route path="vec/result/:attemptId" element={<Suspense fallback={null}><VecResult /></Suspense>} />
+        <Route path="vec/history" element={<Suspense fallback={null}><VecHistory /></Suspense>} />
 
         {/* Older addresses, kept so saved links keep working. */}
         <Route path="planner" element={<Navigate to="/app/subjects" replace />} />

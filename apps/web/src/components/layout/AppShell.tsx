@@ -23,6 +23,7 @@ import {
   type LucideIcon,
   Settings,
   Contact,
+  MonitorCheck,
 } from 'lucide-react';
 import { useAuth } from '@/providers/AuthProvider';
 import { SelectionTranslate } from '@/components/ui/SelectionTranslate';
@@ -75,6 +76,13 @@ export const TOOLS: Tool[] = [
     description: 'Liên hệ, bộ môn và tài liệu của giảng viên, cán bộ',
     icon: Contact,
     tone: 'teal',
+  },
+  {
+    to: '/app/vec',
+    label: 'Phòng thi ảo',
+    description: 'Thi trắc nghiệm trực tuyến có giám sát, tạo phiên và chấm điểm tự động',
+    icon: MonitorCheck,
+    tone: 'violet',
   },
   {
     to: null,
