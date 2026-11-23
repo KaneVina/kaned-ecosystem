@@ -248,7 +248,7 @@ function Monitor({ data, events, now, onDialog, onApprove }: { data: MonitorDto;
                         <td className="vec-act">
                           {r.state === 'SUSPENDED' && canAct && <Button size="sm" onClick={() => onDialog({ k: 'resume', row: r })} icon={<LockOpen className="ic" />}>Mở khóa</Button>}
                           {canAct && ['IN_PROGRESS', 'SUSPENDED', 'LOBBY'].includes(r.state) && (
-                            <Dropdown align="right" trigger={(p) => <button type="button" className="btn btn-ghost btn-sm btn-icon" aria-label={`Thao tác với ${r.fullName}`} {...p}><MoreHorizontal className="ic" /></button>}>
+                            <Dropdown align="right" portal trigger={(p) => <button type="button" className="btn btn-ghost btn-sm btn-icon" aria-label={`Thao tác với ${r.fullName}`} {...p}><MoreHorizontal className="ic" /></button>}>
                               <MenuButton onClick={() => onDialog({ k: 'announce', row: r })} icon={<Megaphone className="ic" />}>Nhắn riêng</MenuButton>
                               {r.state === 'IN_PROGRESS' && <MenuButton onClick={() => onDialog({ k: 'extend', row: r })} icon={<AlarmClockPlus className="ic" />}>Cộng giờ</MenuButton>}
                               <MenuButton onClick={() => onDialog({ k: 'redo', row: r })} icon={<RotateCcw className="ic" />}>Cho làm lại đề mới</MenuButton>
@@ -430,8 +430,8 @@ function Dialogs({ dialog, s, close, act, onDeleted }: { dialog: Dialog; s: VecS
     case 'announce':
       return (
         <Modal open onClose={close} title={row ? `Nhắn riêng cho ${row.fullName}` : 'Thông báo cho cả phòng'} size="sm" footer={footer('Gửi', () => void act('Chưa gửi được', () => vec.announce(s.id, text.trim(), urgent, row?.attemptId), 'Đã gửi thông báo'), { disabled: !text.trim() })}>
-          <Field label="Nội dung (tối đa 500 ký tự)"><textarea className="input" rows={3} maxLength={500} value={text} onChange={(e) => setText(e.target.value)} autoFocus /></Field>
-          <label className="vec-check"><input type="checkbox" checked={urgent} onChange={(e) => setUrgent(e.target.checked)} /> Khẩn: hiện hộp thoại giữa màn hình thí sinh</label>
+          <Field label="Nội dung (tối đa 500 ký tự)"><textarea className="textarea" rows={3} maxLength={500} value={text} onChange={(e) => setText(e.target.value)} autoFocus /></Field>
+          <label className="vec-toggle vec-toggle-block"><input type="checkbox" checked={urgent} onChange={(e) => setUrgent(e.target.checked)} /><i /><span>Thông báo khẩn<small>Hiện hộp thoại giữa màn hình thí sinh, buộc họ bấm “Đã hiểu”.</small></span></label>
         </Modal>
       );
     case 'end':

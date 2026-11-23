@@ -37,7 +37,9 @@ type Answer = { oids: string[]; flagged: boolean; seq: number };
  * choices wait in a queue that survives a reload (sessionStorage), go out in
  * batches, and are only dropped once the server has accepted them.
  */
-export function useAutosave(attemptId: string, initial: Record<string, Answer>, enabled: boolean) {
+export function useAutosave(attemptId: string, initial: Record<string, Answer>, enabled: boolean, onRefused?: () => void) {
+  const refused = useRef(onRefused);
+  refused.current = onRefused;
   const key = `vec:q:${attemptId}`;
   const [answers, setAnswers] = useState<Record<string, Answer>>(initial);
   const [status, setStatus] = useState<SaveState>('saved');
@@ -114,6 +116,7 @@ export function useAutosave(attemptId: string, initial: Record<string, Answer>, 
       // The server refused for good (locked, submitted, time up): stop retrying.
       if (status === 423 || status === 409) {
         setStatus('offline');
+        refused.current?.(); // the attempt changed under us: let the page re-read its state
         return false;
       }
       failures.current++;

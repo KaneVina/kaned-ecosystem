@@ -78,7 +78,7 @@ export async function attemptState(attemptId: string, userId: string): Promise<A
     lockedAt: ms(a.lockedAt),
     answered: a.answeredCount,
     total: total?.n ?? s.questionCount,
-    candidate: { fullName: info.fullName ?? '', studentCode: info.studentCode ?? '', email: info.email ?? '' },
+    candidate: { fullName: info.fullName ?? '', studentCode: info.studentCode ?? '', email: info.email ?? '', className: info.className ?? '', term: info.term ?? '' },
     session: await toJoinDto(s),
     serverNow: Date.now(),
     connectionId: a.connectionId,

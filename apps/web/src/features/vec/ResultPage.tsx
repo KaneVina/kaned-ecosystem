@@ -150,7 +150,7 @@ export default function ResultPage() {
         <p className="vec-foot"><Link to="/app/vec/history">Lịch sử thi</Link> · <Link to="/app/vec">Về Phòng thi ảo</Link></p>
       </div>
       <Modal open={ask} onClose={() => setAsk(false)} title="Xin giảng viên cho làm lại" size="sm" footer={<><Button variant="secondary" onClick={() => setAsk(false)}>Hủy</Button><Button loading={busy} onClick={sendRequest} icon={<Send className="ic" />}>Gửi yêu cầu</Button></>}>
-        <Field label="Lý do (không bắt buộc)"><textarea className="input" rows={3} maxLength={300} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
+        <Field label="Lý do (không bắt buộc)"><textarea className="textarea" rows={3} maxLength={300} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
       </Modal>
     </>
   );

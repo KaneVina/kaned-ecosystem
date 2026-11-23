@@ -70,6 +70,10 @@ export default function CreatePage() {
   const [err, setErr] = useState('');
   const [fieldErr, setFieldErr] = useState<Record<string, string>>({});
   const [created, setCreated] = useState<VecSessionDto | null>(null);
+  // The form is long: after creating, the page would stay scrolled down at the footer.
+  useEffect(() => {
+    if (created) window.scrollTo({ top: 0, behavior: 'auto' });
+  }, [created]);
   const [copied, setCopied] = useState('');
 
   const patch = <K extends Exclude<keyof VecSettings, 'settingsVersion'>>(k: K, v: Partial<VecSettings[K]>) => setS((p) => ({ ...p, [k]: { ...p[k], ...v } }));
@@ -156,11 +160,29 @@ export default function CreatePage() {
         <PageHead crumbs={[{ label: 'Phòng thi ảo', to: '/app/vec' }, { label: 'Giảng viên', to: '/app/vec/lecturer' }, { label: 'Đã tạo' }]} title="Phiên thi đã sẵn sàng" description="Đưa mã phòng cho sinh viên. Phòng chờ mở trước giờ thi theo thiết lập của bạn." />
         <div className="container vec-body">
           <div className="vec-done">
-            <div className="vec-done-code"><small>Mã phòng</small><b>{formatRoomCode(created.roomCode)}</b>
-              <Button variant="secondary" size="sm" onClick={() => copy('code', created.roomCode)} icon={copied === 'code' ? <Check className="ic" /> : <Copy className="ic" />}>{copied === 'code' ? 'Đã chép' : 'Chép mã'}</Button>
+            <div className="vec-codes">
+              <section className="vec-codecard" aria-label="Mã phòng">
+                <header><span>Mã phòng</span>
+                  <Button variant="secondary" size="sm" onClick={() => copy('code', created.roomCode)} icon={copied === 'code' ? <Check className="ic" /> : <Copy className="ic" />}>{copied === 'code' ? 'Đã chép' : 'Chép mã'}</Button>
+                </header>
+                <div className="vec-digits" aria-label={formatRoomCode(created.roomCode)}>
+                  {created.roomCode.split('').map((d, k) => <span key={k} className={cn('vec-digit', k === 2 && 'has-gap')}>{d}</span>)}
+                </div>
+                <p>Sinh viên vào <b>Phòng thi ảo → Vào phòng thi</b> rồi nhập mã này.</p>
+              </section>
+              {created.otp && (
+                <section className="vec-codecard is-otp" aria-label="Mã OTP">
+                  <header><span>Mã OTP</span>
+                    <Button variant="secondary" size="sm" onClick={() => copy('otp', created.otp!)} icon={copied === 'otp' ? <Check className="ic" /> : <Copy className="ic" />}>{copied === 'otp' ? 'Đã chép' : 'Chép OTP'}</Button>
+                  </header>
+                  <div className="vec-digits" aria-label={created.otp}>
+                    {created.otp.split('').map((d, k) => <span key={k} className="vec-digit">{d}</span>)}
+                  </div>
+                  <p>Đọc mã này cho sinh viên ngay trong phòng thi, đừng đăng trước.</p>
+                </section>
+              )}
             </div>
-            {created.otp && <div className="vec-done-code is-otp"><small>Mã OTP</small><b>{created.otp}</b><Button variant="secondary" size="sm" onClick={() => copy('otp', created.otp!)} icon={copied === 'otp' ? <Check className="ic" /> : <Copy className="ic" />}>{copied === 'otp' ? 'Đã chép' : 'Chép OTP'}</Button></div>}
-            <dl className="vec-dl">
+            <dl className="vec-dl vec-card vec-done-info">
               <div><dt>Tiêu đề</dt><dd>{created.title}</dd></div>
               <div><dt>Bắt đầu</dt><dd>{fmtVnFull(created.startsAt)}</dd></div>
               <div><dt>Phòng chờ mở</dt><dd>{created.lobbyOpenMin} phút trước giờ thi</dd></div>
@@ -240,7 +262,7 @@ export default function CreatePage() {
               <div className="vec-form2">
                 <Field label="Tiêu đề" required error={fieldErr.title} className="vec-span2"><Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={160} placeholder="Ví dụ: Giữa kỳ MLN122 – lớp SE1801" /></Field>
                 <Field label="Tên giảng viên hiển thị"><Input value={lecturer} onChange={(e) => setLecturer(e.target.value)} maxLength={80} /></Field>
-                <Field label="Hướng dẫn cho thí sinh" className="vec-span2"><textarea className="input" rows={3} maxLength={4000} value={instructions} onChange={(e) => setInstructions(e.target.value)} placeholder="Ví dụ: Không dùng tài liệu. Làm bài trên máy tính." /></Field>
+                <Field label="Hướng dẫn cho thí sinh" className="vec-span2"><textarea className="textarea" rows={3} maxLength={4000} value={instructions} onChange={(e) => setInstructions(e.target.value)} placeholder="Ví dụ: Không dùng tài liệu. Làm bài trên máy tính." /></Field>
               </div>
             </section>
 

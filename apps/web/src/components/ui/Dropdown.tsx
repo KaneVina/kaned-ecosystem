@@ -1,4 +1,5 @@
-import { useEffect, useId, useRef, useState, type PointerEvent as RPointerEvent, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type PointerEvent as RPointerEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/cn';
 
@@ -20,6 +21,7 @@ export function Dropdown({
   align = 'right',
   width,
   hover = false,
+  portal = false,
 }: {
   trigger: (props: TriggerProps) => ReactNode;
   children: ReactNode;
@@ -28,7 +30,11 @@ export function Dropdown({
   width?: number;
   /** Open when the pointer rests on the trigger (mouse only); touch and keyboard still click. */
   hover?: boolean;
+  /** Draw the menu on <body> at fixed coordinates, so a table or panel with overflow cannot clip it. */
+  portal?: boolean;
 }) {
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left?: number; right?: number; origin: string } | null>(null);
   const [open, setOpen] = useState(false);
   const timer = useRef<number>();
   // Only a real mouse opens on hover; touch and pen taps fall through to the click toggle.
@@ -56,8 +62,14 @@ export function Dropdown({
     // Mount first, then add .open on the next frame so the transition plays.
     const raf = requestAnimationFrame(() => setShown(true));
     const onDoc = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (!ref.current?.contains(t) && !menuRef.current?.contains(t)) setOpen(false);
     };
+    const onFar = () => setOpen(false);
+    if (portal) {
+      window.addEventListener('scroll', onFar, true);
+      window.addEventListener('resize', onFar);
+    }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false);
     };
@@ -68,8 +80,26 @@ export function Dropdown({
       setShown(false);
       document.removeEventListener('mousedown', onDoc);
       document.removeEventListener('keydown', onKey);
+      if (portal) {
+        window.removeEventListener('scroll', onFar, true);
+        window.removeEventListener('resize', onFar);
+      }
     };
-  }, [open]);
+  }, [open, portal]);
+
+  // Portal menus sit next to the trigger, flip above it when there is no room below.
+  useLayoutEffect(() => {
+    if (!open || !portal || !ref.current) return;
+    const r = ref.current.getBoundingClientRect();
+    const h = menuRef.current?.offsetHeight ?? 0;
+    const below = window.innerHeight - r.bottom;
+    const up = h > below - 12 && r.top > below;
+    setPos({
+      top: up ? Math.max(8, r.top - h - 8) : r.bottom + 8,
+      ...(align === 'left' ? { left: Math.max(8, r.left) } : { right: Math.max(8, window.innerWidth - r.right) }),
+      origin: `${up ? 'bottom' : 'top'} ${align === 'left' ? 'left' : 'right'}`,
+    });
+  }, [open, portal, align, shown]);
 
   return (
     <div className="menu-anchor" ref={ref} onPointerEnter={enter} onPointerLeave={leave}>
@@ -79,19 +109,27 @@ export function Dropdown({
         'aria-haspopup': 'menu',
         onClick: () => setOpen((v) => (canHover() ? true : !v)),
       })}
-      {open && (
-        <div
-          id={id}
-          role="menu"
-          className={cn('menu', shown && 'open', className)}
-          style={{ ...(align === 'left' ? { left: 0, right: 'auto', transformOrigin: 'top left' } : {}), ...(width ? { width } : {}) }}
-          onClick={(e) => {
-            if ((e.target as HTMLElement).closest('[role=menuitem]')) setOpen(false);
-          }}
-        >
-          {children}
-        </div>
-      )}
+      {open && (() => {
+        const el = (
+          <div
+            id={id}
+            ref={menuRef}
+            role="menu"
+            className={cn('menu', shown && 'open', className)}
+            style={
+              portal
+                ? { position: 'fixed', top: pos?.top ?? -9999, left: pos?.left ?? 'auto', right: pos?.right ?? 'auto', transformOrigin: pos?.origin, zIndex: 130, ...(width ? { width } : {}) }
+                : { ...(align === 'left' ? { left: 0, right: 'auto', transformOrigin: 'top left' } : {}), ...(width ? { width } : {}) }
+            }
+            onClick={(e) => {
+              if ((e.target as HTMLElement).closest('[role=menuitem]')) setOpen(false);
+            }}
+          >
+            {children}
+          </div>
+        );
+        return portal ? createPortal(el, document.body) : el;
+      })()}
     </div>
   );
 }

@@ -758,13 +758,14 @@ export interface VecSessionDto {
 export interface JoinPrefillDto {
   info: CandidateInfo;
   universities: Array<{ id: string; name: string; short: string; color: string }>;
-  terms: string[];
+  /** Terms of every university, newest first; `current` marks the one running today (GMT+7). */
+  terms: Array<{ universityId: string; code: string; name: string; current: boolean }>;
 }
 
 export type JoinLookup =
   | { state: 'OK'; ticket: string; session: JoinSessionDto; needsOtp: false }
   | { state: 'NEEDS_OTP'; needsOtp: true }
-  | { state: 'NOT_OPEN'; opensAt: number; title: string }
+  | { state: 'NOT_OPEN'; opensAt: number; title: string; startsAt: number; durationMin: number; subjectCode: string; subjectName: string; lecturerDisplay: string; questionCount: number }
   | { state: 'CLOSED' }
   | { state: 'ALREADY_ACTIVE'; attemptId: string; title: string }
   | { state: 'ALREADY_SUBMITTED'; attemptId: string; title: string; canRetake: boolean }
@@ -812,7 +813,7 @@ export interface AttemptStateDto {
   lockedAt: number | null;
   answered: number;
   total: number;
-  candidate: Pick<CandidateInfo, 'fullName' | 'studentCode' | 'email'>;
+  candidate: Pick<CandidateInfo, 'fullName' | 'studentCode' | 'email' | 'className' | 'term'>;
   session: JoinSessionDto;
   serverNow: number;
   connectionId: string | null;

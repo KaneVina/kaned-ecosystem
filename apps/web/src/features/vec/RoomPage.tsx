@@ -212,7 +212,7 @@ function LockedScreen({ a, onChange }: { a: AttemptStateDto; onChange: () => voi
           ) : (
             <>
               <Field label="Nhắn cho giảng viên (không bắt buộc)">
-                <textarea className="input" rows={3} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ví dụ: Em lỡ bấm phím Esc." />
+                <textarea className="textarea" rows={3} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ví dụ: Em lỡ bấm phím Esc." />
               </Field>
               <Button onClick={send} loading={busy} icon={<Send className="ic" />}>Xin giảng viên mở khóa</Button>
             </>
@@ -224,6 +224,9 @@ function LockedScreen({ a, onChange }: { a: AttemptStateDto; onChange: () => voi
 }
 
 /* ───────────────────────────── exam ───────────────────────────── */
+
+/** Attempts whose reload was already judged in this page load (module state dies with a real reload). */
+const reloadCounted = new Set<string>();
 
 function ExamView({ a, onChange }: { a: AttemptStateDto; onChange: () => void }) {
   const nav = useNavigate();
@@ -268,7 +271,7 @@ function ExamView({ a, onChange }: { a: AttemptStateDto; onChange: () => void })
   }, [a.id, a.connectionId]);
 
   const initialAnswers = useMemo(() => paper?.answers ?? {}, [paper]);
-  const autosave = useAutosave(a.id, initialAnswers, Boolean(paper));
+  const autosave = useAutosave(a.id, initialAnswers, Boolean(paper), onChange);
   const { answers, set } = autosave;
 
   const guard = useExamGuard({
@@ -285,7 +288,12 @@ function ExamView({ a, onChange }: { a: AttemptStateDto; onChange: () => void })
     if (!paper) return;
     const key = `vec:seen:${a.id}`;
     const nav0 = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
-    if (sessionStorage.getItem(key) && nav0?.type === 'reload') void guard.report('PAGE_RELOAD');
+    // The browser keeps saying "reload" for the whole page life, and this screen remounts after a
+    // lecturer unlocks it. Count a reload once per page load, or the unlock would lock again.
+    if (!reloadCounted.has(a.id)) {
+      reloadCounted.add(a.id);
+      if (sessionStorage.getItem(key) && nav0?.type === 'reload') void guard.report('PAGE_RELOAD');
+    }
     sessionStorage.setItem(key, '1');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paper?.attemptId]);
@@ -428,6 +436,9 @@ function ExamView({ a, onChange }: { a: AttemptStateDto; onChange: () => void })
   if (!paper || !q) return <div className="vec-room-page"><div className="vec-center"><Skeleton style={{ height: 300, width: 'min(720px, 92vw)' }} /></div></div>;
 
   const danger = remaining < 60_000 ? 'is-danger' : remaining < 5 * 60_000 ? 'is-warn' : '';
+  const timeLeftPct = Math.max(0, Math.min(1, remaining / Math.max(1, s.durationMin * 60_000)));
+  const donePct = total ? Math.round((answered / total) * 100) : 0;
+  const initials = a.candidate.fullName.trim().split(/\s+/).slice(-2).map((w) => w[0]).join('').toUpperCase() || '?';
   const mark = answers[q.qid];
   const watermark = integ.watermark ? `${a.candidate.fullName} · ${a.candidate.studentCode || user?.email || ''}` : '';
 
@@ -439,13 +450,17 @@ function ExamView({ a, onChange }: { a: AttemptStateDto; onChange: () => void })
           <b>{s.title}</b>
           <span>{s.subjectCode} · Mã đề <b className="vec-code">{a.paperCode}</b> · Lượt {a.attemptNo}/{a.maxAttempts}</span>
         </div>
+        <div className="vec-xmid" aria-label={`Đã làm ${answered} trên ${total} câu`}>
+          <div className="vec-xmid-row"><span>Tiến độ làm bài</span><b>{answered}/{total} câu · {donePct}%</b></div>
+          <div className="vec-bar" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={answered}><i style={{ width: `${donePct}%` }} /></div>
+        </div>
         <div className="vec-xright">
           <span className={cn('vec-save', `is-${autosave.status}`)} role="status">
             {autosave.status === 'saved' ? <><ShieldCheck className="ic ic-sm" /> Đã lưu</> : autosave.status === 'saving' ? <>Đang lưu…</> : <><WifiOff className="ic ic-sm" /> Chưa lưu được, sẽ thử lại</>}
           </span>
           {!hb.online && <span className="vec-save is-offline"><WifiOff className="ic ic-sm" /> Mất kết nối</span>}
-          <span className={cn('vec-timer', danger)} aria-label="Thời gian còn lại">
-            <Clock className="ic" /> {clockText(remaining)}
+          <span className={cn('vec-timer', danger)} style={{ ['--p' as string]: `${(timeLeftPct * 360).toFixed(1)}deg` }} role="timer" aria-label="Thời gian còn lại">
+            <span className="vec-timer-in"><Clock className="ic" /> {clockText(remaining)}</span>
           </span>
           <Button variant="primary" onClick={() => setConfirm(true)} icon={<Send className="ic" />}>Nộp bài</Button>
         </div>
@@ -495,15 +510,29 @@ function ExamView({ a, onChange }: { a: AttemptStateDto; onChange: () => void })
               <Button onClick={() => setCur(Math.min(total - 1, cur + 1))} disabled={cur === total - 1} iconEnd={<ArrowRight className="ic" />}>Câu sau</Button>
             </div>
           </article>
-          <div className="vec-tools">
-            <span>Cỡ chữ</span>
-            <button type="button" onClick={() => setFont(-1)} disabled={fontStep <= -1} aria-label="Giảm cỡ chữ">A−</button>
-            <button type="button" onClick={() => setFontStep(0)} aria-label="Cỡ chữ mặc định">A</button>
-            <button type="button" onClick={() => setFont(1)} disabled={fontStep >= 1} aria-label="Tăng cỡ chữ">A+</button>
-          </div>
+
         </main>
 
         <aside className="vec-sheet-wrap">
+          <div className="vec-who">
+            <span className="vec-avatar">{initials}</span>
+            <div className="vec-who-main">
+              <b>{a.candidate.fullName}</b>
+              <small>{a.candidate.studentCode || a.candidate.email}{a.candidate.className ? ` · ${a.candidate.className}` : ''}</small>
+            </div>
+            <dl className="vec-who-meta">
+              <div><dt>Mã đề</dt><dd><b className="vec-code">{a.paperCode}</b></dd></div>
+              <div><dt>Lượt thi</dt><dd>{a.attemptNo}/{a.maxAttempts}</dd></div>
+              <div><dt>Môn</dt><dd>{s.subjectCode}</dd></div>
+              {a.candidate.term && <div><dt>Học kỳ</dt><dd>{a.candidate.term.replace('_', ' · ')}</dd></div>}
+            </dl>
+            <div className="vec-tools">
+              <span>Cỡ chữ</span>
+              <button type="button" onClick={() => setFont(-1)} disabled={fontStep <= -1} aria-label="Giảm cỡ chữ">A−</button>
+              <button type="button" onClick={() => setFontStep(0)} aria-label="Cỡ chữ mặc định">A</button>
+              <button type="button" onClick={() => setFont(1)} disabled={fontStep >= 1} aria-label="Tăng cỡ chữ">A+</button>
+            </div>
+          </div>
           <div className="vec-sheet-card">
             <div className="vec-sheet-head">
               <b>Phiếu trả lời</b>

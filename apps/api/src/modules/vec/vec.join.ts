@@ -46,7 +46,14 @@ export async function prefill(userId: string): Promise<JoinPrefillDto> {
     .limit(1);
   if (!u) throw ApiError.notFound();
   const unis = await db.select({ id: universities.id, name: universities.nameVi, short: universities.code, color: universities.color }).from(universities).orderBy(universities.code);
-  const terms = await db.select({ name: academicTerms.name }).from(academicTerms).orderBy(desc(academicTerms.createdAt)).limit(12);
+  const terms = await db
+    .select({ universityId: academicTerms.universityId, code: academicTerms.code, name: academicTerms.name, startsOn: academicTerms.startsOn, endsOn: academicTerms.endsOn })
+    .from(academicTerms)
+    .orderBy(desc(academicTerms.startsOn))
+    .limit(60);
+  const today = new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10);
+  const termList = terms.map((t) => ({ universityId: t.universityId, code: t.code, name: t.name, current: !!t.startsOn && !!t.endsOn && t.startsOn <= today && today <= t.endsOn }));
+  const myCurrent = termList.find((t) => t.current && t.universityId === u.universityId) ?? termList.find((t) => t.universityId === u.universityId);
   const [uni, maj] = await Promise.all([
     u.universityId ? db.select({ name: universities.nameVi }).from(universities).where(eq(universities.id, u.universityId)).limit(1) : [],
     u.majorId ? db.select({ name: majors.name }).from(majors).where(eq(majors.id, u.majorId)).limit(1) : [],
@@ -59,10 +66,10 @@ export async function prefill(userId: string): Promise<JoinPrefillDto> {
     universityId: u.universityId ?? '',
     universityName: uni[0]?.name ?? '',
     majorName: maj[0]?.name ?? '',
-    term: terms[0]?.name ?? '',
+    term: myCurrent ? (/^(FA|SP|SU)\d\d$/.test(myCurrent.code) ? `${myCurrent.code}_Block10` : myCurrent.code) : '',
     accountName: u.name,
   };
-  return { info, universities: unis, terms: [...new Set(terms.map((t) => t.name))] };
+  return { info, universities: unis, terms: termList };
 }
 
 async function findByCode(code: string) {
@@ -112,7 +119,7 @@ export async function lookup(req: Request, userId: string, rawCode: string, otp?
   }
 
   if (status === 'ENDED' || status === 'CANCELLED') return { state: 'CLOSED' };
-  if (status === 'SCHEDULED') return { state: 'NOT_OPEN', opensAt: lobbyOpensAt({ startsAt: s.startsAt.getTime(), lobbyOpenMin: s.lobbyOpenMin }), title: s.title };
+  if (status === 'SCHEDULED') return { state: 'NOT_OPEN', opensAt: lobbyOpensAt({ startsAt: s.startsAt.getTime(), lobbyOpenMin: s.lobbyOpenMin }), title: s.title, startsAt: s.startsAt.getTime(), durationMin: s.durationMin, subjectCode: s.subjectCode, subjectName: s.subjectName, lecturerDisplay: s.lecturerDisplay, questionCount: s.questionCount };
   if ((status === 'LIVE' || status === 'PAUSED') && Date.now() > joinClosesAt({ startsAt: s.startsAt.getTime(), lateJoinMin: s.lateJoinMin }) + (s.pausedTotalSec * 1000)) return { state: 'CLOSED' };
 
   const secret = decryptOtp(s.otpEnc);

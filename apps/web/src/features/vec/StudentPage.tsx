@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, BadgeCheck, CalendarClock, CircleAlert, Clock, KeyRound, Loader2, ScrollText, Timer, UserRound } from 'lucide-react';
+import { ArrowRight, BadgeCheck, CalendarClock, CircleAlert, Clock, KeyRound, Loader2, RefreshCw, ScrollText, Timer, UserRound } from 'lucide-react';
 import { fmtDuration, fmtVnDate, fmtVnTime, formatRoomCode, parseRoomCode, PRESET_LABEL, type CandidateInfo, type JoinLookup, type JoinSessionDto } from '@kaned/shared';
 import { Button } from '@/components/ui/Button';
 import { Field, Input } from '@/components/ui/Field';
@@ -10,6 +10,8 @@ import { Modal } from '@/components/ui/Modal';
 import { toApiError } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { vec, vecKeys } from './api';
+import { OtpBoxes } from './Otp';
+import { useServerTick } from './hooks';
 import './vec.css';
 
 type Step = 'CODE' | 'OTP' | 'INFO';
@@ -109,7 +111,7 @@ export default function StudentPage() {
         </ol>
 
         {terminal ? (
-          <TerminalCard t={terminal} onBack={reset} />
+          <TerminalCard t={terminal} onBack={reset} onRetry={() => { setTerminal(null); void run(() => (otp ? vec.otp(digits, otp) : vec.lookup(digits))); }} busy={busy} />
         ) : step === 'CODE' ? (
           <form className="vec-join-card" onSubmit={(e) => { e.preventDefault(); if (digits.length === 7) void run(() => vec.lookup(digits)); }}>
             <label htmlFor="vec-code" className="vec-join-label">Mã phòng thi</label>
@@ -131,14 +133,14 @@ export default function StudentPage() {
           </form>
         ) : step === 'OTP' ? (
           <form className="vec-join-card" onSubmit={(e) => { e.preventDefault(); void run(() => vec.otp(digits, otp)); }}>
-            <label htmlFor="vec-otp" className="vec-join-label"><KeyRound className="ic" /> Mã OTP của phòng</label>
-            <input id="vec-otp" className={cn('vec-codeinput vec-otpinput', err && 'is-bad')} inputMode="numeric" autoComplete="one-time-code" autoFocus placeholder="••••••" value={otp} maxLength={8} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} />
+            <label className="vec-join-label"><KeyRound className="ic" /> Mã OTP của phòng</label>
+            <OtpBoxes value={otp} onChange={(v) => { setOtp(v); if (err) setErr(''); }} onComplete={(v) => void run(() => vec.otp(digits, v))} invalid={!!err} disabled={busy} autoFocus />
             {err && <p className="vec-err" role="alert"><CircleAlert className="ic ic-sm" /> {err}</p>}
             <div className="vec-row">
               <Button variant="secondary" onClick={reset}>Đổi mã phòng</Button>
-              <Button type="submit" loading={busy} disabled={otp.length < 4} iconEnd={<ArrowRight className="ic" />}>Xác nhận</Button>
+              <Button type="submit" loading={busy} disabled={otp.length < 6} iconEnd={<ArrowRight className="ic" />}>Xác nhận</Button>
             </div>
-            <p className="vec-fine">Phòng này có thêm mã OTP. Xin mã từ giảng viên ngay trong phòng thi.</p>
+            <p className="vec-fine">Nhập 6 chữ số, hoặc dán cả mã. Phòng này có thêm mã OTP, xin mã từ giảng viên ngay trong phòng thi.</p>
           </form>
         ) : session && info ? (
           <div className="vec-info-grid">
@@ -151,12 +153,12 @@ export default function StudentPage() {
                 <Field label="Mã số sinh viên" required={session.settings.access.requireStudentCode} error={fieldErr.studentCode}><Input value={info.studentCode} onChange={(e) => setInfo({ ...info, studentCode: e.target.value.toUpperCase() })} maxLength={20} placeholder="SE123456" /></Field>
                 <Field label="Lớp"><Input value={info.className} onChange={(e) => setInfo({ ...info, className: e.target.value })} maxLength={40} placeholder="SE1801" /></Field>
                 <Field label="Trường">
-                  <select className="input" value={info.universityId} onChange={(e) => setInfo({ ...info, universityId: e.target.value, universityName: prefill.data?.universities.find((u) => u.id === e.target.value)?.name ?? '' })}>
+                  <select className="select" value={info.universityId} onChange={(e) => setInfo({ ...info, universityId: e.target.value, universityName: prefill.data?.universities.find((u) => u.id === e.target.value)?.name ?? '' })}>
                     <option value="">Chọn trường</option>
                     {prefill.data?.universities.map((u) => <option key={u.id} value={u.id}>{u.short} – {u.name}</option>)}
                   </select>
                 </Field>
-                <Field label="Học kỳ"><Input value={info.term} onChange={(e) => setInfo({ ...info, term: e.target.value })} list="vec-terms" maxLength={60} /><datalist id="vec-terms">{prefill.data?.terms.map((t) => <option key={t} value={t} />)}</datalist></Field>
+                <TermPicker value={info.term} universityId={info.universityId} universityCode={prefill.data?.universities.find((u) => u.id === info.universityId)?.short ?? ''} terms={prefill.data?.terms ?? []} onChange={(term) => setInfo({ ...info, term })} />
               </div>
               <label className="vec-consent">
                 <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
@@ -187,7 +189,7 @@ export default function StudentPage() {
   );
 }
 
-function TerminalCard({ t, onBack }: { t: Terminal; onBack: () => void }) {
+function TerminalCard({ t, onBack, onRetry, busy }: { t: Terminal; onBack: () => void; onRetry: () => void; busy: boolean }) {
   const nav = useNavigate();
   let icon = <CircleAlert className="ic ic-lg" />;
   let title = '';
@@ -200,7 +202,8 @@ function TerminalCard({ t, onBack }: { t: Terminal; onBack: () => void }) {
   } else if (t.state === 'NOT_OPEN') {
     icon = <CalendarClock className="ic ic-lg" />;
     title = 'Phòng thi chưa mở';
-    body = <>“{t.title}” mở lúc <b>{fmtVnTime(t.opensAt)}, {fmtVnDate(t.opensAt)}</b>. Quay lại sau thời điểm này.</>;
+    body = <>Phòng chờ của “{t.title}” sẽ mở lúc <b>{fmtVnTime(t.opensAt)}, {fmtVnDate(t.opensAt)}</b>. Giữ trang này, hoặc quay lại sau thời điểm đó.</>;
+    actions = <Button onClick={onRetry} loading={busy} icon={<RefreshCw className="ic" />}>Kiểm tra lại</Button>;
   } else if (t.state === 'CLOSED') {
     title = 'Phòng thi đã đóng';
     body = 'Phiên thi này đã kết thúc hoặc đã quá thời gian vào phòng muộn. Liên hệ giảng viên nếu bạn cần hỗ trợ.';
@@ -220,8 +223,72 @@ function TerminalCard({ t, onBack }: { t: Terminal; onBack: () => void }) {
       {icon}
       <h2>{title}</h2>
       <p>{body}</p>
-      <div className="vec-row">{actions}{t.state !== 'HOST' && t.state !== 'NOT_OPEN' && t.state !== 'CLOSED' ? null : <Button variant="secondary" onClick={onBack}>Nhập mã khác</Button>}</div>
+      {t.state === 'NOT_OPEN' && <OpenCountdown t={t} />}
+      <div className="vec-row">
+        {actions}
+        {(t.state === 'HOST' || t.state === 'CLOSED') ? null : <Button variant="secondary" onClick={onBack}>Nhập mã khác</Button>}
+      </div>
     </div>
+  );
+}
+
+function OpenCountdown({ t }: { t: Extract<Terminal, { state: 'NOT_OPEN' }> }) {
+  const now = useServerTick(1000);
+  const left = Math.max(0, t.opensAt - now);
+  const h = Math.floor(left / 3_600_000);
+  const m = Math.floor((left % 3_600_000) / 60_000);
+  const sec = Math.floor((left % 60_000) / 1000);
+  const days = Math.floor(h / 24);
+  return (
+    <div className="vec-open">
+      <div className="vec-open-clock" role="timer" aria-label="Thời gian đến khi phòng chờ mở">
+        {days > 0 ? <><b>{days}</b><small>ngày</small></> : null}
+        <b>{String(h % 24).padStart(2, '0')}</b><small>giờ</small>
+        <b>{String(m).padStart(2, '0')}</b><small>phút</small>
+        <b>{String(sec).padStart(2, '0')}</b><small>giây</small>
+      </div>
+      <dl className="vec-dl vec-dl-tight">
+        <div><dt>Môn</dt><dd>{t.subjectCode} · {t.subjectName}</dd></div>
+        <div><dt>Giảng viên</dt><dd>{t.lecturerDisplay}</dd></div>
+        <div><dt>Giờ thi</dt><dd>{fmtVnTime(t.startsAt)}, {fmtVnDate(t.startsAt)}</dd></div>
+        <div><dt>Thời gian làm bài</dt><dd>{fmtDuration(t.durationMin * 60)}</dd></div>
+        <div><dt>Số câu</dt><dd>{t.questionCount} câu</dd></div>
+      </dl>
+    </div>
+  );
+}
+
+const BLOCKS = [
+  { v: 'Block10', label: 'Block 10 tuần' },
+  { v: 'Block3', label: 'Block 3 tuần' },
+  { v: '', label: 'Không theo block' },
+];
+
+/** FPTU style: a term code (FA26) plus the block it runs in, stored as FA26_Block10. */
+function TermPicker({ value, universityId, universityCode, terms, onChange }: { value: string; universityId: string; universityCode: string; terms: Array<{ universityId: string; code: string; name: string; current: boolean }>; onChange: (v: string) => void }) {
+  const [code, block] = value.split('_') as [string, string | undefined];
+  const mine = terms.filter((t) => t.universityId === universityId);
+  const list = mine.length ? mine : terms.filter((t, i, a) => a.findIndex((x) => x.code === t.code) === i);
+  const blocky = /^(FA|SP|SU)\d\d$/.test(code || '') || universityCode.toUpperCase().startsWith('FPT');
+  const known = list.some((t) => t.code === code);
+  const setCode = (c: string) => onChange(blocky && block ? `${c}_${block}` : c);
+  return (
+    <>
+      <Field label="Học kỳ">
+        <select className="select" value={code} onChange={(e) => setCode(e.target.value)}>
+          {!code && <option value="">Chọn học kỳ</option>}
+          {!known && code && <option value={code}>{code}</option>}
+          {list.map((t) => <option key={`${t.universityId}-${t.code}`} value={t.code}>{t.code} · {t.name}{t.current ? ' (hiện tại)' : ''}</option>)}
+        </select>
+      </Field>
+      {blocky && (
+        <Field label="Block">
+          <select className="select" value={block ?? ''} onChange={(e) => onChange(e.target.value ? `${code}_${e.target.value}` : code)}>
+            {BLOCKS.map((b) => <option key={b.v} value={b.v}>{b.label}</option>)}
+          </select>
+        </Field>
+      )}
+    </>
   );
 }
 
