@@ -263,7 +263,7 @@ export function FilterBar({
   const k = countsOf(m, state, settings.srs, ch);
   const set = (patch: Partial<FilterValue>) => onChange({ ch, scope, slice, order, ...patch });
   const inChapter = m.Q.filter((q) => !ch || q.chapter === ch);
-  const newest = m.terms[0]?.term;
+  const newestRank = m.terms[0]?.rank;
   return (
     <div className="dk-filters-wrap">
       <div className="dk-filters">
@@ -304,15 +304,15 @@ export function FilterBar({
             <select className="select" value={termFilterKey(slice.term)} onChange={(e) => set({ slice: { ...slice, term: parseTermFilter(e.target.value) } })}>
               <option value="">Mọi kỳ thi</option>
               {m.terms.map((t) => (
-                <option key={`only:${t.term}`} value={`only:${t.term}`}>
-                  Chỉ kỳ {t.term} ({fmtInt(inChapter.filter((q) => matchesTermFilter(q.seen, { mode: 'only', term: t.term })).length)} câu)
+                <option key={`only:${t.code}`} value={`only:${t.code}`}>
+                  Chỉ {t.code} ({fmtInt(inChapter.filter((q) => matchesTermFilter(q.seen, { mode: 'only', code: t.code })).length)} câu)
                 </option>
               ))}
               {m.terms
-                .filter((t) => t.term !== newest)
+                .filter((t) => t.rank !== newestRank)
                 .map((t) => (
-                  <option key={`from:${t.term}`} value={`from:${t.term}`}>
-                    Từ kỳ {t.term} trở đi ({fmtInt(inChapter.filter((q) => matchesTermFilter(q.seen, { mode: 'from', term: t.term })).length)} câu)
+                  <option key={`from:${t.code}`} value={`from:${t.code}`}>
+                    Từ {t.code} trở đi ({fmtInt(inChapter.filter((q) => matchesTermFilter(q.seen, { mode: 'from', code: t.code })).length)} câu)
                   </option>
                 ))}
             </select>

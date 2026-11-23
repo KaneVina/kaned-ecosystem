@@ -5,13 +5,15 @@
  */
 
 export interface AskedTag {
-  /** Term code, upper-case: FA26. */
+  /** The tag as written, upper-case, and what people pick and read: FA26_B10 (FA26 when it has no block). */
+  code: string;
+  /** Term part of the code: FA26. */
   term: string;
   /** Block length in weeks (B5 → 5, B10 → 10), when the tag has one. */
   block: number | null;
   /** Orders terms in time: year × 10 + season (SP 1, SU 2, FA 3). */
   rank: number;
-  /** As written for people: "SU26 · B5". */
+  /** Same as `code`, kept as the display name. */
   label: string;
 }
 
@@ -33,8 +35,8 @@ export function splitAskedTags(text: string): { tags: AskedTag[]; text: string }
     if (!m) break;
     const term = `${m[1].toUpperCase()}${m[2]}`;
     const block = m[3] ? Number(m[3]) : null;
-    const key = `${term}_${block ?? ''}`;
-    if (!seen.has(key)) seen.set(key, { term, block, rank: termRank(term), label: block ? `${term} · B${block}` : term });
+    const code = block ? `${term}_B${block}` : term;
+    if (!seen.has(code)) seen.set(code, { code, term, block, rank: termRank(term), label: code });
     rest = rest.slice(m[0].length);
   }
   if (!seen.size) return { tags: [], text };
@@ -45,18 +47,21 @@ export function splitAskedTags(text: string): { tags: AskedTag[]; text: string }
 /** Just the clean text, for places that must not show the tags (an exam paper, say). */
 export const stripAskedTags = (text: string) => splitAskedTags(text).text;
 
-/** Which terms a filter lets through: only that term, or that term and everything after it. */
-export type TermFilter = { mode: 'only' | 'from'; term: string };
+/**
+ * Which exams a filter lets through. `code` is a full tag code such as FA26_B10:
+ * "only" is exactly that exam, "from" is that exam's term and every later term.
+ */
+export type TermFilter = { mode: 'only' | 'from'; code: string };
 
 export function matchesTermFilter(tags: AskedTag[], f: TermFilter | null): boolean {
   if (!f) return true;
-  const rank = termRank(f.term);
-  return tags.some((t) => (f.mode === 'only' ? t.term === f.term : t.rank >= rank));
+  const rank = termRank(f.code.split('_')[0]);
+  return tags.some((t) => (f.mode === 'only' ? t.code === f.code : t.rank >= rank));
 }
 
 /** "only:SU26" / "from:SU26" ⇄ filter, so it can sit in a <select>. */
-export const termFilterKey = (f: TermFilter | null) => (f ? `${f.mode}:${f.term}` : '');
+export const termFilterKey = (f: TermFilter | null) => (f ? `${f.mode}:${f.code}` : '');
 export function parseTermFilter(key: string): TermFilter | null {
-  const m = /^(only|from):([A-Z]{2}\d{2})$/.exec(key);
-  return m ? { mode: m[1] as 'only' | 'from', term: m[2] } : null;
+  const m = /^(only|from):([A-Z]{2}\d{2}(?:_B\d+)?)$/.exec(key);
+  return m ? { mode: m[1] as 'only' | 'from', code: m[2] } : null;
 }

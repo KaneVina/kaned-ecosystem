@@ -86,7 +86,6 @@
 .dk-lrow:last-child { border-bottom: 0; }
 .dk-lrow:hover { background: var(--paper-2); }
 .dk-lnum { font-size: 28px; font-weight: 700; color: var(--violet); text-align: center; line-height: 1; font-variant-numeric: lining-nums; }
-.dk-lterm { font-size: 15px; font-weight: 800; letter-spacing: .01em; color: var(--violet); }
 .dk-lnum .dk-flame { width: 26px; height: 26px; }
 .dk-lname b { display: block; font-size: 15px; font-weight: 600; line-height: 1.4; }
 .dk-lname small { font-size: 13px; color: var(--ink-3); }

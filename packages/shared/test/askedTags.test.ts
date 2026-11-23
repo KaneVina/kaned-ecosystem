@@ -5,7 +5,7 @@ import { matchesTermFilter, parseTermFilter, splitAskedTags, stripAskedTags, ter
 test('reads the tags in front of a question and cleans the text', () => {
   const r = splitAskedTags('[FA26_B10][SU26_B5] Which programming language is used to develop Flutter applications?');
   assert.equal(r.text, 'Which programming language is used to develop Flutter applications?');
-  assert.deepEqual(r.tags.map((t) => t.label), ['FA26 · B10', 'SU26 · B5']);
+  assert.deepEqual(r.tags.map((t) => t.label), ['FA26_B10', 'SU26_B5']);
 });
 
 test('no tag, no change; brackets mid-sentence are left alone', () => {
@@ -28,10 +28,11 @@ test('terms sort by time: SP < SU < FA within a year, then by year', () => {
 test('"only" and "from" filters', () => {
   const t = splitAskedTags('[FA25_B10][SU26_B5] Q').tags;
   assert.equal(matchesTermFilter(t, null), true);
-  assert.equal(matchesTermFilter(t, { mode: 'only', term: 'SU26' }), true);
-  assert.equal(matchesTermFilter(t, { mode: 'only', term: 'FA26' }), false);
-  assert.equal(matchesTermFilter(t, { mode: 'from', term: 'SU26' }), true);
-  assert.equal(matchesTermFilter(t, { mode: 'from', term: 'FA26' }), false);
-  assert.deepEqual(parseTermFilter('from:SU26'), { mode: 'from', term: 'SU26' });
+  assert.equal(matchesTermFilter(t, { mode: 'only', code: 'SU26_B5' }), true);
+  assert.equal(matchesTermFilter(t, { mode: 'only', code: 'SU26_B10' }), false, 'a different block is a different exam');
+  assert.equal(matchesTermFilter(t, { mode: 'only', code: 'FA26_B10' }), false);
+  assert.equal(matchesTermFilter(t, { mode: 'from', code: 'SU26_B5' }), true);
+  assert.equal(matchesTermFilter(t, { mode: 'from', code: 'FA26_B10' }), false);
+  assert.deepEqual(parseTermFilter('from:SU26_B5'), { mode: 'from', code: 'SU26_B5' });
   assert.equal(parseTermFilter('bad'), null);
 });

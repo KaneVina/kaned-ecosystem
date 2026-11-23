@@ -28,7 +28,7 @@ export function Overview() {
     };
     const out = [];
     if (m.maxFreq > 1) out.push(row('hot', <Flame className="ic dk-flame" />, 'Câu hay ra (từ 2 lần), nhiều nhất trước', { term: null, min: 2 }, 'freq'));
-    for (const t of m.terms) out.push(row(t.term, <span className="dk-lterm">{t.term}</span>, `Chỉ kỳ ${t.term}`, { term: { mode: 'only', term: t.term }, min: 0 }, 'seq'));
+    for (const t of m.terms) out.push(row(t.code, <CalendarClock className="ic" />, `Chỉ ${t.code}`, { term: { mode: 'only', code: t.code }, min: 0 }, 'seq'));
     return out.filter((r) => r.n > 0);
   }, [m, state, settings.srs]);
 
@@ -172,7 +172,7 @@ export function Overview() {
           <div className="dk-sec-head">
             <div>
               <h2 className="t-h3">Theo kỳ thi</h2>
-              <p>Nhãn như [SU26_B5] ở đầu câu cho biết câu đó đã ra ở kỳ nào. Ôn riêng một kỳ, hoặc ôn câu hay ra nhất.</p>
+              <p>Nhãn như [SU26_B5] ở đầu câu cho biết câu đó đã ra ở đợt thi nào. Ôn riêng một đợt, hoặc ôn câu hay ra nhất.</p>
             </div>
           </div>
           <div className="panel dk-ledger">

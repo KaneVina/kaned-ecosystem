@@ -268,8 +268,8 @@ export function useDeckProgress(deck: DeckDetailDto) {
 export interface DeckModel {
   Q: StudyQuestion[];
   QI: Map<string, StudyQuestion>;
-  /** Terms the deck's questions were asked in, newest first, with how many questions each has. */
-  terms: Array<{ term: string; rank: number; count: number }>;
+  /** Exams (FA26_B10…) the deck's questions were asked in, newest first, with how many questions each has. */
+  terms: Array<{ code: string; rank: number; block: number; count: number }>;
   /** Most times any one question was asked; 0 when the deck has no term tags. */
   maxFreq: number;
   tips: Map<number, DeckTip>;
@@ -290,9 +290,9 @@ export function useDeckModel(deck: DeckDetailDto): DeckModel {
       const { tags, text } = splitAskedTags(q.text);
       return { ...q, text, seen: tags, freq: tags.length, latest: tags[0]?.rank ?? 0 };
     });
-    const termCount = new Map<string, { term: string; rank: number; count: number }>();
+    const termCount = new Map<string, { code: string; rank: number; block: number; count: number }>();
     for (const q of Q) for (const t of q.seen) {
-      const e = termCount.get(t.term) ?? { term: t.term, rank: t.rank, count: 0 };
+      const e = termCount.get(t.code) ?? { code: t.code, rank: t.rank, block: t.block ?? 0, count: 0 };
       e.count++;
       termCount.set(t.term, e);
     }
@@ -304,7 +304,7 @@ export function useDeckModel(deck: DeckDetailDto): DeckModel {
     return {
       Q,
       QI,
-      terms: [...termCount.values()].sort((a, b) => b.rank - a.rank),
+      terms: [...termCount.values()].sort((a, b) => b.rank - a.rank || b.block - a.block),
       maxFreq: Q.reduce((n, q) => Math.max(n, q.freq), 0),
       tips,
       tipQuestions,
