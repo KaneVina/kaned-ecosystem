@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
 import type { DeckDetailDto, DeckProgress } from '@kaned/shared';
-import type { DeckModel, ExamSession, FlipSession, PracticeSession, Scope, StudySettings, useDeckProgress } from './model';
+import type { DeckModel, ExamSession, FlipSession, Order, PracticeSession, Scope, Slice, StudySettings, useDeckProgress } from './model';
 
 export const MODES = ['overview', 'practice', 'flip', 'exam', 'tips', 'browse'] as const;
 export type Mode = (typeof MODES)[number];
@@ -16,7 +16,8 @@ export interface BrowseState {
 export interface StartOptions {
   ch?: number;
   scope?: Scope;
-  order?: 'seq' | 'rand';
+  slice?: Slice;
+  order?: Order;
   custom?: { ids: string[]; label: string } | null;
   startId?: string;
 }

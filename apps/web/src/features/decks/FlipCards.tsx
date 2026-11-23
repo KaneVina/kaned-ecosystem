@@ -4,7 +4,7 @@ import { cn } from '@/lib/cn';
 import { fmtInt } from '@/lib/format';
 import { useDeckCtx } from './context';
 import { beep, LET, makePerm, qLabel } from './model';
-import { Banner, FilterBar, Inline, Notes, QText, StudyAids, StudyEmpty, HintToggle } from './parts';
+import { Banner, FilterBar, SeenTags, Inline, Notes, QText, StudyAids, StudyEmpty, HintToggle } from './parts';
 
 const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -148,7 +148,7 @@ export function FlipCards() {
   const header = F.custom ? (
     <Banner label={F.custom.label} exitLabel="Về toàn bộ thẻ" onExit={() => startFlip()} />
   ) : (
-    <FilterBar ch={F.ch} scope={F.scope} order={F.order} onChange={(o) => startFlip(o)} />
+    <FilterBar ch={F.ch} scope={F.scope} slice={F.slice} order={F.order} onChange={(o) => startFlip(o)} />
   );
 
   if (!F.ids.length) {
@@ -177,7 +177,7 @@ export function FlipCards() {
                 Học lại {fmtInt(F.again.length)} thẻ chưa nhớ
               </button>
             )}
-            <button type="button" className="btn btn-secondary" onClick={() => startFlip({ ch: F.ch, scope: F.scope, order: 'rand', custom: F.custom })}>
+            <button type="button" className="btn btn-secondary" onClick={() => startFlip({ ch: F.ch, scope: F.scope, slice: F.slice, order: 'rand', custom: F.custom })}>
               <Shuffle className="ic ic-sm" />
               Xáo bộ mới
             </button>
@@ -217,6 +217,7 @@ export function FlipCards() {
               <div className="dk-qhead">
                 <span className="dk-qnum">{qLabel(q)}</span>
                 {q.chapter > 0 && <span className="dk-tag">Chương {q.chapter}</span>}
+                <SeenTags q={q} />
                 {q.parent && <span className="dk-tag is-var">Kiểu hỏi khác</span>}
                 {q.answers.length > 1 && <span className="dk-tag is-multi">{q.answers.length} đáp án</span>}
                 <span className="spacer" />

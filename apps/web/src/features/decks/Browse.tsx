@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CircleCheckBig, Eye, EyeOff, Lightbulb, Search, Star } from 'lucide-react';
-import { foldVi, type DeckQuestion } from '@kaned/shared';
+import { foldVi } from '@kaned/shared';
 import { cn } from '@/lib/cn';
 import { fmtInt } from '@/lib/format';
 import { useDeckCtx, type BrowseState } from './context';
-import { countsOf, fmtWait, LET, makeStatus, markTerms, matchScore, NEAR_MATCH, NEAR_MATCH_WITH_FULL, qLabel, searchTerms } from './model';
-import { BigSearch, Inline, Notes, QText, StudyAids, hasAids } from './parts';
+import { countsOf, fmtWait, LET, makeStatus, markTerms, matchScore, NEAR_MATCH, NEAR_MATCH_WITH_FULL, qLabel, searchTerms, type StudyQuestion } from './model';
+import { BigSearch, Inline, Notes, QText, StudyAids, hasAids, SeenTags } from './parts';
 
 export function Browse() {
   const { m, state, settings, browse: B, setBrowse, startPractice, go, progress } = useDeckCtx();
@@ -39,8 +39,8 @@ export function Browse() {
    */
   const { list, near } = useMemo(() => {
     const nd = foldVi(B.q.trim());
-    const full: DeckQuestion[] = [];
-    const part: Array<[number, DeckQuestion]> = [];
+    const full: StudyQuestion[] = [];
+    const part: Array<[number, StudyQuestion]> = [];
     m.Q.forEach((q, i) => {
       if (B.ch && q.chapter !== B.ch) return;
       const s = status(q.id);
@@ -132,6 +132,7 @@ export function Browse() {
               <div className="dk-qhead">
                 <span className="dk-qnum">{qLabel(q)}</span>
                 {q.chapter > 0 && <span className="dk-tag">Chương {q.chapter}</span>}
+                <SeenTags q={q} />
                 {q.parent && <span className="dk-tag is-var">Kiểu hỏi khác</span>}
                 {q.answers.length > 1 && <span className="dk-tag is-multi">{q.answers.length} đáp án</span>}
                 {s !== 'new' && (

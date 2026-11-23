@@ -5,7 +5,7 @@ import { fmtInt } from '@/lib/format';
 import { useDeckCtx } from './context';
 import type { Grade } from '@kaned/shared';
 import { beep, CONFIDENCE, fmtWait, LET, makePerm, qLabel, sameSet } from './model';
-import { Banner, FilterBar, Inline, Notes, QText, StudyAids, StudyEmpty, HintToggle } from './parts';
+import { Banner, FilterBar, SeenTags, Inline, Notes, QText, StudyAids, StudyEmpty, HintToggle } from './parts';
 
 export function Practice() {
   const { m, state, settings, practice: P, setPractice, startPractice, progress, go, setExam } = useDeckCtx();
@@ -144,7 +144,7 @@ export function Practice() {
   const header = P.custom ? (
     <Banner label={P.custom.label} exitLabel="Về toàn bộ câu hỏi" onExit={() => startPractice()} />
   ) : (
-    <FilterBar ch={P.ch} scope={P.scope} order={P.order} onChange={(o) => startPractice(o)} />
+    <FilterBar ch={P.ch} scope={P.scope} slice={P.slice} order={P.order} onChange={(o) => startPractice(o)} />
   );
 
   if (!P.ids.length) {
@@ -182,7 +182,7 @@ export function Practice() {
                 Luyện lại {fmtInt(wrong.length)} {again}
               </button>
             )}
-            <button type="button" className="btn btn-secondary" onClick={() => startPractice({ ch: P.ch, scope: P.scope, order: P.order, custom: P.custom })}>
+            <button type="button" className="btn btn-secondary" onClick={() => startPractice({ ch: P.ch, scope: P.scope, slice: P.slice, order: P.order, custom: P.custom })}>
               Làm lại từ đầu
             </button>
             <button
@@ -226,6 +226,7 @@ export function Practice() {
             <div className="dk-qhead">
               <span className="dk-qnum">{qLabel(q)}</span>
               {q.chapter > 0 && <span className="dk-tag">Chương {q.chapter}</span>}
+              <SeenTags q={q} />
               {q.parent && <span className="dk-tag is-var">Kiểu hỏi khác</span>}
               {multi && <span className="dk-tag is-multi">Chọn {q.answers.length} đáp án</span>}
               <span className="spacer" />

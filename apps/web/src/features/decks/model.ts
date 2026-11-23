@@ -4,11 +4,14 @@ import {
   canShuffleOptions,
   emptyDeckProgress,
   foldVi,
+  matchesTermFilter,
   memoryOf,
   memoryStatus,
   OPTION_LETTERS,
   review,
+  splitAskedTags,
   urgency,
+  type AskedTag,
   type Grade,
   type MemoryRecord,
   type DeckChapter,
@@ -16,12 +19,32 @@ import {
   type DeckProgress,
   type DeckQuestion,
   type DeckTip,
+  type TermFilter,
 } from '@kaned/shared';
 import { deckKeys, saveDeckProgress, saveDeckProgressOnExit } from './api';
 
 export const LET = OPTION_LETTERS;
 export type Scope = 'all' | 'new' | 'bad' | 'mk';
 export type Status = 'new' | 'ok' | 'bad';
+export type Order = 'seq' | 'rand' | 'freq';
+
+/** A question plus what its leading `[SU26_B5]` tags say: the terms it was asked in, and how often. */
+export interface StudyQuestion extends DeckQuestion {
+  seen: AskedTag[];
+  /** Times asked = number of different term tags. */
+  freq: number;
+  /** Rank of the newest term it was asked in (0 = never). */
+  latest: number;
+}
+
+/** Which exam terms and how often: a second cut over the questions, on top of chapter and scope. */
+export interface Slice {
+  term: TermFilter | null;
+  /** Asked at least this many times (0 = no limit). */
+  min: number;
+}
+export const NO_SLICE: Slice = { term: null, min: 0 };
+export const sliceActive = (s: Slice) => Boolean(s.term) || s.min > 1;
 
 export const shuffle = <T,>(a: T[]) => {
   for (let i = a.length - 1; i > 0; i--) {
@@ -243,8 +266,12 @@ export function useDeckProgress(deck: DeckDetailDto) {
 /* ─────────────────────────────── the deck ─────────────────────────────── */
 
 export interface DeckModel {
-  Q: DeckQuestion[];
-  QI: Map<string, DeckQuestion>;
+  Q: StudyQuestion[];
+  QI: Map<string, StudyQuestion>;
+  /** Terms the deck's questions were asked in, newest first, with how many questions each has. */
+  terms: Array<{ term: string; rank: number; count: number }>;
+  /** Most times any one question was asked; 0 when the deck has no term tags. */
+  maxFreq: number;
   tips: Map<number, DeckTip>;
   /** Questions each tip is used by, in deck order. */
   tipQuestions: Map<number, string[]>;
@@ -258,7 +285,17 @@ export interface DeckModel {
 
 export function useDeckModel(deck: DeckDetailDto): DeckModel {
   return useMemo(() => {
-    const { questions: Q, tips: T, chapters } = deck.content;
+    const { questions: raw, tips: T, chapters } = deck.content;
+    const Q: StudyQuestion[] = raw.map((q) => {
+      const { tags, text } = splitAskedTags(q.text);
+      return { ...q, text, seen: tags, freq: tags.length, latest: tags[0]?.rank ?? 0 };
+    });
+    const termCount = new Map<string, { term: string; rank: number; count: number }>();
+    for (const q of Q) for (const t of q.seen) {
+      const e = termCount.get(t.term) ?? { term: t.term, rank: t.rank, count: 0 };
+      e.count++;
+      termCount.set(t.term, e);
+    }
     const QI = new Map(Q.map((q) => [q.id, q]));
     const tips = new Map(T.map((t) => [t.n, t]));
     const tipQuestions = new Map<number, string[]>(T.map((t) => [t.n, []]));
@@ -267,13 +304,15 @@ export function useDeckModel(deck: DeckDetailDto): DeckModel {
     return {
       Q,
       QI,
+      terms: [...termCount.values()].sort((a, b) => b.rank - a.rank),
+      maxFreq: Q.reduce((n, q) => Math.max(n, q.freq), 0),
       tips,
       tipQuestions,
       warnings: Q.filter((q) => q.warning),
       chapters,
       chapterName: (n: number) => names.get(n) ?? '',
       base: Q.filter((q) => !q.parent).length,
-      search: Q.map((q) => foldVi(`${q.id} ${q.text} ${q.options.join(' ')} ${q.note ?? ''} ${q.explain ?? ''}`)),
+      search: Q.map((q) => foldVi(`${q.id} ${q.text} ${q.options.join(' ')} ${q.note ?? ''} ${q.explain ?? ''} ${q.seen.map((t) => t.label).join(' ')}`)),
     };
   }, [deck.content]);
 }
@@ -301,15 +340,31 @@ export function countsOf(m: DeckModel, state: DeckProgress, srs: boolean, ch = 0
 }
 
 /** Questions for a session. With scheduling on, "Cần ôn" puts the closest to forgotten first. */
-export function poolOf(m: DeckModel, state: DeckProgress, ch: number, scope: Scope, srs: boolean) {
+export function poolOf(m: DeckModel, state: DeckProgress, ch: number, scope: Scope, srs: boolean, slice: Slice = NO_SLICE) {
   const now = Date.now();
   const { status, marked } = makeStatus(state, srs, now);
   const ids = m.Q.filter(
     (q) =>
       (!ch || q.chapter === ch) &&
+      matchesTermFilter(q.seen, slice.term) &&
+      q.freq >= slice.min &&
       (scope === 'all' || (scope === 'new' && status(q.id) === 'new') || (scope === 'bad' && status(q.id) === 'bad') || (scope === 'mk' && marked(q.id))),
   ).map((q) => q.id);
   if (srs && scope === 'bad') ids.sort((a, b) => urgency(state.st[a], now) - urgency(state.st[b], now));
+  return ids;
+}
+
+/** Puts a session's questions in order: as listed, shuffled, or the most often asked (then the most recent) first. */
+export function orderIds(m: DeckModel, ids: string[], order: Order) {
+  if (order === 'rand') return shuffle(ids);
+  if (order === 'freq') {
+    const rank = new Map(ids.map((id, i) => [id, i]));
+    ids.sort((a, b) => {
+      const qa = m.QI.get(a)!;
+      const qb = m.QI.get(b)!;
+      return qb.freq - qa.freq || qb.latest - qa.latest || rank.get(a)! - rank.get(b)!;
+    });
+  }
   return ids;
 }
 
@@ -358,7 +413,8 @@ export interface Custom {
 export interface PracticeSession {
   ch: number;
   scope: Scope;
-  order: 'seq' | 'rand';
+  slice: Slice;
+  order: Order;
   ids: string[];
   idx: number;
   perm: Record<string, number[]>;
@@ -371,7 +427,8 @@ export interface PracticeSession {
 export interface FlipSession {
   ch: number;
   scope: Scope;
-  order: 'seq' | 'rand';
+  slice: Slice;
+  order: Order;
   ids: string[];
   idx: number;
   know: string[];

@@ -1,9 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
+import { matchesTermFilter } from '@kaned/shared';
 import { Bookmark, CalendarClock, CircleCheckBig, Flame, Layers, Lightbulb, Play, RotateCcw, Timer } from 'lucide-react';
 import { CountUp } from '@/components/ui/CountUp';
 import { fmtInt } from '@/lib/format';
 import { useDeckCtx } from './context';
-import { countsOf, forecastOf } from './model';
+import { countsOf, forecastOf, makeStatus, type Order, type Slice } from './model';
 import { Ring } from './parts';
 
 export function Overview() {
@@ -16,6 +17,20 @@ export function Overview() {
   const week = useMemo(() => (settings.srs ? forecastOf(m, state) : []), [m, state, settings.srs]);
   const soon = week.reduce((a, b) => a + b, 0);
   const tipTotal = m.tips.size;
+
+  const termRows = useMemo(() => {
+    const { status } = makeStatus(state, settings.srs);
+    const row = (key: string, icon: ReactNode, title: string, slice: Slice, order: Order) => {
+      const qs = m.Q.filter((q) => matchesTermFilter(q.seen, slice.term) && q.freq >= slice.min);
+      const ok = qs.filter((q) => status(q.id) === 'ok').length;
+      const bad = qs.filter((q) => status(q.id) === 'bad').length;
+      return { key, icon, title, note: `${fmtInt(qs.length)} câu`, slice, order, bad, okp: qs.length ? (ok / qs.length) * 100 : 0, badp: qs.length ? (bad / qs.length) * 100 : 0, n: qs.length };
+    };
+    const out = [];
+    if (m.maxFreq > 1) out.push(row('hot', <Flame className="ic dk-flame" />, 'Câu hay ra (từ 2 lần), nhiều nhất trước', { term: null, min: 2 }, 'freq'));
+    for (const t of m.terms) out.push(row(t.term, <span className="dk-lterm">{t.term}</span>, `Chỉ kỳ ${t.term}`, { term: { mode: 'only', term: t.term }, min: 0 }, 'seq'));
+    return out.filter((r) => r.n > 0);
+  }, [m, state, settings.srs]);
 
   return (
     <div className="dk-overview">
@@ -151,6 +166,48 @@ export function Overview() {
           </span>
         </div>
       </div>
+
+      {m.terms.length > 0 && (
+        <section className="dk-section">
+          <div className="dk-sec-head">
+            <div>
+              <h2 className="t-h3">Theo kỳ thi</h2>
+              <p>Nhãn như [SU26_B5] ở đầu câu cho biết câu đó đã ra ở kỳ nào. Ôn riêng một kỳ, hoặc ôn câu hay ra nhất.</p>
+            </div>
+          </div>
+          <div className="panel dk-ledger">
+            {termRows.map((r) => (
+              <div key={r.key} className="dk-lrow">
+                <span className="dk-lnum">{r.icon}</span>
+                <div className="dk-lname">
+                  <b>{r.title}</b>
+                  <small>{r.note}</small>
+                </div>
+                <div className="dk-lbar">
+                  <div className="dk-bar">
+                    <i className="is-ok" style={{ width: `${r.okp}%` }} />
+                    <i className="is-bad" style={{ width: `${r.badp}%` }} />
+                  </div>
+                  <div className="dk-lbar-cap">
+                    <span>{Math.round(r.okp)}% đã thuộc</span>
+                    {r.bad > 0 && <span className="is-bad">{fmtInt(r.bad)} cần ôn</span>}
+                  </div>
+                </div>
+                <div className="dk-lacts">
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => { startPractice({ slice: r.slice, order: r.order }); go('practice'); }}>
+                    <CircleCheckBig className="ic ic-sm" />
+                    Luyện tập
+                  </button>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => { startFlip({ slice: r.slice, order: r.order }); go('flip'); }}>
+                    <Layers className="ic ic-sm" />
+                    Lật thẻ
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {m.chapters.length > 0 && (
         <section className="dk-section">

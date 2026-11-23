@@ -155,3 +155,9 @@ test('settings default: no retakes, strict, score right after submit', () => {
   assert.equal(s.results.score, 'AFTER_SUBMIT');
   assert.equal(s.results.correctAnswers, 'AFTER_END');
 });
+
+test('exam snapshot hides the past-exam tags from candidates', async () => {
+  const { toSnapshot } = await import('../src/vec.js');
+  const q = { id: '1', text: '[FA26_B10][SU26_B5] Which language?', options: ['Dart', 'Kotlin'], answers: [0], chapter: 1, tips: [], similar: [] } as never;
+  assert.equal(toSnapshot(q).text, 'Which language?');
+});

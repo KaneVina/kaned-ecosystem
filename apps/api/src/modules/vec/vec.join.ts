@@ -66,7 +66,7 @@ export async function prefill(userId: string): Promise<JoinPrefillDto> {
     universityId: u.universityId ?? '',
     universityName: uni[0]?.name ?? '',
     majorName: maj[0]?.name ?? '',
-    term: myCurrent ? (/^(FA|SP|SU)\d\d$/.test(myCurrent.code) ? `${myCurrent.code}_Block10` : myCurrent.code) : '',
+    term: myCurrent ? (/^(FA|SP|SU)\d\d$/.test(myCurrent.code) ? `${myCurrent.code}_B10` : myCurrent.code) : '',
     accountName: u.name,
   };
   return { info, universities: unis, terms: termList };

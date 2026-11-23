@@ -1,12 +1,13 @@
 import { Fragment, useState, type ReactNode } from 'react';
 import { Search } from 'lucide-react';
 import { Typewriter } from '@/components/ui/Typewriter';
-import { ArrowDownUp, ChevronDown, Copy, Lightbulb, Shuffle, TriangleAlert } from 'lucide-react';
+import { ArrowDownUp, ChevronDown, Copy, Flame, Lightbulb, Shuffle, TriangleAlert } from 'lucide-react';
 import type { DeckQuestion } from '@kaned/shared';
 import { cn } from '@/lib/cn';
 import { fmtInt } from '@/lib/format';
 import { useDeckCtx } from './context';
-import { countsOf, highlight, type Scope } from './model';
+import { matchesTermFilter, parseTermFilter, termFilterKey } from '@kaned/shared';
+import { countsOf, highlight, NO_SLICE, sliceActive, type Order, type Scope, type Slice, type StudyQuestion } from './model';
 
 /** Lets long identifiers like `a.b(c(d))` wrap after . ( , ; : and before camelCase humps instead of running off the card. */
 const breakable = (x: string) => x.split(/(?<=[.(,;:\]\[{}<>=+\-/_])|(?<=[a-z])(?=[A-Z])/).flatMap((part, i) => (i ? [<wbr key={i} />, part] : [part]));
@@ -168,7 +169,7 @@ export function Notes({ q, compact }: { q: DeckQuestion; compact?: boolean }) {
 export function StudyAids({ q, sim = true }: { q: DeckQuestion; sim?: boolean }) {
   const { m, settings } = useDeckCtx();
   const tips = settings.tips ? q.tips.map((n) => m.tips.get(n)).filter(Boolean) : [];
-  const similar = sim && settings.sim ? q.similar.map((id) => m.QI.get(id)).filter((x): x is DeckQuestion => Boolean(x)) : [];
+  const similar = sim && settings.sim ? q.similar.map((id) => m.QI.get(id)).filter((x): x is StudyQuestion => Boolean(x)) : [];
   if (!q.warning && !tips.length && !similar.length) return null;
   return (
     <div className="dk-aids">
@@ -224,51 +225,122 @@ const SCOPES: Array<[Scope, string, keyof ReturnType<typeof countsOf>]> = [
   ['mk', 'Đánh dấu', 'mk'],
 ];
 
-/** Chapter, which questions, question order and answer order — shared by practice and cards. */
+/** How often a question has been asked and in which terms, from the tags in front of its text. */
+export function SeenTags({ q }: { q: StudyQuestion }) {
+  if (!q.freq) return null;
+  return (
+    <>
+      <span className={cn('dk-tag dk-freq', q.freq >= 3 && 'is-hot')} title={`Đã ra đề ${q.freq} lần`}>
+        <Flame className="ic ic-sm" />
+        Ra {q.freq} lần
+      </span>
+      {q.seen.map((t) => (
+        <span key={t.label} className="dk-tag dk-term" title={t.block ? `Kỳ ${t.term}, block ${t.block} tuần` : `Kỳ ${t.term}`}>
+          {t.label}
+        </span>
+      ))}
+    </>
+  );
+}
+
+type FilterValue = { ch: number; scope: Scope; slice: Slice; order: Order };
+
+/** Chapter, which questions, which exam terms and how often, question order and answer order — shared by practice and cards. */
 export function FilterBar({
   ch,
   scope,
+  slice = NO_SLICE,
   order,
   onChange,
 }: {
   ch: number;
   scope: Scope;
-  order: 'seq' | 'rand';
-  onChange: (next: { ch: number; scope: Scope; order: 'seq' | 'rand' }) => void;
+  slice?: Slice;
+  order: Order;
+  onChange: (next: FilterValue) => void;
 }) {
   const { m, state, settings, setSetting } = useDeckCtx();
   const k = countsOf(m, state, settings.srs, ch);
+  const set = (patch: Partial<FilterValue>) => onChange({ ch, scope, slice, order, ...patch });
+  const inChapter = m.Q.filter((q) => !ch || q.chapter === ch);
+  const newest = m.terms[0]?.term;
   return (
-    <div className="dk-filters">
-      {m.chapters.length > 0 && (
-        <label className="dk-select">
-          <span className="sr-only">Chương</span>
-          <select className="select" value={ch} onChange={(e) => onChange({ ch: Number(e.target.value), scope, order })}>
-            <option value={0}>Tất cả chương</option>
-            {m.chapters.map((c) => (
-              <option key={c.n} value={c.n}>
-                {c.n ? `Chương ${c.n}: ${c.name}` : c.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-      <div className="seg dk-seg" role="group" aria-label="Phạm vi câu hỏi">
-        {SCOPES.map(([v, l, key]) => (
-          <button key={v} type="button" aria-pressed={scope === v} onClick={() => onChange({ ch, scope: v, order })}>
-            {l}
-            <span className="dk-n">{fmtInt(k[key])}</span>
-          </button>
-        ))}
+    <div className="dk-filters-wrap">
+      <div className="dk-filters">
+        {m.chapters.length > 0 && (
+          <label className="dk-select">
+            <span className="sr-only">Chương</span>
+            <select className="select" value={ch} onChange={(e) => set({ ch: Number(e.target.value) })}>
+              <option value={0}>Tất cả chương</option>
+              {m.chapters.map((c) => (
+                <option key={c.n} value={c.n}>
+                  {c.n ? `Chương ${c.n}: ${c.name}` : c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <div className="seg dk-seg" role="group" aria-label="Phạm vi câu hỏi">
+          {SCOPES.map(([v, l, key]) => (
+            <button key={v} type="button" aria-pressed={scope === v} onClick={() => set({ scope: v })}>
+              {l}
+              <span className="dk-n">{fmtInt(k[key])}</span>
+            </button>
+          ))}
+        </div>
+        <button type="button" className={cn('dk-toggle', order === 'rand' && 'is-on')} aria-pressed={order === 'rand'} onClick={() => set({ order: order === 'rand' ? 'seq' : 'rand' })}>
+          <Shuffle className="ic ic-sm" />
+          Xáo câu
+        </button>
+        <button type="button" className={cn('dk-toggle', settings.shuf && 'is-on')} aria-pressed={settings.shuf} onClick={() => setSetting('shuf', !settings.shuf)}>
+          <ArrowDownUp className="ic ic-sm" />
+          Xáo đáp án
+        </button>
       </div>
-      <button type="button" className={cn('dk-toggle', order === 'rand' && 'is-on')} aria-pressed={order === 'rand'} onClick={() => onChange({ ch, scope, order: order === 'rand' ? 'seq' : 'rand' })}>
-        <Shuffle className="ic ic-sm" />
-        Xáo câu
-      </button>
-      <button type="button" className={cn('dk-toggle', settings.shuf && 'is-on')} aria-pressed={settings.shuf} onClick={() => setSetting('shuf', !settings.shuf)}>
-        <ArrowDownUp className="ic ic-sm" />
-        Xáo đáp án
-      </button>
+      {m.terms.length > 0 && (
+        <div className="dk-filters dk-filters-terms" role="group" aria-label="Lọc theo kỳ thi và tần suất">
+          <label className="dk-select">
+            <span className="sr-only">Kỳ thi</span>
+            <select className="select" value={termFilterKey(slice.term)} onChange={(e) => set({ slice: { ...slice, term: parseTermFilter(e.target.value) } })}>
+              <option value="">Mọi kỳ thi</option>
+              {m.terms.map((t) => (
+                <option key={`only:${t.term}`} value={`only:${t.term}`}>
+                  Chỉ kỳ {t.term} ({fmtInt(inChapter.filter((q) => matchesTermFilter(q.seen, { mode: 'only', term: t.term })).length)} câu)
+                </option>
+              ))}
+              {m.terms
+                .filter((t) => t.term !== newest)
+                .map((t) => (
+                  <option key={`from:${t.term}`} value={`from:${t.term}`}>
+                    Từ kỳ {t.term} trở đi ({fmtInt(inChapter.filter((q) => matchesTermFilter(q.seen, { mode: 'from', term: t.term })).length)} câu)
+                  </option>
+                ))}
+            </select>
+          </label>
+          {m.maxFreq > 1 && (
+            <label className="dk-select">
+              <span className="sr-only">Tần suất xuất hiện</span>
+              <select className="select" value={slice.min} onChange={(e) => set({ slice: { ...slice, min: Number(e.target.value) } })}>
+                <option value={0}>Mọi tần suất</option>
+                {Array.from({ length: m.maxFreq - 1 }, (_, i) => i + 2).map((n) => (
+                  <option key={n} value={n}>
+                    Ra từ {n} lần trở lên ({fmtInt(inChapter.filter((q) => q.freq >= n).length)} câu)
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <button type="button" className={cn('dk-toggle', order === 'freq' && 'is-on')} aria-pressed={order === 'freq'} onClick={() => set({ order: order === 'freq' ? 'seq' : 'freq' })}>
+            <Flame className="ic ic-sm" />
+            Hay ra trước
+          </button>
+          {sliceActive(slice) && (
+            <button type="button" className="dk-toggle" onClick={() => set({ slice: NO_SLICE })}>
+              Bỏ lọc kỳ
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

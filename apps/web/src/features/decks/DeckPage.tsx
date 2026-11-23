@@ -13,7 +13,8 @@ import {
   countsOf,
   newExam,
   poolOf,
-  shuffle,
+  NO_SLICE,
+  orderIds,
   useDeckModel,
   useDeckProgress,
   useStudySettings,
@@ -77,11 +78,11 @@ function DeckStudy({ deck, mode }: { deck: DeckDetailDto; mode: Mode }) {
       const ch = o.ch ?? 0;
       const scope = o.scope ?? 'all';
       const order = o.order ?? 'seq';
+      const slice = o.slice ?? NO_SLICE;
       const custom = o.custom ?? null;
-      const ids = custom ? custom.ids.slice() : poolOf(m, progress.state, ch, scope, settings.srs);
-      if (order === 'rand') shuffle(ids);
+      const ids = orderIds(m, custom ? custom.ids.slice() : poolOf(m, progress.state, ch, scope, settings.srs, slice), order);
       const idx = o.startId && ids.includes(o.startId) ? ids.indexOf(o.startId) : 0;
-      return { ch, scope, order, ids, idx, perm: {}, res: {}, custom, finished: false };
+      return { ch, scope, slice, order, ids, idx, perm: {}, res: {}, custom, finished: false };
     },
     [m, progress.state, settings.srs],
   );
@@ -90,10 +91,10 @@ function DeckStudy({ deck, mode }: { deck: DeckDetailDto; mode: Mode }) {
       const ch = o.ch ?? 0;
       const scope = o.scope ?? 'all';
       const order = o.order ?? 'rand';
+      const slice = o.slice ?? NO_SLICE;
       const custom = o.custom ?? null;
-      const ids = custom ? custom.ids.slice() : poolOf(m, progress.state, ch, scope, settings.srs);
-      if (order === 'rand') shuffle(ids);
-      return { ch, scope, order, ids, idx: 0, know: [], again: [], perm: {}, custom };
+      const ids = orderIds(m, custom ? custom.ids.slice() : poolOf(m, progress.state, ch, scope, settings.srs, slice), order);
+      return { ch, scope, slice, order, ids, idx: 0, know: [], again: [], perm: {}, custom };
     },
     [m, progress.state, settings.srs],
   );

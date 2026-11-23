@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { stripAskedTags } from './askedTags.js';
 import { canShuffleOptions, type DeckQuestion } from './deck.js';
 
 /**
@@ -418,7 +419,8 @@ export const toSnapshot = (q: DeckQuestion): SnapshotQuestion => ({
   qid: q.id,
   chapter: q.chapter,
   kind: q.answers.length > 1 ? 'MULTI' : 'SINGLE',
-  text: q.text,
+  // `[SU26_B5]` tags say which past exams a question came from; a candidate must not see them.
+  text: stripAskedTags(q.text),
   options: q.options,
   answers: q.answers,
   canShuffle: canShuffleOptions(q),

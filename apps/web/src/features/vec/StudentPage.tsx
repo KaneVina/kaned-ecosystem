@@ -259,12 +259,12 @@ function OpenCountdown({ t }: { t: Extract<Terminal, { state: 'NOT_OPEN' }> }) {
 }
 
 const BLOCKS = [
-  { v: 'Block10', label: 'Block 10 tuần' },
-  { v: 'Block3', label: 'Block 3 tuần' },
+  { v: 'B10', label: 'Block 10 tuần' },
+  { v: 'B5', label: 'Block 5 tuần' },
   { v: '', label: 'Không theo block' },
 ];
 
-/** FPTU style: a term code (FA26) plus the block it runs in, stored as FA26_Block10. */
+/** FPTU style: a term code (FA26) plus the block it runs in, stored as FA26_B10. */
 function TermPicker({ value, universityId, universityCode, terms, onChange }: { value: string; universityId: string; universityCode: string; terms: Array<{ universityId: string; code: string; name: string; current: boolean }>; onChange: (v: string) => void }) {
   const [code, block] = value.split('_') as [string, string | undefined];
   const mine = terms.filter((t) => t.universityId === universityId);
