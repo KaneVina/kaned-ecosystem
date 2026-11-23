@@ -13,6 +13,7 @@ import { lecturersRouter } from './modules/lecturers/lecturers.routes.js';
 import { uploadsRouter } from './modules/uploads/uploads.routes.js';
 import { translateRouter } from './modules/translate/translate.routes.js';
 import { usersRouter } from './modules/users/users.routes.js';
+import { vecRouter } from './modules/vec/vec.routes.js';
 
 /**
  * One place that shows the whole surface of the API. A new module is one
@@ -34,3 +35,4 @@ api.use('/lecturers', lecturersRouter);
 api.use('/uploads', uploadsRouter);
 api.use('/translate', translateRouter);
 api.use('/users', usersRouter);
+api.use('/vec', vecRouter);

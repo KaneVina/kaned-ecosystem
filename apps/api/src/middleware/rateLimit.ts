@@ -3,6 +3,9 @@ import rateLimit from 'express-rate-limit';
 export const apiLimiter = rateLimit({
   windowMs: 60_000,
   limit: 300,
+  // Exam traffic (heartbeats, autosave) is limited per person inside the VEC router instead,
+  // so a whole lab behind one campus address can sit the same exam.
+  skip: (req) => req.originalUrl.startsWith('/api/vec/attempts/'),
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   message: { error: { code: 'RATE_LIMITED', message: 'Too many requests. Try again shortly.' } },

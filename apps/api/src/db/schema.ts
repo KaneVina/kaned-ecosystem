@@ -8,9 +8,11 @@
  * is a new table pointing at users and subjects; nothing here has to change.
  */
 import { relations, sql } from 'drizzle-orm';
-import type { AssessmentItem, DeckContent, DeckProgress, PassCriteriaValues, PassCriterion, Requirement } from '@kaned/shared';
+import type { AssessmentItem, DeckContent, DeckProgress, PassCriteriaValues, PassCriterion, Requirement, VecSettings } from '@kaned/shared';
 import {
   type AnyPgColumn,
+  bigint,
+  bigserial,
   boolean,
   date,
   doublePrecision,
@@ -306,6 +308,9 @@ export const users = pgTable(
     bio: text('bio'),
     role: roleEnum('role').notNull().default('STUDENT'),
     year: integer('year'),
+    /** Student number and class, optional; they fill the exam admit card. */
+    studentCode: varchar('student_code', { length: 20 }),
+    className: varchar('class_name', { length: 40 }),
     universityId: text('university_id').references(() => universities.id, { onDelete: 'set null' }),
     majorId: text('major_id').references(() => majors.id, { onDelete: 'set null' }),
     /** Last heartbeat from an open app tab; "online" means within the last two minutes. */
@@ -923,3 +928,280 @@ export const lecturerRelations = relations(lecturers, ({ one, many }) => ({
   university: one(universities, { fields: [lecturers.universityId], references: [universities.id] }),
   documents: many(documents),
 }));
+
+
+/* ───────────────────────── VEC – Virtual Exam Center ─────────────────────────
+ * Server-held exam sessions. Correct answers live only in vecSessionQuestions
+ * and are never selected for a candidate. See docs/vec for the full spec.
+ */
+
+export const vecSessions = pgTable(
+  'vec_sessions',
+  {
+    id: id(),
+    hostId: text('host_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** FE (multiple choice) | PE (practical, planned) */
+    kind: varchar('kind', { length: 2 }).notNull().default('FE'),
+    title: text('title').notNull(),
+    description: text('description'),
+    instructions: text('instructions'),
+    lecturerDisplay: text('lecturer_display').notNull(),
+    subjectCode: varchar('subject_code', { length: 24 }).notNull(),
+    subjectName: text('subject_name').notNull(),
+    universityId: text('university_id'),
+    deckId: text('deck_id'),
+    /** The questions came from an uploaded .md file that was not kept. */
+    ephemeral: boolean('ephemeral').notNull().default(false),
+    roomCode: varchar('room_code', { length: 7 }).notNull(),
+    otpEnc: text('otp_enc'),
+    startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
+    endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
+    durationMin: integer('duration_min').notNull(),
+    lobbyOpenMin: integer('lobby_open_min').notNull().default(15),
+    lateJoinMin: integer('late_join_min').notNull().default(10),
+    /** PAUSED | ENDED | CANCELLED | DELETING; null means "follow the clock". */
+    statusOverride: varchar('status_override', { length: 12 }),
+    pausedAt: timestamp('paused_at', { withTimezone: true }),
+    pausedTotalSec: integer('paused_total_sec').notNull().default(0),
+    endedAt: timestamp('ended_at', { withTimezone: true }),
+    endReason: varchar('end_reason', { length: 16 }),
+    questionCount: integer('question_count').notNull().default(0),
+    settings: jsonb('settings').$type<VecSettings>().notNull(),
+    resultsReleasedAt: timestamp('results_released_at', { withTimezone: true }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => ({
+    hostIdx: index('vec_sessions_host_idx').on(t.hostId, t.startsAt),
+    expiresIdx: index('vec_sessions_expires_idx').on(t.expiresAt),
+    activeCodeIdx: uniqueIndex('vec_active_room_code')
+      .on(t.roomCode)
+      .where(sql`${t.statusOverride} IS NULL OR ${t.statusOverride} = 'PAUSED'`),
+  }),
+);
+
+/** Frozen copy of the questions, with the answer key. Only the server reads `answers`. */
+export const vecSessionQuestions = pgTable(
+  'vec_session_questions',
+  {
+    sessionId: text('session_id')
+      .notNull()
+      .references(() => vecSessions.id, { onDelete: 'cascade' }),
+    qid: varchar('qid', { length: 24 }).notNull(),
+    position: integer('position').notNull(),
+    chapter: integer('chapter').notNull().default(0),
+    kind: varchar('kind', { length: 8 }).notNull(),
+    text: text('text').notNull(),
+    options: jsonb('options').$type<string[]>().notNull(),
+    answers: jsonb('answers').$type<number[]>().notNull(),
+    canShuffle: boolean('can_shuffle').notNull().default(true),
+    explain: text('explain'),
+    note: text('note'),
+  },
+  (t) => ({ pk: primaryKey({ columns: [t.sessionId, t.qid] }) }),
+);
+
+export const vecParticipants = pgTable(
+  'vec_participants',
+  {
+    sessionId: text('session_id')
+      .notNull()
+      .references(() => vecSessions.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** What the candidate typed in step 1, plus the original account name for comparison. */
+    candidateInfo: jsonb('candidate_info').$type<Record<string, string>>().notNull(),
+    consentedAt: timestamp('consented_at', { withTimezone: true }).notNull().defaultNow(),
+    extraRetakes: integer('extra_retakes').notNull().default(0),
+    retakesUsed: integer('retakes_used').notNull().default(0),
+    countedScore10: doublePrecision('counted_score10'),
+    countedAttemptNo: integer('counted_attempt_no'),
+    retakeRequestedAt: timestamp('retake_requested_at', { withTimezone: true }),
+    retakeRequestNote: text('retake_request_note'),
+    retakeApprovedAt: timestamp('retake_approved_at', { withTimezone: true }),
+    joinedAt: timestamp('joined_at', { withTimezone: true }).notNull().defaultNow(),
+    firstIp: varchar('first_ip', { length: 64 }),
+    firstUaHash: varchar('first_ua_hash', { length: 32 }),
+  },
+  (t) => ({ pk: primaryKey({ columns: [t.sessionId, t.userId] }) }),
+);
+
+export const vecAttempts = pgTable(
+  'vec_attempts',
+  {
+    id: id(),
+    sessionId: text('session_id')
+      .notNull()
+      .references(() => vecSessions.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    attemptNo: integer('attempt_no').notNull().default(1),
+    countsTowardLimit: boolean('counts_toward_limit').notNull().default(true),
+    state: varchar('state', { length: 16 }).notNull().default('LOBBY'),
+    /** Optimistic lock for lecturer actions. */
+    version: integer('version').notNull().default(0),
+    paperCode: varchar('paper_code', { length: 6 }).notNull(),
+    seed: text('seed').notNull(),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    submittedAt: timestamp('submitted_at', { withTimezone: true }),
+    deadlineAt: timestamp('deadline_at', { withTimezone: true }),
+    pausedBaseSec: integer('paused_base_sec').notNull().default(0),
+    timeBonusSec: integer('time_bonus_sec').notNull().default(0),
+    submitReason: varchar('submit_reason', { length: 16 }),
+    lockReason: text('lock_reason'),
+    lockedAt: timestamp('locked_at', { withTimezone: true }),
+    resumedAt: timestamp('resumed_at', { withTimezone: true }),
+    answeredCount: integer('answered_count').notNull().default(0),
+    flaggedCount: integer('flagged_count').notNull().default(0),
+    currentIndex: integer('current_index').notNull().default(0),
+    correctCount: integer('correct_count'),
+    wrongCount: integer('wrong_count'),
+    blankCount: integer('blank_count'),
+    score10: doublePrecision('score10'),
+    gradeLabel: varchar('grade_label', { length: 16 }),
+    passed: boolean('passed'),
+    gradedAt: timestamp('graded_at', { withTimezone: true }),
+    violationLock: integer('violation_lock').notNull().default(0),
+    violationWarn: integer('violation_warn').notNull().default(0),
+    violationLog: integer('violation_log').notNull().default(0),
+    riskScore: integer('risk_score').notNull().default(0),
+    ipAtStart: varchar('ip_at_start', { length: 64 }),
+    uaHash: varchar('ua_hash', { length: 32 }),
+    /** One exam connection per attempt: a second tab or device is refused. */
+    connectionId: text('connection_id'),
+    connectionAt: timestamp('connection_at', { withTimezone: true }),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
+    fullscreen: boolean('fullscreen'),
+    visible: boolean('visible'),
+    focused: boolean('focused'),
+    lastIp: varchar('last_ip', { length: 64 }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => ({
+    // One live attempt per account, even under a race (CAN-R1).
+    oneActive: uniqueIndex('vec_one_active_attempt_per_user')
+      .on(t.userId)
+      .where(sql`${t.state} IN ('LOBBY', 'IN_PROGRESS', 'SUSPENDED')`),
+    attemptNo: uniqueIndex('vec_attempt_no_idx').on(t.sessionId, t.userId, t.attemptNo),
+    sessionState: index('vec_attempts_session_state_idx').on(t.sessionId, t.state),
+  }),
+);
+
+export const vecAttemptAnswers = pgTable(
+  'vec_attempt_answers',
+  {
+    attemptId: text('attempt_id')
+      .notNull()
+      .references(() => vecAttempts.id, { onDelete: 'cascade' }),
+    qid: varchar('qid', { length: 24 }).notNull(),
+    /** Indexes into the original options, translated from the opaque ids. */
+    selected: jsonb('selected').$type<number[]>().notNull(),
+    flagged: boolean('flagged').notNull().default(false),
+    seq: bigint('seq', { mode: 'number' }).notNull(),
+    answeredAt: timestamp('answered_at', { withTimezone: true }).notNull().defaultNow(),
+    lateSync: boolean('late_sync').notNull().default(false),
+  },
+  (t) => ({ pk: primaryKey({ columns: [t.attemptId, t.qid] }) }),
+);
+
+export const vecAttemptEvents = pgTable(
+  'vec_attempt_events',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    attemptId: text('attempt_id')
+      .notNull()
+      .references(() => vecAttempts.id, { onDelete: 'cascade' }),
+    sessionId: text('session_id')
+      .notNull()
+      .references(() => vecSessions.id, { onDelete: 'cascade' }),
+    type: varchar('type', { length: 32 }).notNull(),
+    severity: varchar('severity', { length: 8 }).notNull().default('INFO'),
+    data: jsonb('data').$type<Record<string, unknown>>(),
+    actorId: text('actor_id'),
+    createdAt: createdAt(),
+  },
+  (t) => ({
+    sessionIdx: index('vec_events_session_id_idx').on(t.sessionId, t.id),
+    attemptIdx: index('vec_events_attempt_idx').on(t.attemptId, t.id),
+  }),
+);
+
+export const vecUnlockRequests = pgTable(
+  'vec_unlock_requests',
+  {
+    id: id(),
+    attemptId: text('attempt_id')
+      .notNull()
+      .references(() => vecAttempts.id, { onDelete: 'cascade' }),
+    sessionId: text('session_id')
+      .notNull()
+      .references(() => vecSessions.id, { onDelete: 'cascade' }),
+    /** UNLOCK | RETAKE */
+    kind: varchar('kind', { length: 8 }).notNull().default('UNLOCK'),
+    reason: text('reason').notNull().default(''),
+    /** PENDING | APPROVED | DENIED | REDO */
+    status: varchar('status', { length: 8 }).notNull().default('PENDING'),
+    decidedBy: text('decided_by'),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => ({ sessionIdx: index('vec_unlock_session_idx').on(t.sessionId, t.status) }),
+);
+
+export const vecMessages = pgTable(
+  'vec_messages',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    sessionId: text('session_id')
+      .notNull()
+      .references(() => vecSessions.id, { onDelete: 'cascade' }),
+    /** null = the whole room */
+    attemptId: text('attempt_id').references(() => vecAttempts.id, { onDelete: 'cascade' }),
+    senderId: text('sender_id'),
+    kind: varchar('kind', { length: 8 }).notNull().default('ANNOUNCE'),
+    body: text('body').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => ({ sessionIdx: index('vec_messages_session_idx').on(t.sessionId, t.id) }),
+);
+
+/** Lecturer and admin actions. Survives a session delete only as an anonymous tombstone. */
+export const vecAudit = pgTable(
+  'vec_audit',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    sessionId: text('session_id'),
+    actorId: text('actor_id'),
+    action: varchar('action', { length: 40 }).notNull(),
+    target: text('target'),
+    data: jsonb('data').$type<Record<string, unknown>>(),
+    createdAt: createdAt(),
+  },
+  (t) => ({ sessionIdx: index('vec_audit_session_idx').on(t.sessionId, t.id) }),
+);
+
+/** Wrong room codes and OTPs, to slow down guessing. Kept 24 hours. */
+export const vecJoinAttempts = pgTable(
+  'vec_join_attempts',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    userId: text('user_id').notNull(),
+    ip: varchar('ip', { length: 64 }),
+    kind: varchar('kind', { length: 4 }).notNull(),
+    key: varchar('key', { length: 40 }),
+    ok: boolean('ok').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => ({ userIdx: index('vec_join_attempts_user_idx').on(t.userId, t.createdAt) }),
+);
+
+export type VecSessionRow = typeof vecSessions.$inferSelect;
+export type VecAttemptRow = typeof vecAttempts.$inferSelect;
+export type VecParticipantRow = typeof vecParticipants.$inferSelect;
+export type VecQuestionRow = typeof vecSessionQuestions.$inferSelect;

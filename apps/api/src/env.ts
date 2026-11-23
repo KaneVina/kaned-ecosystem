@@ -38,6 +38,10 @@ const schema = z.object({
   CLOUDINARY_API_KEY: z.string().optional().default(''),
   CLOUDINARY_API_SECRET: z.string().optional().default(''),
   CLOUDINARY_FOLDER: z.string().optional().default('kaned/documents'),
+  /** Virtual Exam Center. Set to false to switch the whole feature off. */
+  VEC_ENABLED: z.enum(['true', 'false']).default('true'),
+  /** Secret for POST /api/vec/internal/tick, called by an external scheduler. Empty = endpoint off. */
+  VEC_FINALIZER_SECRET: z.string().optional().default(''),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -57,6 +61,7 @@ export const env = {
   ...raw,
   isProd: raw.NODE_ENV === 'production',
   isDev: raw.NODE_ENV === 'development',
+  vecEnabled: raw.VEC_ENABLED === 'true',
   corsOrigins,
   webUrl,
   apiPublicUrl: trimSlash(raw.API_PUBLIC_URL ?? webUrl),
