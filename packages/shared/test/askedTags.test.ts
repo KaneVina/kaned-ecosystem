@@ -36,3 +36,15 @@ test('"only" and "from" filters', () => {
   assert.deepEqual(parseTermFilter('from:SU26_B5'), { mode: 'from', code: 'SU26_B5' });
   assert.equal(parseTermFilter('bad'), null);
 });
+
+test('one bracket with several exams, retakes included', () => {
+  const r = splitAskedTags('[SU22_B10, SP23_B10, SU23_B10, FA23_B10_RE, SU24_B10_RE, SP25_B10_RE, SP26_B10]\nWhy is deciding how to act?');
+  assert.equal(r.tags.length, 7);
+  assert.equal(r.text, 'Why is deciding how to act?');
+  assert.deepEqual(r.tags.map((t) => t.code), ['SP26_B10', 'SP25_B10_RE', 'SU24_B10_RE', 'FA23_B10_RE', 'SU23_B10', 'SP23_B10', 'SU22_B10']);
+  assert.equal(r.tags[1].retake, true);
+  assert.equal(matchesTermFilter(r.tags, { mode: 'only', code: 'FA23_B10_RE' }), true);
+  assert.equal(matchesTermFilter(r.tags, { mode: 'only', code: 'FA23_B10' }), false);
+  assert.deepEqual(parseTermFilter('only:FA23_B10_RE'), { mode: 'only', code: 'FA23_B10_RE' });
+  assert.equal(stripAskedTags('[Note, remember] keep'), '[Note, remember] keep');
+});

@@ -235,7 +235,7 @@ export function SeenTags({ q }: { q: StudyQuestion }) {
         Ra {q.freq} lần
       </span>
       {q.seen.map((t) => (
-        <span key={t.label} className="dk-tag dk-term" title={t.block ? `Kỳ ${t.term}, block ${t.block} tuần` : `Kỳ ${t.term}`}>
+        <span key={t.label} className="dk-tag dk-term" title={`Kỳ ${t.term}${t.block ? `, block ${t.block} tuần` : ''}${t.retake ? ', thi lại' : ''}`}>
           {t.label}
         </span>
       ))}
