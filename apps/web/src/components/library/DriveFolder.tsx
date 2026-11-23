@@ -44,15 +44,17 @@ export function DriveFolder({ folderId, rootName, fallbackEmbed }: { folderId: s
       </div>
     );
   }
-  if (!data || data.status !== 'ok') {
+  if (!data || data.status !== 'ok' || (data.entries.length === 0 && trail.length === 1)) {
     return (
       <div>
         <p className="drv-note">
-          {data?.status === 'private'
+          {data?.status === 'ok'
+            ? 'Liên kết này không có mục con để liệt kê, nên Kaned hiện nó như tệp.'
+            : data?.status === 'private'
             ? 'Kaned chưa đọc được thư mục này. Chủ thư mục cần chia sẻ “Bất kỳ ai có đường liên kết”. Bạn vẫn xem được bên dưới nếu đã đăng nhập Google.'
             : 'Chưa lấy được danh sách tệp lúc này. Bạn vẫn xem được thư mục ở khung bên dưới.'}
         </p>
-        <iframe className="drv-fallback" src={fallbackEmbed} title={rootName} loading="lazy" />
+        <iframe className="drv-fallback" src={fallbackEmbed} title={rootName} loading="lazy" allow="fullscreen" />
       </div>
     );
   }

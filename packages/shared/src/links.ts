@@ -148,6 +148,10 @@ export function detectLinkProvider(raw: string): LinkProvider {
       return { ...make('google-drive', `https://drive.google.com/embeddedfolderview?id=${folderId}#list`, 4 / 3), kind: 'folder', folderId };
     }
     const fileId = url.pathname.match(/\/file\/d\/([\w-]+)/)?.[1] ?? url.searchParams.get('id');
+    // drive.google.com/open?id=… can be a file or a folder; the viewer tries it as a folder first.
+    if (!folderId && fileId && url.pathname === '/open') {
+      return { ...make('google-drive', `https://drive.google.com/file/d/${fileId}/preview`, 1 / 1.3), kind: 'folder', folderId: fileId };
+    }
     return make('google-drive', fileId ? `https://drive.google.com/file/d/${fileId}/preview` : null, 1 / 1.3);
   }
   if (/^(m\.|music\.)?youtube\.com$|^youtu\.be$|^youtube-nocookie\.com$/.test(host)) {
