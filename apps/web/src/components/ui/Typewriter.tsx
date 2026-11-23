@@ -45,10 +45,15 @@ export function Typewriter({
   }, [still, phase, len, i, phrases, typeMs, eraseMs, holdMs, startDelayMs]);
 
   const text = phrases[i % phrases.length].slice(0, len);
+  // The caret travels with the last word (no-break), so it can never wrap onto a line of its own.
+  const cut = text.lastIndexOf(' ') + 1;
   return (
     <span className="tw" aria-hidden>
-      {text}
-      <span className={phase === 'type' || phase === 'erase' ? 'tw-caret is-busy' : 'tw-caret'} />
+      {text.slice(0, cut)}
+      <span className="tw-tail">
+        {text.slice(cut)}
+        <span className={phase === 'type' || phase === 'erase' ? 'tw-caret is-busy' : 'tw-caret'} />
+      </span>
     </span>
   );
 }

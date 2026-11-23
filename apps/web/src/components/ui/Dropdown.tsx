@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type PointerEvent as RPointerEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/cn';
 
@@ -19,14 +19,34 @@ export function Dropdown({
   className,
   align = 'right',
   width,
+  hover = false,
 }: {
   trigger: (props: TriggerProps) => ReactNode;
   children: ReactNode;
   className?: string;
   align?: 'left' | 'right';
   width?: number;
+  /** Open when the pointer rests on the trigger (mouse only); touch and keyboard still click. */
+  hover?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const timer = useRef<number>();
+  // Only a real mouse opens on hover; touch and pen taps fall through to the click toggle.
+  const mouse = useRef(false);
+  const canHover = () => hover && mouse.current;
+  const enter = (e: RPointerEvent) => {
+    mouse.current = e.pointerType === 'mouse';
+    if (!canHover()) return;
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setOpen(true), 60);
+  };
+  const leave = (e: RPointerEvent) => {
+    mouse.current = e.pointerType === 'mouse';
+    if (!canHover()) return;
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setOpen(false), 160);
+  };
+  useEffect(() => () => window.clearTimeout(timer.current), []);
   const [shown, setShown] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const id = useId();
@@ -52,12 +72,12 @@ export function Dropdown({
   }, [open]);
 
   return (
-    <div className="menu-anchor" ref={ref}>
+    <div className="menu-anchor" ref={ref} onPointerEnter={enter} onPointerLeave={leave}>
       {trigger({
         'aria-expanded': open,
         'aria-controls': id,
         'aria-haspopup': 'menu',
-        onClick: () => setOpen((v) => !v),
+        onClick: () => setOpen((v) => (canHover() ? true : !v)),
       })}
       {open && (
         <div

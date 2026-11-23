@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { useScrollLock } from '@/lib/scrollLock';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -24,6 +24,7 @@ import {
   Settings,
   Contact,
   MonitorCheck,
+  ArrowUpRight,
 } from 'lucide-react';
 import { useAuth } from '@/providers/AuthProvider';
 import { SelectionTranslate } from '@/components/ui/SelectionTranslate';
@@ -104,6 +105,7 @@ function ToolsMenu() {
   return (
     <Dropdown
       align="left"
+      hover
       className="menu-tools"
       trigger={(props) => (
         <button type="button" className="nav-apps" {...props}>
@@ -115,9 +117,9 @@ function ToolsMenu() {
     >
       <p className="menu-label">Công cụ học tập</p>
       <div className="tools-grid">
-        {TOOLS.map((tool) =>
+        {TOOLS.map((tool, i) =>
           tool.to ? (
-            <Link key={tool.label} role="menuitem" to={tool.to} className="tool-item">
+            <Link key={tool.label} role="menuitem" to={tool.to} className="tool-item" style={{ '--i': i } as CSSProperties}>
               <span className={cn('tool-ic', `tone-${tool.tone}`)}>
                 <tool.icon className="ic" />
               </span>
@@ -125,9 +127,10 @@ function ToolsMenu() {
                 <b>{tool.label}</b>
                 <small>{tool.description}</small>
               </span>
+              <ArrowUpRight className="ic ic-sm tool-go" aria-hidden />
             </Link>
           ) : (
-            <div key={tool.label} className="tool-item is-soon" aria-disabled="true">
+            <div key={tool.label} className="tool-item is-soon" aria-disabled="true" style={{ '--i': i } as CSSProperties}>
               <span className={cn('tool-ic', `tone-${tool.tone}`)}>
                 <tool.icon className="ic" />
               </span>

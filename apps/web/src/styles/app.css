@@ -16,14 +16,29 @@
 
 .menu-label { font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-4); padding: 8px 10px 6px; }
 .menu-danger { color: var(--red) !important; }
-.menu-tools { width: 520px; padding: 8px; }
+.menu-tools { width: 540px; padding: 10px; transform-origin: top left; border-radius: 16px; }
+.menu-tools::before { content: ""; position: absolute; left: 0; right: 0; top: -14px; height: 14px; } /* hover bridge over the gap */
+.menu-tools.open { transition-duration: .2s, .28s; }
+.menu-tools .menu-label { padding: 6px 12px 8px; }
 .tools-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
-.menu .tool-item { display: flex; align-items: flex-start; gap: 12px; padding: 11px 12px; border-radius: 10px; color: var(--ink); }
-.menu .tool-item:hover { background: var(--sunk); }
+.menu .tool-item { position: relative; display: flex; align-items: flex-start; gap: 12px; padding: 12px; border-radius: 12px; color: var(--ink); border: 1px solid transparent; transition: background .18s, border-color .18s, box-shadow .22s var(--ease), transform .22s var(--ease); }
+.menu .tool-item:hover, .menu .tool-item:focus-visible { background: linear-gradient(135deg, var(--violet-50), var(--paper) 70%); border-color: var(--line-2); box-shadow: var(--sh-2); transform: translateY(-1px); }
+.menu .tool-item:hover .tool-ic, .menu .tool-item:focus-visible .tool-ic { transform: scale(1.08) rotate(-5deg); box-shadow: 0 6px 14px -6px currentColor; }
+.menu .tool-item:hover .tool-text b { color: var(--violet); }
+.menu .tool-item:active { transform: translateY(0) scale(.99); }
+.tool-go { position: absolute; top: 12px; right: 12px; color: var(--violet); opacity: 0; transform: translate(-4px, 4px); transition: opacity .18s, transform .22s var(--ease); }
+.menu .tool-item:hover .tool-go, .menu .tool-item:focus-visible .tool-go { opacity: 1; transform: none; }
+.tool-text b { transition: color .18s; }
+.menu-tools.open .tool-item, .menu-tools.open .menu-label { animation: toolIn .36s var(--ease-out) both; animation-delay: calc(var(--i, 0) * 34ms + 50ms); }
+.menu-tools.open .menu-label { animation-delay: 0ms; }
+@keyframes toolIn { from { opacity: 0; transform: translateY(8px) scale(.97); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .menu-tools.open .tool-item, .menu-tools.open .menu-label { animation: none; } .menu .tool-item, .tool-ic, .tool-go { transition: none; } }
 .tool-item.is-soon { opacity: .62; cursor: default; }
-.tool-item.is-soon:hover { background: none !important; }
-.tool-ic { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; flex: none; }
-.tool-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.menu .tool-item.is-soon:hover { background: none !important; border-color: transparent; box-shadow: none; transform: none; }
+.menu .tool-item.is-soon:hover .tool-ic { transform: none; box-shadow: none; }
+.menu .tool-item.is-soon:hover .tool-text b { color: inherit; }
+.tool-ic { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; flex: none; transition: transform .25s var(--ease), box-shadow .25s; }
+.tool-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding-right: 16px; }
 .tool-text b { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
 .tool-text b .badge { height: 19px; font-size: 10.5px; padding: 0 7px; }
 .tool-text small { font-size: 12.5px; color: var(--ink-3); line-height: 1.45; }
@@ -704,6 +719,7 @@ a.dash-tool:hover .dash-tool-go { transform: translateX(3px); color: var(--viole
 .tw { white-space: pre-wrap; }
 .tw-caret { display: inline-block; width: .07em; height: .9em; margin-left: .06em; vertical-align: -.08em; background: var(--violet, #4433B4); border-radius: 2px; animation: twBlink 1s steps(1) infinite; }
 .tw-caret.is-busy { animation: none; }
+.tw-tail { white-space: nowrap; }
 @keyframes twBlink { 50% { opacity: 0; } }
 
 /* One page-load moment: the stat cards rise in turn, and lift under the pointer. */
