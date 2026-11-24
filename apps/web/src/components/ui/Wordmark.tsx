@@ -95,25 +95,47 @@ export function Wordmark({ className }: { className?: string }) {
       );
     }
 
-    // Each letter flashes when the head of the bolt reaches it.
-    const bolt = getComputedStyle(k).getPropertyValue('--bolt').trim() || '#2F6BFF';
-    const glow = getComputedStyle(k).getPropertyValue('--bolt-glow').trim() || 'rgba(76,125,245,.6)';
-    const steps = 80;
+    // Each letter lights up as the bolt crosses it: the colour sweeps in from the left exactly where
+    // the bolt is, glows for a beat, then fades back to the letter's own ink.
+    const steps = 120;
     const at: number[] = [];
     for (let s = 0; s <= steps; s++) at.push(probe.getPointAtLength((L * s) / steps).x);
+    const timeAtX = (x: number) => {
+      const s = at.findIndex((v) => v >= x);
+      const len = (L * (s < 0 ? steps : s)) / steps;
+      return (RUN * (len + seg * 0.15)) / (L + seg);
+    };
     letters.forEach((l, i) => {
-      const target = rs[i].x + rs[i].w * 0.3;
-      const s = Math.max(0, at.findIndex((x) => x >= target));
-      const delay = (RUN * ((L * s) / steps)) / (L + seg);
-      const base = getComputedStyle(l).color;
+      const lit = l.querySelector<HTMLElement>('.wm-lit');
+      const t0 = timeAtX(rs[i].x);
+      const t1 = timeAtX(rs[i].x + rs[i].w);
+      const sweep = Math.max(70, t1 - t0);
+      const hold = 220;
+      const fade = 900;
+      const total = sweep + hold + fade;
+      if (lit) {
+        anims.push(
+          lit.animate(
+            [
+              { clipPath: 'inset(-150% 100% -150% -150%)', opacity: 1, easing: 'linear' },
+              { clipPath: 'inset(-150% -150% -150% -150%)', opacity: 1, offset: sweep / total },
+              { clipPath: 'inset(-150% -150% -150% -150%)', opacity: 1, offset: (sweep + hold) / total, easing: 'cubic-bezier(.25,.6,.3,1)' },
+              { clipPath: 'inset(-150% -150% -150% -150%)', opacity: 0 },
+            ],
+            { duration: total, delay: t0 },
+          ),
+        );
+      }
+      // The letter itself lifts a hair while it is lit.
       anims.push(
         l.animate(
           [
-            { color: base, textShadow: '0 0 0 transparent', transform: 'translateY(0)' },
-            { color: bolt, textShadow: `0 0 10px ${glow}`, transform: 'translateY(-1.5px)', offset: 0.25 },
-            { color: base, textShadow: '0 0 0 transparent', transform: 'translateY(0)' },
+            { transform: 'translateY(0)' },
+            { transform: 'translateY(-1.5px)', offset: 0.18 },
+            { transform: 'translateY(-1.5px)', offset: 0.4 },
+            { transform: 'translateY(0)' },
           ],
-          { duration: 520, delay, easing: 'cubic-bezier(.2,.7,.2,1)' },
+          { duration: sweep + hold + 420, delay: t0, easing: 'cubic-bezier(.3,.7,.3,1)' },
         ),
       );
     });
@@ -153,7 +175,10 @@ export function Wordmark({ className }: { className?: string }) {
     <span ref={root} className={cn('brand', className)} aria-label="Kaned Ecosystem">
       <span ref={word} className="wm-k" aria-hidden>
         {KANED.map((c, i) => (
-          <i key={i}>{c}</i>
+          <i key={i}>
+            {c}
+            <b className="wm-lit">{c}</b>
+          </i>
         ))}
         <svg ref={back} className="wm-bolt wm-bolt-back" aria-hidden>
           <defs>

@@ -411,7 +411,11 @@ kbd { font-family: var(--font); font-size: 11px; font-weight: 600; color: var(--
 .wm-k i:nth-child(3) { transition-delay: 80ms; } .wm-k i:nth-child(4) { transition-delay: 120ms; }
 .wm-k i:nth-child(5) { transition-delay: 160ms; }
 /* Lightning through the wordmark (components/ui/Wordmark.tsx) */
-.wm-k { position: relative; --bolt: #2F6BFF; --bolt-glow: rgba(76, 125, 245, .55); --bolt-hot: #FFFFFF; }
+.wm-k { position: relative; --bolt: #2F6BFF; --bolt-glow: rgba(76, 125, 245, .55); --bolt-hot: #FFFFFF;
+  --lit: #2F63F0; --lit-glow: rgba(60, 110, 245, .55); --lit-glow-2: rgba(60, 110, 245, .22); }
+/* The lit copy of each letter, revealed left to right as the bolt crosses it, then faded back to ink. */
+.wm-lit { position: absolute; left: 0; top: 0; font: inherit; color: var(--lit); text-shadow: 0 0 6px var(--lit-glow), 0 0 14px var(--lit-glow-2);
+  opacity: 0; pointer-events: none; user-select: none; clip-path: inset(-150% 100% -150% -150%); }
 .wm-k > i { position: relative; z-index: 1; }
 .wm-bolt { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
 .wm-bolt-back { z-index: 0; }
@@ -422,7 +426,7 @@ kbd { font-family: var(--font); font-size: 11px; font-weight: 600; color: var(--
 .wm-bolt .b-hot { stroke: var(--bolt-hot); stroke-width: .7; }
 .wm-bolt .b-trace { stroke: var(--bolt); stroke-width: .8; }
 .wm-spark { position: absolute; left: 0; right: 0; bottom: -4px; height: 1.5px; border-radius: 2px; background: linear-gradient(90deg, transparent, var(--bolt, #2F6BFF) 40%, #9DB6FF); transform: scaleX(0); transform-origin: left; opacity: 0; pointer-events: none; }
-@media (prefers-reduced-motion: reduce) { .wm-bolt, .wm-spark { display: none; } }
+@media (prefers-reduced-motion: reduce) { .wm-bolt, .wm-spark, .wm-lit { display: none; } }
 .wm-e i:nth-child(n) { transition-delay: calc(var(--d, 0) * 22ms + 120ms); }
 .footer .brand .wm-k { font-size: 22px; }
 .footer .brand .wm-e { font-size: 10.5px; }
