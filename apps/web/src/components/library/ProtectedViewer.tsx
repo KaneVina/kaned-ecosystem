@@ -3,6 +3,8 @@ import { FileText, Maximize2, ShieldCheck } from 'lucide-react';
 import { linkProviderLabel, type DocumentDetailDto, type LinkProviderId, type ProtectedEmbedDto } from '@kaned/shared';
 import { ProviderIcon } from './LinkViewer';
 import { cn } from '@/lib/cn';
+import { Watermark } from './Watermark';
+import { DocxView } from './DocxView';
 
 /**
  * An internal document, shown through Kaned's own embed page (see the API's
@@ -12,6 +14,9 @@ import { cn } from '@/lib/cn';
 export function ProtectedViewer({ doc, embed }: { doc: DocumentDetailDto; embed: ProtectedEmbedDto }) {
   const box = useRef<HTMLDivElement>(null);
   const [loaded, setLoaded] = useState(false);
+  /** Word files are drawn in the page; if that fails, the server's reading page takes over. */
+  const [docxFailed, setDocxFailed] = useState(false);
+  const asDocx = Boolean(embed.docx) && !docxFailed;
   const isFile = embed.provider === 'file';
   const provider = isFile ? null : (embed.provider as LinkProviderId);
 
@@ -40,16 +45,21 @@ export function ProtectedViewer({ doc, embed }: { doc: DocumentDetailDto; embed:
             <span className="spin" />
             Đang mở {embed.label.toLowerCase()}…
           </div>
-          <iframe
-            src={embed.src}
-            title={doc.title}
-            // The browser's PDF viewer refuses to run sandboxed; files get their own guards in the embed page.
-            sandbox={isFile ? undefined : 'allow-scripts allow-same-origin allow-presentation'}
-            allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-            allowFullScreen
-            referrerPolicy="strict-origin-when-cross-origin"
-            onLoad={() => setLoaded(true)}
-          />
+          {asDocx ? (
+            <DocxView src={embed.docx!} onReady={() => setLoaded(true)} onFail={() => setDocxFailed(true)} />
+          ) : (
+            <iframe
+              src={embed.src}
+              title={doc.title}
+              // The browser's PDF viewer refuses to run sandboxed; files get their own guards in the embed page.
+              sandbox={isFile ? undefined : 'allow-scripts allow-same-origin allow-presentation'}
+              allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+              allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
+              onLoad={() => setLoaded(true)}
+            />
+          )}
+          <Watermark />
         </div>
       </div>
       <p className="lv-note is-internal">

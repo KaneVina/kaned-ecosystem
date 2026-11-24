@@ -3,6 +3,7 @@ import { marked } from 'marked';
 import { Download, ExternalLink, FileText } from 'lucide-react';
 import type { DocumentDetailDto } from '@kaned/shared';
 import { cn } from '@/lib/cn';
+import { Watermark } from './Watermark';
 
 const OFFICE = new Set(['DOCX', 'DOC', 'PPTX', 'PPT', 'XLSX', 'XLS']);
 
@@ -127,6 +128,7 @@ export function FileViewer({ doc, embedUrl, onDownload }: { doc: DocumentDetailD
         ) : (
           <iframe src={embedUrl} title={doc.title} onLoad={() => setLoaded(true)} />
         )}
+        {doc.internal && <Watermark />}
       </div>
     </section>
   );

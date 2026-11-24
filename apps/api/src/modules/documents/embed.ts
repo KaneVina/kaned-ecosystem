@@ -56,7 +56,8 @@ const FILE_LABEL: Record<string, string> = { PDF: 'Tệp PDF', DOCX: 'Tài liệ
 
 /** The viewer description for a protected document, or null when it cannot be shown inside Kaned. */
 export function protectedEmbed(row: Row, userId: string): ProtectedEmbedDto | null {
-  const src = `/api/embed/${embedToken(row.id, userId)}`;
+  const token = embedToken(row.id, userId);
+  const src = `/api/embed/${token}`;
   if (row.format === 'LINK') {
     const p = detectLinkProvider(row.fileUrl);
     if (!p.embedUrl) return null;
@@ -65,7 +66,14 @@ export function protectedEmbed(row: Row, userId: string): ProtectedEmbedDto | nu
   }
   if (row.format === 'GITHUB') return null;
   if (row.format === 'PDF' || OFFICE.has(row.format) || row.format === 'HTML' || row.format === 'MD' || row.format === 'DRAWIO') {
-    return { src, ratio: 1 / 1.3, provider: 'file', label: FILE_LABEL[row.format] ?? row.format, tall: false };
+    return {
+      src,
+      ratio: 1 / 1.3,
+      provider: 'file',
+      label: FILE_LABEL[row.format] ?? row.format,
+      tall: false,
+      ...(row.format === 'DOCX' ? { docx: `/api/embed/${token}/file` } : {}),
+    };
   }
   return null;
 }

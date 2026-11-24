@@ -4,6 +4,7 @@ import { detectLinkProvider, type DocumentDetailDto, type DocumentSummaryDto, ty
 import { DocPage, toPaperDoc } from '@/components/paper/Paper';
 import { useLinkPreview } from '@/features/library/queries';
 import { cn } from '@/lib/cn';
+import { Watermark } from './Watermark';
 import { DriveFolder } from '@/components/library/DriveFolder';
 
 /** "Video YouTube", "Danh sách phát YouTube", "Thiết kế Canva"… */
@@ -28,7 +29,7 @@ function sharingNote(p: LinkProvider) {
 }
 
 /** The provider's own player or viewer in a frame of the right shape. */
-export function EmbedFrame({ provider, title, compact }: { provider: LinkProvider; title: string; compact?: boolean }) {
+export function EmbedFrame({ provider, title, compact, mark }: { provider: LinkProvider; title: string; compact?: boolean; mark?: boolean }) {
   const [loaded, setLoaded] = useState(false);
   return (
     <div className={cn('lv-stage', provider.kind === 'short' && 'is-tall', compact && 'is-compact')}>
@@ -47,6 +48,7 @@ export function EmbedFrame({ provider, title, compact }: { provider: LinkProvide
           referrerPolicy="strict-origin-when-cross-origin"
           onLoad={() => setLoaded(true)}
         />
+        {mark && <Watermark />}
       </div>
     </div>
   );
@@ -91,7 +93,7 @@ export function LinkViewer({ doc, url, onOpen }: { doc: DocumentDetailDto | Docu
       ) : provider.folderId ? (
         <DriveFolder folderId={provider.folderId} rootName={doc.title} fallbackEmbed={provider.embedUrl!} />
       ) : provider.embedUrl ? (
-        <EmbedFrame provider={provider} title={doc.title} />
+        <EmbedFrame provider={provider} title={doc.title} mark={'internal' in doc && doc.internal} />
       ) : (
         <div className="lv-card">
           <div className="lv-paper" aria-hidden>

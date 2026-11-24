@@ -206,6 +206,8 @@ export interface ProtectedEmbedDto {
   label: string;
   /** Vertical video (YouTube Shorts). */
   tall: boolean;
+  /** Word files: where the page may fetch the file to draw it in its original layout (src is the fallback). */
+  docx?: string;
 }
 
 export interface DocumentDetailDto extends DocumentSummaryDto {
