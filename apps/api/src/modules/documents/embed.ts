@@ -1,6 +1,7 @@
 import { deflateRawSync } from 'node:zlib';
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { marked } from 'marked';
+import mammoth from 'mammoth';
 import { detectLinkProvider, parseYoutube, type ProtectedEmbedDto } from '@kaned/shared';
 import { env } from '../../env.js';
 import { storage } from '../../lib/storage.js';
@@ -97,6 +98,52 @@ export function blockedPage(message: string): EmbedPage {
   };
 }
 
+/**
+ * Office's online viewer posts a form into its own inner frame to load the file, so its sandbox
+ * needs allow-forms; without it the frame stays blank. Still no pop-ups and no top navigation.
+ */
+const officeFrame = (src: string) =>
+  `<iframe class="full" src="${esc(src)}" sandbox="allow-scripts allow-same-origin allow-forms allow-presentation" allow="fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+
+/* Word files are turned into a reading page on Kaned's server, so they show without Microsoft's
+   viewer and the file's address never reaches the browser. */
+const DOCX_MAX_BYTES = 30 * 1024 * 1024;
+const DOCX_MAX_HTML = 3_500_000; // keep the response well under the host's size limit
+const docxCache = new Map<string, { at: number; html: string }>();
+
+async function docxToHtml(key: string, url: string): Promise<string> {
+  const hit = docxCache.get(key);
+  if (hit && Date.now() - hit.at < 30 * 60_000) return hit.html;
+  const r = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+  if (!r.ok) throw new Error(String(r.status));
+  if (Number(r.headers.get('content-length') || 0) > DOCX_MAX_BYTES) throw new Error('too large');
+  const buffer = Buffer.from(await r.arrayBuffer());
+  const styleMap = ["p[style-name='Title'] => h1.title:fresh", "p[style-name='Subtitle'] => p.subtitle:fresh"];
+  let { value } = await mammoth.convertToHtml({ buffer }, { styleMap });
+  if (value.length > DOCX_MAX_HTML) {
+    // Pictures make the page too heavy to send: keep the text, mark where pictures were.
+    ({ value } = await mammoth.convertToHtml(
+      { buffer },
+      { styleMap, convertImage: mammoth.images.imgElement(async () => ({ src: '', alt: 'Hình ảnh (quá lớn để hiển thị ở đây)' })) },
+    ));
+  }
+  // Links stay readable but do not navigate: the frame is a reading surface only.
+  const html = value.replace(/<a\b[^>]*>/g, '<span class="a">').replace(/<\/a>/g, '</span>');
+  docxCache.set(key, { at: Date.now(), html });
+  if (docxCache.size > 40) docxCache.delete(docxCache.keys().next().value!);
+  return html;
+}
+
+const DOC_CSS = `html{background:#EEF1F6}body{margin:0;padding:28px 16px 48px;font:16px/1.7 "Segoe UI",system-ui,-apple-system,Roboto,sans-serif;color:#121826;-webkit-user-select:none;user-select:none}
+.page{max-width:820px;margin:0 auto;background:#fff;border-radius:6px;box-shadow:0 1px 2px rgba(18,24,38,.06),0 8px 30px -12px rgba(18,24,38,.18);padding:56px 64px;box-sizing:border-box}
+h1,h2,h3,h4{line-height:1.3;margin:1.4em 0 .5em;color:#0E1424}h1{font-size:1.75em}h2{font-size:1.4em}h3{font-size:1.18em}h4{font-size:1.05em}
+h1:first-child,h2:first-child,p:first-child{margin-top:0}h1.title{text-align:center;font-size:2em}p.subtitle{text-align:center;color:#687184;margin-top:-.4em}
+p{margin:0 0 .85em}ul,ol{margin:0 0 .9em;padding-left:1.5em}li{margin:.2em 0}
+img{max-width:100%;height:auto;display:block;margin:12px auto;border-radius:4px}img[src=""]{display:inline-block;padding:10px 14px;background:#EFF2F7;color:#687184;font-size:13px;border-radius:6px}
+table{border-collapse:collapse;width:100%;margin:12px 0 18px;font-size:.94em}td,th{border:1px solid #D2D8E3;padding:7px 10px;vertical-align:top}td p,th p{margin:0 0 .3em}td p:last-child,th p:last-child{margin:0}th{background:#F5F7FB;text-align:left}
+.a{color:#1C3BBF;text-decoration:underline;text-decoration-color:#C3D0FC}blockquote{margin:0 0 1em;padding:4px 14px;border-left:3px solid #C3D0FC;color:#3D4657}
+@media (max-width:640px){body{padding:12px 8px 32px;font-size:15px}.page{padding:26px 20px}}`;
+
 /** A frame that cannot open pop-ups, navigate Kaned, download or copy to the clipboard. */
 const sandboxed = (src: string) =>
   `<iframe class="full" src="${esc(src)}" sandbox="allow-scripts allow-same-origin allow-presentation" allow="fullscreen; autoplay; encrypted-media" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
@@ -126,8 +173,18 @@ export async function renderEmbed(row: Row): Promise<EmbedPage> {
     // The browser's PDF viewer cannot run in a sandbox; its toolbar (download, print) is hidden instead.
     return block(`<iframe class="full" src="${esc(url)}#toolbar=0&navpanes=0&view=FitH"></iframe>`);
   }
+  if (row.format === 'DOCX') {
+    try {
+      const body = await docxToHtml(`${row.id}:${row.fileUrl}`, url);
+      const inner = `<!doctype html><meta charset="utf-8"><style>${DOC_CSS}</style><div class="page">${body || '<p>Tài liệu trống.</p>'}</div>`;
+      return block(`<iframe class="full" sandbox="" srcdoc="${esc(inner)}"></iframe>`);
+    } catch {
+      // Could not read it ourselves (damaged or unusual file): fall back to Office's viewer.
+      return block(officeFrame(`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`));
+    }
+  }
   if (OFFICE.has(row.format)) {
-    return block(sandboxed(`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`));
+    return block(officeFrame(`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`));
   }
   if (row.format === 'DRAWIO') {
     try {
