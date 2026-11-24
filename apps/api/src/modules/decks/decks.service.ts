@@ -88,9 +88,21 @@ function filters(query: DeckListQuery, publishedOnly: boolean): SQL | undefined 
 }
 
 /** Schedule counts are worked out on every read, because questions fall due as time passes. */
+/** Vietnam-time calendar day of a timestamp in ms. */
+const vnDay = (ms: number) => new Date(ms + 7 * 3600_000).toISOString().slice(0, 10);
+
 const progressSummary = (p: { state: DeckProgress; seen: number; ok: number; bad: number; marked: number; updatedAt: Date }): DeckProgressSummary => {
   const k = memoryCounts(p.state.st);
+  const since = Date.now() - 60 * 86_400_000;
+  const days = new Set<string>();
+  for (const r of Object.values(p.state.st)) if (r.t && r.t >= since) days.add(vnDay(r.t));
+  for (const e of p.state.exams) if (e.d >= since) days.add(vnDay(e.d));
+  const exams = p.state.exams ?? [];
   return {
+    dueToday: k.dueToday,
+    days: [...days].sort(),
+    bestScore: exams.length ? Math.max(...exams.map((e) => e.score)) : null,
+    exams: exams.length,
     seen: p.seen,
     ok: p.ok,
     bad: p.bad,

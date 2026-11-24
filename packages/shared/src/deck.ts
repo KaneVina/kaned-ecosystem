@@ -527,6 +527,13 @@ export interface DeckProgressSummary {
   srsBad: number;
   marked: number;
   updatedAt: string;
+  /** Remembered questions whose review falls due by the end of today. */
+  dueToday: number;
+  /** Days (YYYY-MM-DD, Vietnam time) in the last 60 with any answer or practice exam. */
+  days: string[];
+  /** Best practice-exam score out of 10, null before the first exam. */
+  bestScore: number | null;
+  exams: number;
 }
 
 export interface DeckSummaryDto {
