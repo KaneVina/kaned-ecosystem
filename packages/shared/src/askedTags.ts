@@ -21,8 +21,11 @@ export interface AskedTag {
 
 const SEASON: Record<string, number> = { SP: 1, SU: 2, FA: 3 };
 const GROUP = /^\s*\[([^\]\[]*)\]/;
-/** One exam inside a bracket: SU22_B10, FA23_B10_RE, SP26. */
-const ITEM = /^([A-Za-z]{2})\s?(\d{2})(?:\s*[_\- ]?\s*[Bb](?:lock)?\s?(\d+))?(?:\s*[_\- ]?\s*(RE|RETAKE|RESIT))?$/i;
+/**
+ * One exam inside a bracket: a term code (SU25) followed by any number of parts:
+ * SU22_B10, FA23_B10_RE, SP25_B10_C2, SU24_B10_2, SU23_TE2, "SU26 Block 5".
+ */
+const ITEM = /^([A-Za-z]{2})\s?(\d{2})((?:\s*[_\- ]?\s*[A-Za-z0-9]+)*)$/;
 
 /** Time order of a term code such as "SU26"; 0 when it does not look like one. */
 export function termRank(term: string): number {
@@ -46,9 +49,16 @@ export function splitAskedTags(text: string): { tags: AskedTag[]; text: string }
     if (!items.length || parsed.some((x) => !x)) break;
     for (const p of parsed) {
       const term = `${p![1].toUpperCase()}${p![2]}`;
-      const block = p![3] ? Number(p![3]) : null;
-      const retake = Boolean(p![4]);
-      const code = `${term}${block ? `_B${block}` : ''}${retake ? '_RE' : ''}`;
+      // "Block 5" / "B5" → B5; everything else is kept as written, upper-case.
+      const parts = p![3]
+        .replace(/block\s*(\d+)/gi, 'B$1')
+        .split(/[\s_\-]+/)
+        .filter(Boolean)
+        .map((x) => x.toUpperCase());
+      const blockPart = parts.find((x) => /^B\d+$/.test(x));
+      const block = blockPart ? Number(blockPart.slice(1)) : null;
+      const retake = parts.some((x) => /^(RE|RETAKE|RESIT)$/.test(x));
+      const code = [term, ...parts.map((x) => (/^(RETAKE|RESIT)$/.test(x) ? 'RE' : x))].join('_');
       if (!seen.has(code)) seen.set(code, { code, term, block, rank: termRank(term), label: code, retake });
     }
     rest = rest.slice(m[0].length);
@@ -78,6 +88,6 @@ export function matchesTermFilter(tags: AskedTag[], f: TermFilter | null): boole
 /** "only:SU26" / "from:SU26" ⇄ filter, so it can sit in a <select>. */
 export const termFilterKey = (f: TermFilter | null) => (f ? `${f.mode}:${f.code}` : '');
 export function parseTermFilter(key: string): TermFilter | null {
-  const m = /^(only|from):([A-Z]{2}\d{2}(?:_B\d+)?(?:_RE)?)$/.exec(key);
+  const m = /^(only|from):([A-Z]{2}\d{2}(?:_[A-Z0-9]+)*)$/.exec(key);
   return m ? { mode: m[1] as 'only' | 'from', code: m[2] } : null;
 }

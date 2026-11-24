@@ -48,3 +48,15 @@ test('one bracket with several exams, retakes included', () => {
   assert.deepEqual(parseTermFilter('only:FA23_B10_RE'), { mode: 'only', code: 'FA23_B10_RE' });
   assert.equal(stripAskedTags('[Note, remember] keep'), '[Note, remember] keep');
 });
+
+test('any suffix after the term is part of the exam code', () => {
+  const r = splitAskedTags('[SU25_B10_RE, SP25_B10_C2, SP25_B10, SU24_B10_2, SP24_B10_RE, SU23_TE2] As you plan your project');
+  assert.equal(r.text, 'As you plan your project');
+  assert.equal(r.tags.length, 6);
+  assert.deepEqual(new Set(r.tags.map((t) => t.code)), new Set(['SU25_B10_RE', 'SP25_B10_C2', 'SP25_B10', 'SU24_B10_2', 'SP24_B10_RE', 'SU23_TE2']));
+  assert.equal(r.tags.find((t) => t.code === 'SP25_B10_C2')!.block, 10);
+  assert.equal(r.tags.find((t) => t.code === 'SU23_TE2')!.block, null);
+  assert.deepEqual(parseTermFilter('only:SP25_B10_C2'), { mode: 'only', code: 'SP25_B10_C2' });
+  assert.equal(splitAskedTags('[SU26 Block 5] Q').tags[0].code, 'SU26_B5');
+  assert.equal(stripAskedTags('[ABC] keep'), '[ABC] keep');
+});
