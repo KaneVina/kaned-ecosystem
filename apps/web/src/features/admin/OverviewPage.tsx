@@ -17,7 +17,7 @@ const STATUS_COLOR: Record<DocumentStatus, string> = {
   PUBLISHED: '#17865B',
   PENDING: '#E39A1F',
   REJECTED: '#CF3A31',
-  REMOVED: '#A2A1AF',
+  REMOVED: '#A1A6AF',
 };
 
 const ACTION_ICON: Record<string, { icon: LucideIcon; tone?: 'good' | 'bad' }> = {

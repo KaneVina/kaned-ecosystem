@@ -1,6 +1,6 @@
 /* ── Tra cứu giảng viên ── */
 .lec-body { padding-top: 20px; padding-bottom: 64px; }
-.lec-avatar { flex: none; display: inline-grid; place-items: center; line-height: 1; text-align: center; padding: 0; border-radius: 50%; font-weight: 700; letter-spacing: .01em; color: var(--uni, var(--violet)); background: color-mix(in srgb, var(--uni, var(--violet)) 13%, #fff); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--uni, var(--violet)) 22%, transparent); }
+.lec-avatar { flex: none; display: inline-grid; place-items: center; line-height: 1; text-align: center; padding: 0; border-radius: 50%; font-weight: 700; letter-spacing: .01em; color: var(--uni, var(--brand)); background: color-mix(in srgb, var(--uni, var(--brand)) 13%, #fff); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--uni, var(--brand)) 22%, transparent); }
 .lec-code { display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 6px; background: var(--paper-2); border: 1px solid var(--line); color: var(--ink-2); font-size: 12px; font-weight: 600; }
 .lec-none { margin: 0; color: var(--ink-3); font-size: 14px; }
 
@@ -10,8 +10,8 @@
 .lec-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; transition: opacity .2s; }
 .lec-grid.is-busy { opacity: .6; }
 .lec-card { position: relative; display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: 14px; background: var(--paper); border: 1px solid var(--line); color: inherit; text-decoration: none; transition: border-color .15s, box-shadow .15s, transform .15s; }
-.lec-card:hover { border-color: var(--line-2); box-shadow: 0 6px 18px rgba(20, 16, 50, .07); transform: translateY(-1px); }
-.lec-card:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+.lec-card:hover { border-color: var(--line-2); box-shadow: 0 6px 18px rgba(15, 23, 51, .07); transform: translateY(-1px); }
+.lec-card:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .lec-card-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
 .lec-card-main > b { font-size: 15.5px; padding-right: 52px; }
 .lec-card-sub { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13.5px; color: var(--ink-2); }
@@ -42,7 +42,7 @@
 .lec-contacts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .lec-contacts li { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .lec-contacts a { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-weight: 500; text-decoration: none; }
-.lec-contacts a:hover { color: var(--violet); text-decoration: underline; }
+.lec-contacts a:hover { color: var(--brand); text-decoration: underline; }
 .lec-c-ic { flex: none; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 9px; background: var(--paper-2); color: var(--ink-2); }
 .lec-copy { flex: none; width: 32px; height: 32px; }
 
@@ -54,7 +54,7 @@
 .lec-link.is-github .lec-link-ic { background: #24292F; color: #fff; }
 .lec-link.is-linkedin .lec-link-ic { background: #E8F1FB; color: #0A66C2; }
 .lec-link.is-scholar .lec-link-ic { background: #E9F0FE; color: #4285F4; }
-.lec-link.is-youtube .lec-link-ic { background: #FDECEC; color: #D92D20; }
+.lec-link.is-youtube .lec-link-ic { background: var(--red-50); color: var(--red); }
 .lec-link.is-facebook .lec-link-ic { background: #E7F0FE; color: #1877F2; }
 .lec-link.is-researchgate .lec-link-ic { background: #E6F7F4; color: #00A88F; }
 .lec-link.is-orcid .lec-link-ic { background: #F1F8E4; color: #6A9B1F; }
@@ -79,18 +79,18 @@
 .lec-sub-h { margin: 0 0 8px; color: var(--ink-2); }
 
 /* document page */
-.lec-name-btn { display: inline-flex; align-items: center; gap: 7px; padding: 2px 6px 2px 2px; margin: -2px 0 -2px -2px; border: 0; border-radius: 999px; background: none; color: var(--violet); font: inherit; font-weight: 600; cursor: pointer; text-align: left; }
+.lec-name-btn { display: inline-flex; align-items: center; gap: 7px; padding: 2px 6px 2px 2px; margin: -2px 0 -2px -2px; border: 0; border-radius: 999px; background: none; color: var(--brand); font: inherit; font-weight: 600; cursor: pointer; text-align: left; }
 .lec-name-btn:hover { background: var(--paper-2); }
-.lec-name-btn:focus-visible { outline: 2px solid var(--violet); outline-offset: 1px; }
-.lec-mini, .facts dd .lec-mini { flex: none; width: 24px; height: 24px; display: inline-grid; place-items: center; margin: 0; padding: 0; border-radius: 50%; background: color-mix(in srgb, var(--violet) 14%, #fff); color: var(--violet); font-size: 10px; font-weight: 700; line-height: 1; letter-spacing: 0; text-align: center; font-variant-numeric: lining-nums; }
+.lec-name-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.lec-mini, .facts dd .lec-mini { flex: none; width: 24px; height: 24px; display: inline-grid; place-items: center; margin: 0; padding: 0; border-radius: 50%; background: color-mix(in srgb, var(--brand) 14%, #fff); color: var(--brand); font-size: 10px; font-weight: 700; line-height: 1; letter-spacing: 0; text-align: center; font-variant-numeric: lining-nums; }
 
 /* upload form field */
 .lec-input { position: relative; }
 .lec-input.is-linked .input { padding-right: 168px; border-color: color-mix(in srgb, var(--green) 55%, var(--line)); }
-.lec-linked { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 4px 0 9px; border-radius: 999px; background: var(--green-50); color: #13703F; font-size: 12px; font-weight: 600; }
+.lec-linked { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 4px 0 9px; border-radius: 999px; background: var(--green-50); color: var(--green); font-size: 12px; font-weight: 600; }
 .lec-unlink { width: 20px; height: 20px; display: grid; place-items: center; border: 0; border-radius: 50%; background: none; color: inherit; cursor: pointer; }
 .lec-unlink:hover { background: rgba(0, 0, 0, .08); }
-.lec-suggest { position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 6px); margin: 0; padding: 6px; list-style: none; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); box-shadow: 0 14px 34px rgba(20, 16, 50, .14); max-height: 340px; overflow: auto; }
+.lec-suggest { position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 6px); margin: 0; padding: 6px; list-style: none; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); box-shadow: 0 14px 34px rgba(15, 23, 51, .14); max-height: 340px; overflow: auto; }
 .lec-suggest li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 9px; cursor: pointer; }
 .lec-suggest li.is-active { background: var(--paper-2); }
 .lec-s-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
@@ -105,9 +105,9 @@
 .lf-link-err { grid-column: 2 / 4; margin: -2px 0 0; display: block; }
 .lf-import { display: flex; flex-direction: column; gap: 12px; }
 .lf-import .textarea { font-size: 13px; }
-.lf-sum { margin: 0; font-size: 13.5px; color: #13703F; font-weight: 600; }
-.lf-sum.has-issues { color: #8A5A0E; }
-.lf-issues { margin: 0; padding-left: 18px; font-size: 13px; color: #8C2A25; }
+.lf-sum { margin: 0; font-size: 13.5px; color: var(--green); font-weight: 600; }
+.lf-sum.has-issues { color: var(--amber-700); }
+.lf-issues { margin: 0; padding-left: 18px; font-size: 13px; color: var(--red-600); }
 
 @media (max-width: 900px) {
   .lec-page { grid-template-columns: 1fr; }
@@ -133,6 +133,6 @@
 
 .lec-kind { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px; font-size: 11.5px; font-weight: 700; }
 .lec-kind.is-lecturer { background: #E6F4F1; color: #0F6B5C; }
-.lec-kind.is-staff { background: #EEF0FF; color: #3B35A8; }
+.lec-kind.is-staff { background: #EEF0FF; color: #1C3BBF; }
 .lec-card-foot > .lec-kind + span::before { display: none; }
 .lec-seg { flex: none; }

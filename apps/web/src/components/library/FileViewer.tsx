@@ -48,7 +48,7 @@ function useDrawio(doc: DocumentDetailDto) {
 }
 
 /** The uploaded file itself, inside the page. */
-const PAGE_CSS = `body{font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#1c1a2b;max-width:820px;margin:0 auto;padding:28px 22px}img{max-width:100%}pre{background:#f4f3f8;padding:12px;border-radius:8px;overflow:auto}code{font-family:ui-monospace,Consolas,monospace;font-size:.92em}table{border-collapse:collapse}td,th{border:1px solid #ddd;padding:6px 10px}h1,h2,h3{line-height:1.25}a{color:#4433b4}`;
+const PAGE_CSS = `body{font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#1a202b;max-width:820px;margin:0 auto;padding:28px 22px}img{max-width:100%}pre{background:#f3f5f8;padding:12px;border-radius:8px;overflow:auto}code{font-family:ui-monospace,Consolas,monospace;font-size:.92em}table{border-collapse:collapse}td,th{border:1px solid #ddd;padding:6px 10px}h1,h2,h3{line-height:1.25}a{color:#2448d8}`;
 
 /**
  * HTML and Markdown are fetched and shown in a sandboxed frame: scripts in an

@@ -57,8 +57,8 @@ export function FileIcon({ format, size, className }: { format: FileFormat; size
   return (
     <span className={cn('file-icon', size && `fi-${size}`, className)} aria-hidden>
       <svg viewBox="0 0 40 48">
-        <path d="M7 1.5h19.5L37.5 12.5V44a2.5 2.5 0 0 1-2.5 2.5H7A2.5 2.5 0 0 1 4.5 44V4A2.5 2.5 0 0 1 7 1.5z" fill="#fff" stroke="#D9D6E4" />
-        <path d="M26.5 1.5V10a2.5 2.5 0 0 0 2.5 2.5h8.5" fill="#F4F3F8" stroke="#D9D6E4" />
+        <path d="M7 1.5h19.5L37.5 12.5V44a2.5 2.5 0 0 1-2.5 2.5H7A2.5 2.5 0 0 1 4.5 44V4A2.5 2.5 0 0 1 7 1.5z" fill="#fff" stroke="#D6DBE4" />
+        <path d="M26.5 1.5V10a2.5 2.5 0 0 0 2.5 2.5h8.5" fill="#F3F5F8" stroke="#D6DBE4" />
         <rect x="0" y="25" width="31" height="14" rx="3" fill={FILE_FORMAT_COLORS[format]} />
         {format === 'GITHUB' ? (
           <g transform="translate(9.6 26.1) scale(.49)" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">

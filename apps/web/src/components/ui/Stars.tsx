@@ -38,7 +38,7 @@ export function StarDefs() {
       <defs>
         <linearGradient id="halfStar">
           <stop offset="50%" stopColor="#E7A033" />
-          <stop offset="50%" stopColor="#E3E0EA" />
+          <stop offset="50%" stopColor="#E0E3EA" />
         </linearGradient>
       </defs>
     </svg>

@@ -109,7 +109,7 @@ export function AssessmentEditor({ value, onChange }: { value: AssessmentItem[];
                   <button type="button" className={cn('ase-retake', it.retake && 'on')} aria-pressed={Boolean(it.retake)} title="Được thi lại lần 2 — điểm lần 2 thay cho lần 1" onClick={() => patch(it.id, { retake: !it.retake })}>
                     <RotateCcw className="ic ic-xs" />
                   </button>
-                  <button type="button" className="icon-btn" aria-label={`Xoá ${it.name}`} onClick={() => onChange((l) => l.filter((x) => x.id !== it.id))}>
+                  <button type="button" className="icon-btn is-danger" aria-label={`Xoá ${it.name}`} onClick={() => onChange((l) => l.filter((x) => x.id !== it.id))}>
                     <Trash2 className="ic ic-sm" />
                   </button>
                 </div>

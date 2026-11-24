@@ -330,7 +330,7 @@ export function PassCriteriaEditor({ value, onChange }: { value: PassCriterion[]
                     onChange={(e) => replace({ ...c, label: e.target.value })}
                   />
                 )}
-                <button type="button" className="icon-btn pce-del" aria-label={`Xoá điều kiện ${describeCriterion(c)}`} onClick={() => onChange((list) => list.filter((x) => x.id !== c.id))}>
+                <button type="button" className="icon-btn is-danger pce-del" aria-label={`Xoá điều kiện ${describeCriterion(c)}`} onClick={() => onChange((list) => list.filter((x) => x.id !== c.id))}>
                   <Trash2 className="ic ic-sm" />
                 </button>
               </li>

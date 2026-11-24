@@ -142,7 +142,7 @@ function RuleCard({
         <span className="re-preview" title={preview}>
           {preview}
         </span>
-        <button type="button" className="icon-btn" style={{ width: 30, height: 30 }} onClick={onRemove} aria-label="Bỏ điều kiện">
+        <button type="button" className="icon-btn is-danger" style={{ width: 30, height: 30 }} onClick={onRemove} aria-label="Bỏ điều kiện">
           <Trash2 className="ic ic-sm" />
         </button>
       </div>

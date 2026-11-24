@@ -296,7 +296,7 @@ export function AdmitCard({ s, info }: { s: JoinSessionDto; info: CandidateInfo 
   const initials = useMemo(() => info.fullName.trim().split(/\s+/).slice(-2).map((w) => w[0]).join('').toUpperCase() || '?', [info.fullName]);
   return (
     <aside className="vec-admit" aria-label="Thẻ dự thi">
-      <div className="vec-admit-top" style={{ ['--uni' as string]: s.universityColor ?? '#4433B4' }}>
+      <div className="vec-admit-top" style={{ ['--uni' as string]: s.universityColor ?? '#2448D8' }}>
         <ScrollText className="ic" />
         <span>THẺ DỰ THI</span>
         <b>{formatRoomCode(s.roomCode)}</b>

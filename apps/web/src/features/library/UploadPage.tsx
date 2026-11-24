@@ -564,7 +564,7 @@ export function UploadPage() {
                   {progress === null && (
                     <button
                       type="button"
-                      className="icon-btn"
+                      className="icon-btn is-danger"
                       onClick={() => setFile(null)}
                       aria-label="Bỏ tệp"
                     >

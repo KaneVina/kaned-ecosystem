@@ -51,7 +51,7 @@ function Footer({ onClose, busy, label }: { onClose: () => void; busy: boolean; 
 
 /* ───────────────────────────── university ───────────────────────────── */
 
-const PRESETS = ['#F26F21', '#1E4DB7', '#0F6E3F', '#B3261E', '#4433B4', '#0E7C86', '#9C2A6B', '#1C1A2B'];
+const PRESETS = ['#F26F21', '#1E4DB7', '#0F6E3F', '#B3261E', '#2448D8', '#0E7C86', '#9C2A6B', '#121826'];
 type UniIn = z.input<typeof universityInputSchema>;
 type UniOut = z.output<typeof universityInputSchema>;
 
@@ -79,7 +79,7 @@ export function UniversityForm({ open, onClose, university }: { open: boolean; o
             description: university.description ?? '',
             periods: university.periods ?? [],
           }
-        : { code: '', name: '', nameVi: '', city: '', region: 'south', kind: 'Public', foundedYear: '', color: '#4433B4', description: '' },
+        : { code: '', name: '', nameVi: '', city: '', region: 'south', kind: 'Public', foundedYear: '', color: '#2448D8', description: '' },
     );
     setPeriodsText((university?.periods ?? []).join(', '));
   }, [open, university, form]);
@@ -141,7 +141,7 @@ export function UniversityForm({ open, onClose, university }: { open: boolean; o
           </Field>
           <Field label="Màu nhận diện" htmlFor="u-color" required error={e.color?.message}>
             <div className="color-field">
-              <input id="u-color" type="color" value={color ?? '#4433B4'} onChange={(ev) => form.setValue('color', ev.target.value.toUpperCase(), { shouldDirty: true })} />
+              <input id="u-color" type="color" value={color ?? '#2448D8'} onChange={(ev) => form.setValue('color', ev.target.value.toUpperCase(), { shouldDirty: true })} />
               <div className="color-presets">
                 {PRESETS.map((p) => (
                   <button key={p} type="button" style={{ background: p }} aria-label={p} aria-pressed={color?.toUpperCase() === p} onClick={() => form.setValue('color', p, { shouldDirty: true })} />

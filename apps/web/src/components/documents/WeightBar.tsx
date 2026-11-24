@@ -2,8 +2,8 @@ import type { AssessmentItem } from '@kaned/shared';
 import { cn } from '@/lib/cn';
 
 /** Category colours, in order; final exams always take the deep violet. */
-const PALETTE = ['#6C8CFF', '#2FB4A0', '#F2A541', '#E36F8E', '#8E7CF0', '#4CB3E6', '#9BBE4A', '#D9825B'];
-export const FINAL_COLOR = '#4433B4';
+const PALETTE = ['#6C8CFF', '#2FB4A0', '#F2A541', '#E36F8E', '#6C93F5', '#4CB3E6', '#9BBE4A', '#D9825B'];
+export const FINAL_COLOR = '#2448D8';
 
 export function categoryColor(item: AssessmentItem, index: number) {
   return item.type === 'final' ? FINAL_COLOR : PALETTE[index % PALETTE.length];

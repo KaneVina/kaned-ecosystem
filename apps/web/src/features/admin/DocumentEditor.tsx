@@ -351,7 +351,7 @@ export function DocumentEditor({ doc, open, onClose, defaults }: { doc: AdminDoc
                   )}
                 </div>
                 {progress === null && (
-                  <button type="button" className="icon-btn" onClick={() => setFile(null)} aria-label="Bỏ tệp">
+                  <button type="button" className="icon-btn is-danger" onClick={() => setFile(null)} aria-label="Bỏ tệp">
                     <Trash2 className="ic ic-sm" />
                   </button>
                 )}

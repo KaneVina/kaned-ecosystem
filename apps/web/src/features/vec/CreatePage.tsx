@@ -221,7 +221,7 @@ export default function CreatePage() {
                       {filtered.map((d) => (
                         <li key={d.id}>
                           <button type="button" className={cn(deck?.id === d.id && 'is-on')} onClick={() => { setDeck(d); setMd(null); setChapters([]); }}>
-                            <i style={{ background: d.color ?? 'var(--violet)' }} />
+                            <i style={{ background: d.color ?? 'var(--brand)' }} />
                             <span><b>{d.title}</b><small>{d.subjectCode} · {d.questionCount} câu · {d.chapters.length} chương</small></span>
                             {deck?.id === d.id && <Check className="ic" />}
                           </button>
@@ -337,7 +337,7 @@ export default function CreatePage() {
 
           <aside className="vec-preview" aria-label="Xem trước thẻ dự thi">
             <div className="vec-admit">
-              <div className="vec-admit-top" style={{ ['--uni' as string]: deck?.color ?? '#4433B4' }}><span>THẺ DỰ THI</span><b>000 0000</b></div>
+              <div className="vec-admit-top" style={{ ['--uni' as string]: deck?.color ?? '#2448D8' }}><span>THẺ DỰ THI</span><b>000 0000</b></div>
               <div className="vec-admit-who"><span className="vec-avatar">SV</span><div><b>Họ và tên thí sinh</b><small>Mã sinh viên · Lớp</small></div></div>
               <h3>{title || 'Tiêu đề phiên thi'}</h3>
               <p className="vec-muted">{deck ? `${deck.subjectCode} · ${deck.subjectName}` : md ? md.name : 'Chưa chọn đề'}</p>

@@ -126,8 +126,7 @@ function EntrySheet({
           <>
             <button
               type="button"
-              className="btn btn-ghost"
-              style={{ color: 'var(--red)' }}
+              className="btn btn-ghost is-danger"
               onClick={() =>
                 setConfirm({
                   title: `Bỏ ${entry?.code} khỏi chương trình?`,

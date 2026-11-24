@@ -255,7 +255,7 @@ export function DashboardPage() {
             <div className="panel">
               <div className="panel-head">
                 <h2 className="t-h4">
-                  <BookMarked className="ic ic-sm" style={{ display: 'inline', verticalAlign: '-3px', marginRight: 6, color: 'var(--violet)' }} />
+                  <BookMarked className="ic ic-sm" style={{ display: 'inline', verticalAlign: '-3px', marginRight: 6, color: 'var(--brand)' }} />
                   Đã lưu gần đây
                 </h2>
                 <Link className="link" to="/app/saved">

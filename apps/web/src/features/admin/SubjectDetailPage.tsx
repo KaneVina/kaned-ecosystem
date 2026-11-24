@@ -277,7 +277,7 @@ export function SubjectDetailPage() {
     <>
       {subject ? (
         <div className="uni-hero">
-          <span className="adm-uni-mark" style={{ background: subject.university?.color ?? '#4433B4', width: 'auto', padding: '0 10px', minWidth: 44 }}>
+          <span className="adm-uni-mark" style={{ background: subject.university?.color ?? '#2448D8', width: 'auto', padding: '0 10px', minWidth: 44 }}>
             {subject.code}
           </span>
           <div style={{ minWidth: 0 }}>

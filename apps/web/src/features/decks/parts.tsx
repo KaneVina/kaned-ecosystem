@@ -407,7 +407,7 @@ export function confetti() {
   cv.width = innerWidth * dpr;
   cv.height = innerHeight * dpr;
   ctx.scale(dpr, dpr);
-  const cols = ['#4433B4', '#7B6CE0', '#E7A033', '#17865B', '#CF3A31'];
+  const cols = ['#2448D8', '#5B88F6', '#E7A033', '#17865B', '#CF3A31'];
   const P = Array.from({ length: 140 }, () => ({
     x: innerWidth / 2 + (Math.random() - 0.5) * 180,
     y: innerHeight * 0.35,
