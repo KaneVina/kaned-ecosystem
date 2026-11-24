@@ -1,9 +1,28 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath, URL } from 'node:url';
 
-export default defineConfig({
-  plugins: [react()],
+/**
+ * Puts the developer-tools guard (disable-devtool + src/guard/head-guard.js) inline at the very top of
+ * <head>, so it runs before anything else on the page.
+ */
+function headGuard(mode: string): Plugin {
+  const require = createRequire(import.meta.url);
+  const setting = loadEnv(mode, process.cwd(), 'VITE_').VITE_DEVTOOLS_GUARD ?? process.env.VITE_DEVTOOLS_GUARD ?? 'on';
+  return {
+    name: 'kaned-head-guard',
+    transformIndexHtml() {
+      const lib = readFileSync(require.resolve('disable-devtool'), 'utf8');
+      const guard = readFileSync(fileURLToPath(new URL('./src/guard/head-guard.js', import.meta.url)), 'utf8').replace('__GUARD_SETTING__', setting === 'off' ? 'off' : 'on');
+      return [{ tag: 'script', children: `${lib}\n${guard}`, injectTo: 'head' }];
+    },
+  };
+}
+
+export default defineConfig(({ mode }) => ({
+  plugins: [react(), headGuard(mode)],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -36,4 +55,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));
