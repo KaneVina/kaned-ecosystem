@@ -550,8 +550,24 @@ export interface DeckDetailDto extends DeckSummaryDto {
 
 export interface AdminDeckDto extends Omit<DeckSummaryDto, 'progress'> {
   learners: number;
+  /** Study sessions by all learners together. */
+  sessions: number;
   createdBy: { id: string; name: string } | null;
   createdAt: string;
+}
+
+/** One learner of a deck, for the admin's "who studied this" list. */
+export interface DeckLearnerDto {
+  user: { id: string; name: string; email: string; avatarUrl: string | null };
+  /** Study sessions (a 30-minute gap starts a new one). */
+  sessions: number;
+  /** Answers given in total. */
+  answers: number;
+  seen: number;
+  ok: number;
+  bad: number;
+  firstAt: string;
+  lastAt: string;
 }
 
 export interface AdminDeckDetailDto extends AdminDeckDto {

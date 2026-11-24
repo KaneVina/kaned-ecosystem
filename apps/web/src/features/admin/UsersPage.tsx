@@ -126,7 +126,7 @@ export function UsersPage() {
                           <span className="cell-title">
                             {u.name} {u.id === me?.id && <span className="chip-x" style={{ marginLeft: 6 }}>Bạn</span>}
                           </span>
-                          <span className="cell-sub">
+                          <span className="cell-sub u-mail">
                             {u.email}
                             {u.signInMethods.length > 0 && (
                               <span className="sign-in-methods" title="Cách đăng nhập">
@@ -141,14 +141,16 @@ export function UsersPage() {
                     <td>
                       <Presence online={u.online} lastSeenAt={u.lastSeenAt} compact />
                     </td>
-                    <td style={{ fontSize: 13.5 }}>
+                    <td className="u-school">
                       {u.university ? (
-                        <span className="cell-dot">
-                          <Swatch color={u.university.color} />
-                          {u.university.code}
-                          {u.major ? <span className="muted">· {u.major.name}</span> : null}
-                          {u.year ? <span className="muted">· năm {u.year}</span> : null}
-                        </span>
+                        <>
+                          <span className="cell-dot">
+                            <Swatch color={u.university.color} />
+                            {u.university.code}
+                            {u.year ? <span className="muted">· năm {u.year}</span> : null}
+                          </span>
+                          {u.major ? <small className="muted" title={u.major.name}>{u.major.name}</small> : null}
+                        </>
                       ) : (
                         <span className="muted">Chưa chọn trường</span>
                       )}

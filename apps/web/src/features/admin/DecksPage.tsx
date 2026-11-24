@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { CircleAlert, Download, Eye, EyeOff, FileText, FileUp, Layers, Pencil, Plus, Trash2, TriangleAlert, Upload } from 'lucide-react';
+import { CircleAlert, Download, Users, Eye, EyeOff, FileText, FileUp, Layers, Pencil, Plus, Trash2, TriangleAlert, Upload } from 'lucide-react';
 import { DECK_TEMPLATE, parseDeck, type AdminDeckDto, type DeckStatus } from '@kaned/shared';
 import { SearchSelect } from '@/components/ui/SearchSelect';
 import { useSubjects, useUniversities } from '@/features/catalog/queries';
@@ -8,8 +8,9 @@ import { useAuth } from '@/providers/AuthProvider';
 import { useToast } from '@/providers/ToastProvider';
 import { toApiError } from '@/lib/api';
 import { cn } from '@/lib/cn';
-import { fmtDate, fmtInt } from '@/lib/format';
-import { useCreateDeck, useDeckAdmin, useDecksAdmin, useDeleteDeck, useUpdateDeck } from './api';
+import { fmtDate, fmtDateTime, fmtInt, fmtRelative } from '@/lib/format';
+import { Avatar } from '@/components/ui/Avatar';
+import { useCreateDeck, useDeckAdmin, useDeckLearners, useDecksAdmin, useDeleteDeck, useUpdateDeck } from './api';
 import { ActionMenu, AdminHead, ConfirmDialog, EmptyBlock, EmptyRow, SearchBox, Sheet, TableSkeleton, UniMark, useDebounced, type ConfirmState } from './ui';
 import { useAdminCrumbs } from './AdminShell';
 
@@ -48,6 +49,7 @@ export function DecksPage() {
   const update = useUpdateDeck();
   const remove = useDeleteDeck();
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
+  const [learnersOf, setLearnersOf] = useState<AdminDeckDto | null>(null);
   const editing = params.get('edit');
   const creating = params.get('new') === '1';
   useAdminCrumbs([{ label: 'Bộ đề ôn tập' }]);
@@ -117,8 +119,8 @@ export function DecksPage() {
                 <th className="num">Câu</th>
                 <th className="num">Mẹo</th>
                 <th className="num">Người học</th>
-                <th>Trạng thái</th>
-                <th>Cập nhật</th>
+                <th className="w-status">Trạng thái</th>
+                <th className="w-date">Cập nhật</th>
                 <th aria-label="Thao tác" />
               </tr>
             </thead>
@@ -148,14 +150,24 @@ export function DecksPage() {
                     </td>
                     <td className="num">{fmtInt(d.questionCount)}</td>
                     <td className="num">{fmtInt(d.tipCount)}</td>
-                    <td className="num">{fmtInt(d.learners)}</td>
-                    <td>
+                    <td className="num">
+                      {d.learners > 0 ? (
+                        <button type="button" className="dke-learners" onClick={() => setLearnersOf(d)} title="Xem ai đã học">
+                          <b>{fmtInt(d.learners)}</b>
+                          <small>{fmtInt(d.sessions)} lượt</small>
+                        </button>
+                      ) : (
+                        <span className="muted">0</span>
+                      )}
+                    </td>
+                    <td className="w-status">
                       <span className={cn('badge', d.status === 'PUBLISHED' ? 'badge-green' : 'badge-amber')}>{d.status === 'PUBLISHED' ? 'Đang hiện' : 'Bản nháp'}</span>
                     </td>
-                    <td className="muted">{fmtDate(d.updatedAt)}</td>
+                    <td className="w-date">{fmtDate(d.updatedAt)}</td>
                     <td className="row-actions">
                       <ActionMenu
                         items={[
+                          { label: 'Xem người học', icon: Users, onSelect: () => setLearnersOf(d), hidden: !d.learners },
                           { label: 'Mở như sinh viên', icon: Eye, onSelect: () => navigate(`/app/flashcards/${d.id}`) },
                           { label: 'Sửa / thay file', icon: Pencil, onSelect: () => setParams({ edit: d.id }), hidden: !isAdmin },
                           { label: 'Tải file .md', icon: Download, onSelect: () => void exportDeck(d) },
@@ -196,6 +208,7 @@ export function DecksPage() {
       </section>
 
       <DeckEditor open={creating || Boolean(editing)} id={editing} onClose={close} />
+      <LearnersSheet deck={learnersOf} onClose={() => setLearnersOf(null)} />
       <ConfirmDialog state={confirm} onClose={() => setConfirm(null)} />
     </>
   );
@@ -542,6 +555,61 @@ function DeckEditor({ open, id, onClose }: { open: boolean; id: string | null; o
             </button>
           </details>
         </div>
+      )}
+    </Sheet>
+  );
+}
+
+/** Who studied a deck: sessions, answers, how far they got, first and last time. */
+function LearnersSheet({ deck, onClose }: { deck: AdminDeckDto | null; onClose: () => void }) {
+  const { data, isLoading } = useDeckLearners(deck?.id ?? null);
+  return (
+    <Sheet
+      open={Boolean(deck)}
+      onClose={onClose}
+      size="lg"
+      title={deck ? `Người học · ${deck.subject.code}` : ''}
+      description={deck ? `${fmtInt(deck.learners)} người, ${fmtInt(deck.sessions)} lượt học. Một lượt là một lần mở học; nghỉ từ 30 phút trở lên tính là lượt mới.` : undefined}
+    >
+      {isLoading ? (
+        <p className="muted">Đang tải…</p>
+      ) : !data?.length ? (
+        <p className="muted">Chưa có ai học bộ đề này.</p>
+      ) : (
+        <ul className="dke-lr">
+          {data.map((l) => {
+            const pct = deck?.questionCount ? Math.round((l.ok / deck.questionCount) * 100) : 0;
+            return (
+              <li key={l.user.id}>
+                <Avatar name={l.user.name} src={l.user.avatarUrl} size="sm" />
+                <div className="dke-lr-who">
+                  <b className="clamp-1">{l.user.name}</b>
+                  <small className="clamp-1">{l.user.email}</small>
+                </div>
+                <div className="dke-lr-stat">
+                  <b>{fmtInt(l.sessions)}</b>
+                  <small>lượt học</small>
+                </div>
+                <div className="dke-lr-stat">
+                  <b>{fmtInt(l.answers)}</b>
+                  <small>lần trả lời</small>
+                </div>
+                <div className="dke-lr-stat">
+                  <b>
+                    {fmtInt(l.seen)}/{fmtInt(deck?.questionCount ?? 0)}
+                  </b>
+                  <small>
+                    đã làm · thuộc {pct}%
+                  </small>
+                </div>
+                <div className="dke-lr-when" title={`Bắt đầu ${fmtDateTime(l.firstAt)} · Lần cuối ${fmtDateTime(l.lastAt)}`}>
+                  <b>{fmtRelative(l.lastAt)}</b>
+                  <small>từ {fmtDate(l.firstAt)}</small>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       )}
     </Sheet>
   );

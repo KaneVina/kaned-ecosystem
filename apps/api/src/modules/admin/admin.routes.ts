@@ -239,6 +239,7 @@ adminRouter.delete('/lecturers/:id', adminOnly, async (req, res) => {
 /* study decks: anyone on staff reads, admins import and change */
 adminRouter.get('/decks', validateQuery(deckListQuerySchema), async (_req, res) => res.json(await deckAdmin.listDecksAdmin(parsedQuery<DeckListQuery>(res))));
 adminRouter.get('/decks/:id', async (req, res) => res.json(await deckAdmin.getDeckAdmin(req.params.id)));
+adminRouter.get('/decks/:id/learners', async (req, res) => res.json(await deckAdmin.deckLearners(req.params.id)));
 adminRouter.post('/decks', adminOnly, validateBody(deckInputSchema), async (req, res) => res.status(201).json(await deckAdmin.createDeck(actor(req), req.body)));
 adminRouter.patch('/decks/:id', adminOnly, validateBody(deckUpdateSchema), async (req, res) => res.json(await deckAdmin.updateDeck(actor(req), req.params.id, req.body)));
 adminRouter.delete('/decks/:id', adminOnly, async (req, res) => {

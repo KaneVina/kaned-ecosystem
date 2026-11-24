@@ -677,6 +677,11 @@ export const deckProgress = pgTable(
     ok: integer('ok').notNull().default(0),
     bad: integer('bad').notNull().default(0),
     marked: integer('marked').notNull().default(0),
+    /** Study sessions: a save 30 minutes or more after the last one starts a new session. */
+    sessions: integer('sessions').notNull().default(1),
+    /** Answers given in total (right + wrong, every question). */
+    answers: integer('answers').notNull().default(0),
+    createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (t) => ({

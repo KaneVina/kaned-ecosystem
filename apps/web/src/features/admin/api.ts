@@ -1,6 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   AdminDeckDetailDto,
+  DeckLearnerDto,
   AdminDeckDto,
   DeckInput,
   DeckListQuery,
@@ -299,6 +300,9 @@ export const useDecksAdmin = (p: DeckListQuery) =>
 
 export const useDeckAdmin = (id?: string) =>
   useQuery({ queryKey: [...adminKeys.all, 'deck', id], enabled: Boolean(id), queryFn: () => get<AdminDeckDetailDto>(`/decks/${id}`) });
+
+export const useDeckLearners = (id: string | null) =>
+  useQuery({ queryKey: [...adminKeys.all, 'deck-learners', id], enabled: Boolean(id), queryFn: () => get<DeckLearnerDto[]>(`/decks/${id}/learners`) });
 
 export const useCreateDeck = () => useWrite((input: DeckInput, key) => send<AdminDeckDto>('post', '/decks', key, input));
 export const useUpdateDeck = () => useWrite(({ id, input }: { id: string; input: DeckUpdate }, key) => send<AdminDeckDto>('patch', `/decks/${id}`, key, input));

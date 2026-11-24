@@ -1,9 +1,10 @@
-import { and, asc, count, desc, eq, ilike, inArray, or, type SQL } from 'drizzle-orm';
+import { and, asc, count, desc, eq, ilike, inArray, or, sql, sum, type SQL } from 'drizzle-orm';
 import {
   memoryCounts,
   parseDeck,
   type AdminDeckDetailDto,
   type AdminDeckDto,
+  type DeckLearnerDto,
   type DeckDetailDto,
   type DeckInput,
   type DeckListQuery,
@@ -148,11 +149,20 @@ export async function saveProgress(userId: string, id: string, state: DeckProgre
     ok: marks.filter((m) => m.l === 1).length,
     bad: marks.filter((m) => m.l === 0).length,
     marked: Object.keys(state.mk).length,
+    answers: marks.reduce((n, m) => n + m.c + m.w, 0),
   };
   const [row] = await db
     .insert(deckProgress)
     .values({ userId, deckId: id, state, ...counts })
-    .onConflictDoUpdate({ target: [deckProgress.userId, deckProgress.deckId], set: { state, ...counts, updatedAt: new Date() } })
+    .onConflictDoUpdate({
+      target: [deckProgress.userId, deckProgress.deckId],
+      set: {
+        state,
+        ...counts,
+        sessions: sql`${deckProgress.sessions} + CASE WHEN ${deckProgress.updatedAt} < now() - interval '30 minutes' THEN 1 ELSE 0 END`,
+        updatedAt: new Date(),
+      },
+    })
     .returning();
   return progressSummary(row);
 }
@@ -191,19 +201,57 @@ async function adminRows(where?: SQL) {
   const ids = rows.map((r) => r.id);
   const creatorIds = [...new Set(rows.map((r) => r.createdById).filter((x): x is string => Boolean(x)))];
   const [learners, creators] = await Promise.all([
-    db.select({ deckId: deckProgress.deckId, value: count() }).from(deckProgress).where(inArray(deckProgress.deckId, ids)).groupBy(deckProgress.deckId),
+    db
+      .select({ deckId: deckProgress.deckId, value: count(), sessions: sum(deckProgress.sessions) })
+      .from(deckProgress)
+      .where(inArray(deckProgress.deckId, ids))
+      .groupBy(deckProgress.deckId),
     creatorIds.length ? db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.id, creatorIds)) : Promise.resolve([]),
   ]);
   const learnersBy = new Map(learners.map((l) => [l.deckId, Number(l.value)]));
+  const sessionsBy = new Map(learners.map((l) => [l.deckId, Number(l.sessions ?? 0)]));
   const creatorBy = new Map(creators.map((c) => [c.id, c]));
   return rows.map(
     (r): AdminDeckDto => ({
       ...summaryOf(r),
       learners: learnersBy.get(r.id) ?? 0,
+      sessions: sessionsBy.get(r.id) ?? 0,
       createdBy: r.createdById ? (creatorBy.get(r.createdById) ?? null) : null,
       createdAt: r.createdAt.toISOString(),
     }),
   );
+}
+
+/** Who studied a deck, most recent first, with how often. */
+export async function deckLearners(id: string): Promise<DeckLearnerDto[]> {
+  const rows = await db
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      avatarUrl: users.avatarUrl,
+      sessions: deckProgress.sessions,
+      answers: deckProgress.answers,
+      seen: deckProgress.seen,
+      ok: deckProgress.ok,
+      bad: deckProgress.bad,
+      createdAt: deckProgress.createdAt,
+      updatedAt: deckProgress.updatedAt,
+    })
+    .from(deckProgress)
+    .innerJoin(users, eq(users.id, deckProgress.userId))
+    .where(eq(deckProgress.deckId, id))
+    .orderBy(desc(deckProgress.updatedAt));
+  return rows.map((r) => ({
+    user: { id: r.id, name: r.name, email: r.email, avatarUrl: r.avatarUrl },
+    sessions: r.sessions,
+    answers: r.answers,
+    seen: r.seen,
+    ok: r.ok,
+    bad: r.bad,
+    firstAt: r.createdAt.toISOString(),
+    lastAt: r.updatedAt.toISOString(),
+  }));
 }
 
 export const listDecksAdmin = (query: DeckListQuery) => adminRows(filters(query, false));
