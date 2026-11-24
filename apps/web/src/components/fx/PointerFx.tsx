@@ -118,7 +118,8 @@ export function PointerFx() {
       else if (el.closest(AWAY)) mode = 'away';
       else {
         const p = el.closest(PRESSABLE);
-        if (!p) mode = 'free';
+        // Inside a surface with its own pointer light, only buttons get the ring.
+        if (!p) mode = el.closest('[data-pfx="soft"]') ? 'away' : 'free';
         else {
           const r = p.getBoundingClientRect();
           // A card-wide link reaches here through its ::after, so the pointer is outside the link's own box.

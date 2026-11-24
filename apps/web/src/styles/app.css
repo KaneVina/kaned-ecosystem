@@ -1316,8 +1316,51 @@ a.ghv-name:hover span { color: var(--brand-600); text-decoration: underline; tex
 @media (prefers-reduced-motion: reduce) { .sh-panel { animation: none; } }
 
 /* translate on highlight */
-.tr-pop { position: fixed; z-index: 400; width: min(380px, calc(100vw - 20px)); background: var(--paper); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 22px 56px rgba(15, 23, 51, .24), 0 2px 8px rgba(15, 23, 51, .08); overflow: hidden; animation: trIn .18s var(--ease-out); user-select: text; }
-@keyframes trIn { from { opacity: 0; transform: translateY(6px) scale(.98); } }
+.tr-pop {
+  --near: 1; --lit: 0;
+  position: fixed; z-index: 400; width: min(380px, calc(100vw - 20px)); background: var(--paper); border: 1px solid var(--line); border-radius: 16px;
+  box-shadow: 0 22px 56px rgba(15, 23, 51, .24), 0 2px 8px rgba(15, 23, 51, .08); user-select: text;
+  /* Grows out of the point the tail touches. */
+  transform-origin: var(--tail, 50%) var(--oy, 0%);
+  animation: trIn .32s cubic-bezier(.2, 1.25, .35, 1);
+  /* Steps back (never see-through enough to muddle the page) while the mouse is off reading elsewhere. */
+  opacity: calc(.8 + .2 * var(--near));
+  scale: calc(.985 + .015 * var(--near));
+  transition: opacity .3s ease, scale .3s var(--ease-out), box-shadow .25s ease, transform .25s var(--ease-out);
+}
+@keyframes trIn { from { opacity: 0; transform: scale(.86); } 60% { opacity: 1; } }
+.tr-pop.is-hover { box-shadow: 0 26px 64px rgba(15, 23, 51, .28), 0 0 0 1px rgba(36, 72, 216, .16), 0 2px 8px rgba(15, 23, 51, .08); }
+.tr-pop.is-drag { transform: scale(1.015) rotate(-.4deg); box-shadow: 0 34px 80px rgba(15, 23, 51, .32), 0 0 0 1px rgba(36, 72, 216, .22); transition: box-shadow .2s, transform .2s; }
+.tr-pop.is-return { transition: left .4s var(--ease-out), top .4s var(--ease-out), opacity .3s; }
+/* Light that follows the mouse: a soft wash inside, and the border brightening nearest the pointer. */
+.tr-pop::before, .tr-pop::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity .3s ease; }
+.tr-pop::before { z-index: 0; background: radial-gradient(240px circle at var(--mx, 50%) var(--my, 50%), rgba(36, 72, 216, .07), transparent 65%); }
+.tr-pop::after { z-index: 3; inset: -1px; padding: 1px; background: radial-gradient(200px circle at var(--mx, 50%) var(--my, 50%), rgba(36, 72, 216, .65), transparent 70%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
+.tr-pop.is-hover::before, .tr-pop.is-hover::after { opacity: 1; }
+.tr-pop > * { position: relative; z-index: 1; }
+/* Tail pointing at the selected words; it lights up with the card and hides once the card is dragged away. */
+.tr-tail { position: absolute !important; z-index: 2 !important; left: calc(var(--tail, 50%) - 7px); width: 14px; height: 14px; border: 1px solid var(--line); transform: rotate(45deg); transition: border-color .25s, opacity .2s; }
+.tr-pop.is-below .tr-tail { top: -8px; background: color-mix(in srgb, var(--brand) 7%, var(--paper)); border-right: 0; border-bottom: 0; border-radius: 3px 0 0 0; }
+.tr-pop.is-above .tr-tail { bottom: -8px; background: var(--sunk); border-left: 0; border-top: 0; border-radius: 0 0 3px 0; }
+.tr-pop.is-hover .tr-tail { border-color: rgba(36, 72, 216, .35); }
+.tr-pop.is-moved .tr-tail, .tr-pop.is-drag .tr-tail { opacity: 0; }
+.tr-head { cursor: grab; touch-action: none; border-radius: 15px 15px 0 0; user-select: none; }
+.tr-pop.is-drag .tr-head { cursor: grabbing; }
+.tr-grip { position: absolute; left: 50%; top: 1px; transform: translateX(-50%); color: var(--ink-4); opacity: 0; transition: opacity .2s; pointer-events: none; }
+.tr-pop.is-hover .tr-grip, .tr-pop.is-drag .tr-grip { opacity: 1; }
+@media (hover: none) { .tr-grip { opacity: .7; } }
+.tr-foot { border-radius: 0 0 15px 15px; }
+/* Selected words light up while the card is pointed at. */
+.tr-hl span { position: fixed; z-index: 399; pointer-events: none; border-radius: 3px; background: rgba(36, 72, 216, .12); box-shadow: inset 0 -2px 0 rgba(36, 72, 216, .55); opacity: 0; transition: opacity .22s ease; }
+.tr-hl.is-on span { opacity: 1; }
+/* The translation arrives word by word. */
+.tr-w { display: inline; animation: trWord .38s var(--ease-out) both; animation-delay: var(--d, 0ms); }
+@keyframes trWord { from { opacity: 0; filter: blur(3px); } }
+/* Copied: a sweep across the text it copied, and the tick pops. */
+.tr-text.is-flash { background: linear-gradient(100deg, transparent 0%, rgba(19, 121, 75, .14) 45%, transparent 90%) no-repeat; background-size: 220% 100%; animation: trFlash .7s ease-out; border-radius: 6px; }
+@keyframes trFlash { from { background-position: 120% 0; } to { background-position: -120% 0; } }
+.tr-pop-ic { animation: pop .35s var(--ease-out); }
 .tr-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 10px 10px 14px; background: color-mix(in srgb, var(--brand) 7%, var(--paper)); border-bottom: 1px solid var(--line); }
 .tr-langs { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ink-3); }
 .tr-langs .ic:first-child { color: var(--brand); }
@@ -1342,7 +1385,7 @@ a.ghv-name:hover span { color: var(--brand-600); text-decoration: underline; tex
 .tr-act:focus-visible, .tr-off:focus-visible { outline: 2px solid var(--brand); }
 .tr-off { all: unset; cursor: pointer; font-size: 12.5px; color: var(--ink-3); padding: 4px 8px; border-radius: 7px; }
 .tr-off:hover { color: var(--red); background: var(--paper); }
-@media (prefers-reduced-motion: reduce) { .tr-pop, .tr-skel i { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .tr-pop, .tr-skel i, .tr-w, .tr-text.is-flash, .tr-pop-ic { animation: none; } .tr-pop { opacity: 1; } }
 .st-switch { display: inline-flex; align-items: center; gap: 10px; font-size: 13.5px; font-weight: 600; color: var(--ink-2); cursor: pointer; }
 .st-switch input { appearance: none; width: 42px; height: 24px; border-radius: 999px; background: var(--line-2); position: relative; cursor: pointer; transition: background .2s; margin: 0; }
 .st-switch input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform .2s var(--ease-out); }
