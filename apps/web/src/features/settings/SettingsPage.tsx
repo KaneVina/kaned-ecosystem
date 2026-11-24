@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Activity, KeyRound, Languages, Link2, Mail, ShieldCheck } from 'lucide-react';
+import { Activity, KeyRound, Languages, Link2, Mail, MousePointer2, ShieldCheck } from 'lucide-react';
+import { setPointerFxEnabled, usePointerFxEnabled } from '@/lib/pointerFxPref';
 import { setTranslateEnabled, useTranslateEnabled } from '@/lib/translatePref';
 import {
   OAUTH_PROVIDER_LABELS,
@@ -293,6 +294,25 @@ function TranslatePanel() {
   );
 }
 
+function PointerFxPanel() {
+  const on = usePointerFxEnabled();
+  return (
+    <Panel>
+      <PanelHead
+        icon={<MousePointer2 className="ic" />}
+        title="Hiệu ứng con trỏ"
+        description="Trên máy tính, một vòng sáng nhẹ đi theo chuột và ôm lấy nút bạn rê vào. Trên điện thoại, chỗ bạn chạm sẽ gợn lên một vòng. Tự tắt khi máy bật chế độ giảm chuyển động và trong phòng thi. Cài đặt lưu trên thiết bị này."
+        actions={
+          <label className="st-switch">
+            <input type="checkbox" role="switch" checked={on} onChange={(e) => setPointerFxEnabled(e.target.checked)} />
+            <span>{on ? 'Đang bật' : 'Đang tắt'}</span>
+          </label>
+        }
+      />
+    </Panel>
+  );
+}
+
 export function SettingsPage() {
   const { user } = useAuth();
   const location = useLocation();
@@ -335,6 +355,7 @@ export function SettingsPage() {
           </>
         )}
         <TranslatePanel />
+        <PointerFxPanel />
         <Panel>
           <PanelHead
             icon={<Activity className="ic" />}

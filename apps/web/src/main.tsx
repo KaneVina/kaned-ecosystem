@@ -5,6 +5,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
 import { DevtoolsGuard } from '@/components/guard/DevtoolsGuard';
+import { PointerFx } from '@/components/fx/PointerFx';
 import { queryClient } from '@/lib/queryClient';
 import { AuthProvider } from '@/providers/AuthProvider';
 import { ToastProvider } from '@/providers/ToastProvider';
@@ -21,6 +22,7 @@ createRoot(container).render(
         <ToastProvider>
           <AuthProvider>
             <DevtoolsGuard />
+            <PointerFx />
             <AnnouncementBar />
             <App />
           </AuthProvider>

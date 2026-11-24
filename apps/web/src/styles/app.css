@@ -1392,3 +1392,26 @@ a.ghv-name:hover span { color: var(--violet-600); text-decoration: underline; te
 .sh-mark { background: none; color: var(--violet-700); font-weight: 700; padding: 0; }
 .sh-subject + .sh-deck, .sh-history + .sh-subject, .sh-history + .sh-deck { border-top: 1px solid var(--line); border-radius: 0 0 10px 10px; margin-top: 4px; padding-top: 2px; }
 @media (max-width: 560px) { .sh-item .sh-hint { display: none; } }
+
+/* Pointer effects (components/fx/PointerFx.tsx) */
+.pfx { position: fixed; inset: 0; z-index: 2147483000; pointer-events: none; overflow: hidden; contain: strict; }
+.pfx-ring {
+  position: absolute; left: 0; top: 0; width: 26px; height: 26px; border-radius: 13px; box-sizing: border-box;
+  border: 1.5px solid rgba(68, 51, 180, .42);
+  background: rgba(68, 51, 180, .03);
+  /* A faint light edge keeps the ring visible on dark panels too. */
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .5);
+  will-change: transform, width, height;
+  transition: opacity .22s ease, border-color .2s ease, background-color .2s ease, box-shadow .25s ease;
+}
+.pfx-ring.is-snap { border-color: rgba(68, 51, 180, .32); background: rgba(68, 51, 180, .07); box-shadow: 0 0 0 1px rgba(255, 255, 255, .55), 0 6px 22px rgba(68, 51, 180, .14); }
+.pfx-ring.is-big { border-color: rgba(68, 51, 180, .26); background: rgba(68, 51, 180, .06); }
+.pfx-ring.is-down { background: rgba(68, 51, 180, .12); }
+.pfx-ring.is-drag { border-color: rgba(68, 51, 180, .55); background: rgba(68, 51, 180, .18); }
+.pfx-ring.is-hidden { opacity: 0; }
+.pfx-ripple { position: absolute; border-radius: 50%; box-sizing: border-box; opacity: 0; will-change: transform, opacity; }
+.pfx-ripple.is-click { border: 1.5px solid rgba(68, 51, 180, .55); }
+.pfx-ripple.is-tap { background: radial-gradient(circle, rgba(68, 51, 180, .2) 0%, rgba(68, 51, 180, .12) 55%, rgba(68, 51, 180, 0) 72%); border: 1.5px solid rgba(68, 51, 180, .28); }
+.pfx-ripple.is-tap.is-strong { background: radial-gradient(circle, rgba(68, 51, 180, .26) 0%, rgba(68, 51, 180, .15) 55%, rgba(68, 51, 180, 0) 72%); border-color: rgba(68, 51, 180, .36); }
+@media print { .pfx { display: none; } }
+@media (prefers-reduced-motion: reduce), (forced-colors: active) { .pfx { display: none; } }
