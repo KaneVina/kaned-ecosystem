@@ -1738,3 +1738,32 @@ legend.label { padding: 0; margin-bottom: 8px; }
 .nf-links b { display: block; font-size: 14.5px; font-weight: 650; }
 .nf-links small { display: block; margin-top: 1px; font-size: 12.5px; color: var(--ink-3); }
 @media (max-width: 560px) { .nf { padding-top: 28px; } .nf-links { grid-template-columns: 1fr; } .nf-actions .btn { flex: 1; justify-content: center; } }
+
+/* Flashcard decks shown as library documents */
+.dd-thumb { --uni: var(--violet); position: relative; aspect-ratio: 16 / 11; overflow: hidden; background: radial-gradient(130% 120% at 20% 0%, color-mix(in srgb, var(--uni) 18%, var(--paper)) 0%, var(--paper-2) 70%); }
+.row-thumb .dd-thumb { aspect-ratio: 4 / 3; }
+.dd-sheet { position: absolute; left: 50%; top: 50%; width: 52%; aspect-ratio: 3 / 3.6; border-radius: 10px; background: var(--paper); border: 1px solid var(--line); box-shadow: var(--sh-1); transition: transform .35s var(--ease-out); }
+.dd-s3 { transform: translate(-50%, -50%) translate(16px, 6px) rotate(9deg); }
+.dd-s2 { transform: translate(-50%, -50%) translate(8px, 2px) rotate(4deg); }
+.dd-s1 { transform: translate(-50%, -50%) rotate(-3deg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; box-shadow: var(--sh-2); }
+.doc-card:hover .dd-s1 { transform: translate(-50%, -50%) translateY(-6px) rotate(-6deg); }
+.doc-card:hover .dd-s2 { transform: translate(-50%, -50%) translate(12px, 0) rotate(6deg); }
+.doc-card:hover .dd-s3 { transform: translate(-50%, -50%) translate(24px, 6px) rotate(14deg); }
+.dd-code { position: absolute; top: 8%; left: 9%; padding: 1px 6px; border-radius: 4px; background: var(--uni); color: #fff; font-size: 9px; font-weight: 700; letter-spacing: .02em; }
+.dd-s1 b { font-size: clamp(20px, 3vw, 28px); font-weight: 800; line-height: 1; color: var(--ink); font-variant-numeric: tabular-nums; }
+.dd-s1 small { font-size: 10px; color: var(--ink-3); }
+.dd-opts { position: absolute; left: 12%; right: 12%; bottom: 10%; display: flex; flex-direction: column; gap: 3px; }
+.dd-opts i { height: 4px; border-radius: 3px; background: var(--sunk); }
+.dd-opts i.is-ok { background: color-mix(in srgb, var(--green) 55%, var(--paper)); }
+.row-thumb .dd-s1 b { font-size: 15px; } .row-thumb .dd-s1 small, .row-thumb .dd-opts { display: none; } .row-thumb .dd-code { font-size: 7px; padding: 0 3px; }
+.dd-badge { position: absolute; left: 10px; bottom: 10px; display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px; border-radius: 99px; background: var(--violet); color: #fff; font-size: 11.5px; font-weight: 700; box-shadow: var(--sh-1); }
+.dd-foot { gap: 8px; }
+.dd-bar { width: 64px; height: 5px; border-radius: 99px; background: var(--sunk); overflow: hidden; }
+.dd-bar i { display: block; height: 100%; background: var(--green); border-radius: inherit; }
+.dd-pct { font-size: 12.5px; font-weight: 600; color: var(--green); white-space: nowrap; }
+.dd-pct.is-new { color: var(--ink-3); font-weight: 500; }
+.dd-modes { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--ink-3); }
+.dd-modes .ic { width: 13px; height: 13px; color: var(--violet); }
+.dd-type { display: inline-flex; align-items: center; gap: 4px; color: var(--violet-600); font-weight: 600; }
+.dd-go { position: relative; z-index: 2; }
+@media (prefers-reduced-motion: reduce) { .dd-sheet { transition: none; } }

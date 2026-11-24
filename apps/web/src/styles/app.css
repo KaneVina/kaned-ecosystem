@@ -1156,14 +1156,21 @@ a.ghv-name:hover span { color: var(--violet-600); text-decoration: underline; te
 @media (max-width: 640px) { .gh-switch { flex-wrap: wrap; } .gh-switch .btn { margin-left: 26px; } }
 
 /* subject page: study decks for this subject */
-.sd-decks { display: flex; flex-direction: column; gap: 8px; margin: 0 0 4px; }
-.sd-deck { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-radius: var(--r-md); border: 1px solid var(--violet-100); background: var(--violet-50); color: var(--ink); text-decoration: none; transition: border-color .15s, transform .15s var(--ease-out); }
-.sd-deck:hover { border-color: var(--violet-200); transform: translateY(-1px); }
-.sd-deck > .ic { color: var(--violet); flex: none; }
-.sd-deck > span { flex: 1; min-width: 0; }
+.sd-decks { display: flex; flex-direction: column; gap: 8px; margin: 0 0 4px; padding: 14px; border-radius: var(--r-lg); background: linear-gradient(135deg, var(--violet-50), var(--paper)); border: 1px solid var(--violet-100); }
+.sd-decks-h { display: flex; align-items: center; gap: 7px; margin: 0 0 2px; font-size: 13.5px; font-weight: 700; color: var(--violet-700); }
+.sd-deck { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--r-md); background: var(--paper); border: 1px solid var(--line); transition: border-color .15s, box-shadow .15s, transform .15s var(--ease-out); }
+.sd-deck:hover { border-color: var(--violet-200); box-shadow: var(--sh-1); transform: translateY(-1px); }
+.sd-deck-main { flex: 1; min-width: 0; color: var(--ink); text-decoration: none; }
 .sd-deck b { display: block; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sd-deck-main:hover b { color: var(--violet-700); }
 .sd-deck small { font-size: 12.5px; color: var(--ink-3); }
-.sd-deck em { font-style: normal; font-size: 13px; font-weight: 600; color: var(--violet-600); flex: none; }
+.sd-deck-bar { display: block; height: 4px; margin-top: 6px; border-radius: 99px; background: var(--sunk); overflow: hidden; }
+.sd-deck-bar i { display: block; height: 100%; background: var(--green); border-radius: inherit; }
+.sd-deck-modes { display: flex; gap: 2px; flex: none; }
+.sd-deck-modes a { padding: 6px 9px; border-radius: 8px; font-size: 12.5px; font-weight: 600; color: var(--ink-3); text-decoration: none; white-space: nowrap; transition: background .15s, color .15s; }
+.sd-deck-modes a:first-child { color: var(--violet-600); }
+.sd-deck-modes a:hover { background: var(--violet-50); color: var(--violet-700); }
+@media (max-width: 560px) { .sd-deck { flex-direction: column; align-items: stretch; gap: 6px; } .sd-deck-modes { justify-content: flex-start; margin-left: -9px; } }
 
 /* ── YouTube and Canva links ── */
 .lv-stage { background: var(--sunk); }
@@ -1371,3 +1378,9 @@ a.ghv-name:hover span { color: var(--violet-600); text-decoration: underline; te
   .drv-row .drv-meta { display: none; }
   .drv-row .drv-go { grid-column: 3; }
 }
+
+/* Subjects: which ones have flashcards */
+.sw-fc { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; font-weight: 600; color: var(--violet-600); background: var(--violet-50); padding: 1px 6px; border-radius: 999px; white-space: nowrap; }
+.kb-chip.violet { background: var(--violet-50); color: var(--violet-600); }
+.pill.sw-fc-pill { gap: 5px; }
+.pill.sw-fc-pill[aria-pressed="true"] .ic { color: inherit; }

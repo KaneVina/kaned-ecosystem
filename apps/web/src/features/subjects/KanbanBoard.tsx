@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type DragEvent } from 'react';
-import { ArrowRight, Clock, GripVertical, ListChecks, Unlock } from 'lucide-react';
+import { ArrowRight, Clock, GripVertical, Layers, ListChecks, Unlock } from 'lucide-react';
 import { evaluatePassCriteria, type CurriculumSubjectDto, type PlannerResult, type SubjectStatus } from '@kaned/shared';
 import { subjectTone } from '@/components/paper/profiles';
 import { parseScore, type DraftEntry } from '@/features/grades/queries';
@@ -39,6 +39,7 @@ export function KanbanBoard({
   onStart,
   onStop,
   onNeedScore,
+  deckQuestions,
 }: {
   subjects: CurriculumSubjectDto[];
   resultById: Map<string, PlannerResult>;
@@ -51,6 +52,8 @@ export function KanbanBoard({
   onStop: (s: CurriculumSubjectDto) => void;
   /** A card was dropped on "Đã qua" / "Chưa qua": the score decides, so ask for it. */
   onNeedScore: (s: CurriculumSubjectDto) => void;
+  /** Questions in the subject's flashcard decks, 0 when it has none. */
+  deckQuestions?: (subjectId: string) => number;
 }) {
   const [drag, setDrag] = useState<{ id: string; from: SubjectStatus } | null>(null);
   const [over, setOver] = useState<SubjectStatus | null>(null);
@@ -159,6 +162,12 @@ export function KanbanBoard({
                           <span className="kb-chip amber">
                             <Clock className="ic ic-xs" />
                             Đang học
+                          </span>
+                        )}
+                        {(deckQuestions?.(s.id) ?? 0) > 0 && (
+                          <span className="kb-chip violet" title="Có bộ thẻ ghi nhớ">
+                            <Layers className="ic ic-xs" />
+                            {deckQuestions!(s.id)} câu
                           </span>
                         )}
                         {crit && (

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useScrollLock } from '@/lib/scrollLock';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Columns3, GraduationCap, Info, Lightbulb, ListTree, RotateCcw, Save, Search } from 'lucide-react';
+import { Columns3, GraduationCap, Info, Layers, Lightbulb, ListTree, RotateCcw, Save, Search } from 'lucide-react';
+import { useDecks } from '@/features/decks/api';
+import type { DeckSummaryDto } from '@kaned/shared';
 import {
   evaluatePlan,
   suggestNextTerm,
@@ -58,6 +60,14 @@ export function SubjectsWorkspace() {
   const [majorId, setMajorId] = useState(user?.majorId ?? '');
   const [filter, setFilter] = useState<Filter>('all');
   const [query, setQuery] = useState('');
+  const [withDecks, setWithDecks] = useState(false);
+  const { data: allDecks = [] } = useDecks();
+  /** Flashcard decks by subject id, so each subject can show it has one. */
+  const decksBySubject = useMemo(() => {
+    const m = new Map<string, DeckSummaryDto[]>();
+    for (const d of allDecks) m.set(d.subject.id, [...(m.get(d.subject.id) ?? []), d]);
+    return m;
+  }, [allDecks]);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [view, setViewState] = useState<View>(readView);
   const setView = (v: View) => {
@@ -171,9 +181,11 @@ export function SubjectsWorkspace() {
     passed: summary.passed.length,
   };
 
+  const deckCount = subjects.filter((s) => decksBySubject.has(s.id)).length;
   const matches = (s: (typeof subjects)[number]) => {
     const r = resultById.get(s.id);
     if (filter !== 'all' && r?.status !== filter) return false;
+    if (withDecks && !decksBySubject.has(s.id)) return false;
     if (!query) return true;
     return fold(`${s.code} ${s.name} ${s.nameVi}`).includes(fold(query));
   };
@@ -284,6 +296,13 @@ export function SubjectsWorkspace() {
               <Search className="ic ic-sm" />
               <input className="input input-sm" type="search" placeholder="Tìm mã môn hoặc tên môn" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Tìm môn" />
             </div>
+            {deckCount > 0 && (
+              <button type="button" className="pill sw-fc-pill" aria-pressed={withDecks} onClick={() => setWithDecks((v) => !v)}>
+                <Layers className="ic ic-xs" />
+                Có thẻ ghi nhớ
+                <span className="count">{deckCount}</span>
+              </button>
+            )}
             {suggestion.length > 0 && (
               <p className="kb-suggest">
                 <Lightbulb className="ic ic-sm" />
@@ -313,7 +332,8 @@ export function SubjectsWorkspace() {
               resultById={resultById}
               draft={grades.draft}
               statusByCode={statusByCode}
-              visible={(s) => !query || fold(`${s.code} ${s.name} ${s.nameVi}`).includes(fold(query))}
+              visible={(s) => (!withDecks || decksBySubject.has(s.id)) && (!query || fold(`${s.code} ${s.name} ${s.nameVi}`).includes(fold(query)))}
+              deckQuestions={(id) => decksBySubject.get(id)?.reduce((n, d) => n + d.questionCount, 0) ?? 0}
               selectedId={mobileOpen ? selected?.id : undefined}
               onOpen={pick}
               onStart={(s) => {
@@ -376,6 +396,13 @@ export function SubjectsWorkspace() {
                   <span className="count">{counts[f]}</span>
                 </button>
               ))}
+              {deckCount > 0 && (
+                <button type="button" className="pill sw-fc-pill" aria-pressed={withDecks} onClick={() => setWithDecks((v) => !v)} title="Chỉ hiện môn có bộ thẻ ghi nhớ">
+                  <Layers className="ic ic-xs" />
+                  Có thẻ ghi nhớ
+                  <span className="count">{deckCount}</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -446,6 +473,12 @@ export function SubjectsWorkspace() {
                                   <b>{s.code}</b>
                                   <span className="sw-cr">{s.credits} TC</span>
                                   {s.choiceGroup && <span className="sw-tag">chọn 1</span>}
+                                  {decksBySubject.has(s.id) && (
+                                    <span className="sw-fc" title={`Có ${decksBySubject.get(s.id)!.length > 1 ? `${decksBySubject.get(s.id)!.length} bộ ` : ''}thẻ ghi nhớ · ${decksBySubject.get(s.id)!.reduce((n, d) => n + d.questionCount, 0)} câu`}>
+                                      <Layers className="ic ic-xs" />
+                                      {decksBySubject.get(s.id)!.reduce((n, d) => n + d.questionCount, 0)} câu
+                                    </span>
+                                  )}
                                 </span>
                                 <span className="sw-name">{s.nameVi}</span>
                                 {(waiting.length > 0 || debt) && (

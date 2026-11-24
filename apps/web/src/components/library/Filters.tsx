@@ -56,6 +56,7 @@ export function Filters({
   universities,
   subjects,
   facets,
+  flashcardCount = 0,
   resultCount,
   open,
   onClose,
@@ -67,6 +68,8 @@ export function Filters({
   universities: UniversityDto[];
   subjects: SubjectSummaryDto[];
   facets?: FacetCounts;
+  /** Flashcard decks matching the school, subject and search. */
+  flashcardCount?: number;
   resultCount: number;
   open: boolean;
   onClose: () => void;
@@ -212,6 +215,13 @@ export function Filters({
           </Group>
 
           <Group title="Loại tài liệu" count={filters.type?.length}>
+            <Checkbox
+              label="Thẻ ghi nhớ"
+              count={flashcardCount}
+              zero={flashcardCount === 0}
+              checked={(filters.type as string[] | undefined)?.includes('FLASHCARD') ?? false}
+              onChange={() => set({ type: toggle(filters.type as string[] | undefined, 'FLASHCARD') as LibraryFilters['type'] })}
+            />
             {DOCUMENT_TYPES.map((t) => (
               <Checkbox
                 key={t}

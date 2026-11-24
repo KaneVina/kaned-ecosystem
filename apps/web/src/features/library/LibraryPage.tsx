@@ -14,6 +14,9 @@ import {
   type Semester,
 } from '@kaned/shared';
 import { DocCard, DocCardSkeleton, DocRow, DocRowSkeleton } from '@/components/library/DocCard';
+import { DeckDocCard, DeckDocRow } from '@/components/library/DeckDocCard';
+import { useDecks } from '@/features/decks/api';
+import { FLASHCARD, matchDecks, splitDeckFilter } from './deckDocs';
 import { Filters } from '@/components/library/Filters';
 import { QuickPreview } from '@/components/library/QuickPreview';
 import { Chip } from '@/components/ui/Badge';
@@ -78,8 +81,16 @@ export function LibraryPage() {
   const [preview, setPreview] = useState<DocumentSummaryDto | null>(null);
 
   const sort = filters.sort ?? (filters.q ? 'relevance' : 'downloads');
-  const { data, isLoading, isError, refetch, isFetching } = useDocuments({ ...filters, sort });
-  const { data: facets } = useDocumentFacets(filters);
+  const split = splitDeckFilter(filters);
+  const docs = useDocuments({ ...split.docFilters, sort }, { enabled: !split.onlyDecks });
+  const { data: facets } = useDocumentFacets(split.docFilters);
+  const { data: allDecks = [], isLoading: decksLoading } = useDecks();
+  // Decks matching school, subject and search, whichever types are ticked (for the filter's count).
+  const deckPool = useMemo(() => (split.docOnly ? [] : matchDecks(allDecks, filters)), [allDecks, filters, split.docOnly]);
+  const decks = split.wantDecks && (filters.page ?? 1) === 1 ? deckPool : [];
+  const data = split.onlyDecks ? { items: [], total: 0, totalPages: 1 } : docs.data;
+  const isLoading = split.onlyDecks ? decksLoading : docs.isLoading;
+  const { isError, refetch, isFetching } = docs;
   const { data: universities = [] } = useUniversities();
   const { data: subjectPage } = useSubjects({ pageSize: 200 });
   const toggleBookmark = useToggleBookmark();
@@ -113,7 +124,7 @@ export function LibraryPage() {
   // Keep an open preview in step with bookmark changes.
   const previewDoc = preview ? (data?.items.find((d) => d.id === preview.id) ?? preview) : null;
 
-  const total = data?.total ?? 0;
+  const total = (data?.total ?? 0) + (split.wantDecks ? deckPool.length : 0);
   const totalPages = data?.totalPages ?? 1;
   const page = filters.page ?? 1;
 
@@ -154,7 +165,7 @@ export function LibraryPage() {
   for (const id of filters.subjectId ?? [])
     chips.push({ key: `m${id}`, k: 'Môn', label: subjectById.get(id)?.code ?? '…', remove: () => setFilters({ ...filters, subjectId: without(filters.subjectId, id), page: 1 }) });
   for (const t of filters.type ?? [])
-    chips.push({ key: `t${t}`, k: 'Loại', label: DOCUMENT_TYPE_LABELS[t as DocumentType].vi, remove: () => setFilters({ ...filters, type: without(filters.type, t), page: 1 }) });
+    chips.push({ key: `t${t}`, k: 'Loại', label: t === FLASHCARD ? 'Thẻ ghi nhớ' : DOCUMENT_TYPE_LABELS[t as DocumentType].vi, remove: () => setFilters({ ...filters, type: without(filters.type, t), page: 1 }) });
   for (const f of filters.format ?? [])
     chips.push({ key: `f${f}`, k: 'Định dạng', label: f === 'LINK' ? 'Liên kết' : f === 'GITHUB' ? 'GitHub' : f, remove: () => setFilters({ ...filters, format: without(filters.format, f), page: 1 }) });
   if (filters.minRating)
@@ -247,6 +258,7 @@ export function LibraryPage() {
           universities={universities}
           subjects={subjects}
           facets={facets}
+          flashcardCount={deckPool.length}
           resultCount={total}
           open={panelOpen}
           onClose={() => setPanelOpen(false)}
@@ -316,7 +328,7 @@ export function LibraryPage() {
             <div className={view === 'grid' ? 'grid-docs grid-3' : 'list-docs'} aria-busy="true">
               {Array.from({ length: 6 }, (_, i) => (view === 'grid' ? <DocCardSkeleton key={i} /> : <DocRowSkeleton key={i} />))}
             </div>
-          ) : !data?.items.length ? (
+          ) : !data?.items.length && !decks.length ? (
             <EmptyState
               title={filters.q ? `Không có gì khớp “${filters.q}” với bộ lọc này` : 'Không có tài liệu nào khớp bộ lọc'}
               description={
@@ -342,7 +354,8 @@ export function LibraryPage() {
             />
           ) : (
             <div className={view === 'grid' ? 'grid-docs grid-3' : 'list-docs'}>
-              {data.items.map((doc) =>
+              {decks.map((d) => (view === 'grid' ? <DeckDocCard key={`deck-${d.id}`} d={d} /> : <DeckDocRow key={`deck-${d.id}`} d={d} />))}
+              {(data?.items ?? []).map((doc) =>
                 view === 'grid' ? (
                   <DocCard key={doc.id} doc={doc} onToggleBookmark={(id) => toggleBookmark.mutate(id)} onPreview={setPreview} />
                 ) : (

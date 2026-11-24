@@ -84,21 +84,35 @@ export function SubjectDetail({
       </header>
 
       {decks.length > 0 && (
-        <div className="sd-decks">
-          {decks.map((d) => (
-            <Link key={d.id} to={`/app/flashcards/${d.id}`} className="sd-deck">
-              <Layers className="ic ic-sm" />
-              <span>
-                <b>{d.title}</b>
-                <small>
-                  {d.questionCount} câu{d.tipCount ? ` · ${d.tipCount} mẹo` : ''} · cập nhật {fmtRelative(d.updatedAt)}
-                  {d.progress?.seen ? ` · đã thuộc ${Math.round((summaryCounts(d.progress, srsOn()).ok / Math.max(1, d.questionCount)) * 100)}%` : ''}
-                </small>
-              </span>
-              <em>{d.progress?.seen ? 'Ôn tiếp' : 'Ôn thi'}</em>
-            </Link>
-          ))}
-        </div>
+        <section className="sd-decks" aria-label="Thẻ ghi nhớ của môn">
+          <h3 className="sd-decks-h">
+            <Layers className="ic ic-sm" />
+            Ôn bằng thẻ ghi nhớ
+          </h3>
+          {decks.map((d) => {
+            const ok = d.progress?.seen ? Math.round((summaryCounts(d.progress, srsOn()).ok / Math.max(1, d.questionCount)) * 100) : null;
+            return (
+              <div key={d.id} className="sd-deck">
+                <Link to={`/app/flashcards/${d.id}`} className="sd-deck-main">
+                  <b>{d.title}</b>
+                  <small>
+                    {d.questionCount} câu{d.tipCount ? ` · ${d.tipCount} mẹo` : ''} · cập nhật {fmtRelative(d.updatedAt)}
+                  </small>
+                  {ok !== null && (
+                    <span className="sd-deck-bar" title={`Đã thuộc ${ok}%`}>
+                      <i style={{ width: `${ok}%` }} />
+                    </span>
+                  )}
+                </Link>
+                <nav className="sd-deck-modes" aria-label={`Mở nhanh ${d.title}`}>
+                  <Link to={`/app/flashcards/${d.id}/practice`}>{ok !== null ? 'Ôn tiếp' : 'Luyện tập'}</Link>
+                  <Link to={`/app/flashcards/${d.id}/flip`}>Lật thẻ</Link>
+                  <Link to={`/app/flashcards/${d.id}/exam`}>Thi thử</Link>
+                </nav>
+              </div>
+            );
+          })}
+        </section>
       )}
 
       {/* Grade entry */}
