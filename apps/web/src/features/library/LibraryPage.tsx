@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import { useScrollLock } from '@/lib/scrollLock';
-import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Clock, LayoutGrid, List, Search, SlidersHorizontal, X } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { BookOpen, ChevronLeft, ChevronRight, Clock, Layers, LayoutGrid, List, Search, SlidersHorizontal, X } from 'lucide-react';
 import { useSearchHistory } from '@/lib/searchHistory';
 import {
   DOCUMENT_SORTS,
   DOCUMENT_SORT_LABELS,
   DOCUMENT_TYPE_LABELS,
   SEMESTER_LABELS,
+  foldVi,
+  type DeckSummaryDto,
+  type SubjectSummaryDto,
   type DocumentSort,
   type DocumentSummaryDto,
   type DocumentType,
@@ -43,9 +46,27 @@ function readView(): View {
 
 const SEARCH_HINTS = ['“đề thi MLN122”', '“slide CSD201”', '“giáo trình Java”', '“PRF192 có lời giải”'];
 
+/** Bolds the part of `text` that matches what was typed, ignoring accents and case. */
+function Mark({ text, needle }: { text: string; needle: string }) {
+  if (!needle) return <>{text}</>;
+  const folded = [...text].map((c) => foldVi(c)[0] ?? c).join('').toLowerCase();
+  const i = folded.indexOf(foldVi(needle).toLowerCase());
+  if (i < 0) return <>{text}</>;
+  const chars = [...text];
+  const n = [...needle].length;
+  return (
+    <>
+      {chars.slice(0, i).join('')}
+      <mark className="sh-mark">{chars.slice(i, i + n).join('')}</mark>
+      {chars.slice(i + n).join('')}
+    </>
+  );
+}
+
 export function LibraryPage() {
   const { filters, setFilters, clear, activeCount } = useLibraryFilters();
   const toast = useToast();
+  const navigate = useNavigate();
   const [panelOpen, setPanelOpen] = useState(false);
   const [view, setView] = useState<View>(readView);
   const [search, setSearch] = useState(filters.q ?? '');
@@ -53,7 +74,42 @@ export function LibraryPage() {
   const history = useSearchHistory();
   const [hi, setHi] = useState(-1);
   const needle = search.trim().toLowerCase();
-  const suggestions = history.items.filter((x) => x.toLowerCase() !== needle && (!needle || x.toLowerCase().includes(needle)));
+  // Ask the catalogue for matching subjects a beat after typing stops.
+  const [typed, setTyped] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setTyped(search.trim()), 160);
+    return () => clearTimeout(t);
+  }, [search]);
+  const { data: subjectHits } = useSubjects({ q: typed, pageSize: 20 }, { enabled: typed.length >= 1 });
+  const { data: deckList = [] } = useDecks();
+
+  type Suggestion =
+    | { kind: 'history'; key: string; q: string }
+    | { kind: 'subject'; key: string; s: SubjectSummaryDto }
+    | { kind: 'deck'; key: string; d: DeckSummaryDto };
+  const suggestions = useMemo<Suggestion[]>(() => {
+    const fold = (x: string) => foldVi(x).toLowerCase();
+    const n = fold(needle);
+    const hist = history.items.filter((x) => x.toLowerCase() !== needle && (!needle || fold(x).includes(n)));
+    if (!needle) return hist.map((q) => ({ kind: 'history', key: `h${q}`, q }));
+    // Codes that start with what was typed come first (sw → SWP391, SWD392, SWR302), then name matches.
+    const subjects = (typed.toLowerCase() === needle ? (subjectHits?.items ?? []) : [])
+      .map((s) => {
+        const words = fold(`${s.nameVi} ${s.name}`).split(/[^a-z0-9]+/);
+        const rank = fold(s.code).startsWith(n) ? 0 : fold(s.code).includes(n) ? 1 : words.some((w) => w.startsWith(n)) || fold(s.nameVi).includes(n) ? 2 : 3;
+        return { s, rank };
+      })
+      // Drop matches buried inside a word (pr in "Entrepreneurship").
+      .filter((x) => x.rank < 3)
+      .sort((a, b) => a.rank - b.rank || a.s.code.localeCompare(b.s.code))
+      .slice(0, 6)
+      .map(({ s }) => ({ kind: 'subject' as const, key: `s${s.id}`, s }));
+    const decks = deckList
+      .filter((d) => fold(`${d.subject.code} ${d.title} ${d.subject.nameVi}`).includes(n))
+      .slice(0, 2)
+      .map((d) => ({ kind: 'deck' as const, key: `d${d.id}`, d }));
+    return [...hist.slice(0, 3).map((q) => ({ kind: 'history' as const, key: `h${q}`, q })), ...subjects, ...decks];
+  }, [needle, typed, subjectHits, deckList, history.items]);
   const showHistory = searchFocus && suggestions.length > 0;
   const pick = (q: string) => {
     setSearch(q);
@@ -61,11 +117,21 @@ export function LibraryPage() {
     setHi(-1);
     setFilters({ ...filters, q, page: 1 });
   };
+  const choose = (x: Suggestion) => {
+    if (x.kind === 'history') return pick(x.q);
+    if (x.kind === 'deck') return navigate(`/app/flashcards/${x.d.id}`);
+    // A subject: filter by it instead of matching text.
+    history.add(x.s.code);
+    setSearch('');
+    setHi(-1);
+    (document.activeElement as HTMLElement | null)?.blur();
+    setFilters({ ...filters, q: undefined, subjectId: [x.s.id], page: 1 });
+  };
   const onSearchKey = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       if (showHistory && hi >= 0) {
         e.preventDefault();
-        pick(suggestions[hi]);
+        choose(suggestions[hi]);
       } else history.add(search);
     } else if (showHistory && e.key === 'ArrowDown') {
       e.preventDefault();
@@ -226,22 +292,54 @@ export function LibraryPage() {
           {showHistory && (
             // Keep focus in the input while clicking inside the panel.
             <div className="sh-panel" id="lib-q-history" onMouseDown={(e) => e.preventDefault()}>
-              <div className="sh-head">
-                <span>Tìm kiếm gần đây</span>
-                <button type="button" onClick={history.clear}>
-                  Xóa tất cả
-                </button>
-              </div>
-              <ul role="listbox" aria-label="Lịch sử tìm kiếm">
-                {suggestions.map((q, i) => (
-                  <li key={q} role="option" aria-selected={i === hi} className={cn(i === hi && 'is-hi')}>
-                    <button type="button" className="sh-item" onClick={() => pick(q)} onMouseEnter={() => setHi(i)}>
-                      <Clock className="ic ic-sm" aria-hidden />
-                      <span>{q}</span>
+              {!needle && (
+                <div className="sh-head">
+                  <span>Tìm kiếm gần đây</span>
+                  <button type="button" onClick={history.clear}>
+                    Xóa tất cả
+                  </button>
+                </div>
+              )}
+              <ul role="listbox" aria-label={needle ? 'Gợi ý' : 'Lịch sử tìm kiếm'}>
+                {suggestions.map((x, i) => (
+                  <li key={x.key} role="option" aria-selected={i === hi} className={cn(i === hi && 'is-hi', `sh-${x.kind}`)}>
+                    <button type="button" className="sh-item" onClick={() => choose(x)} onMouseEnter={() => setHi(i)}>
+                      {x.kind === 'history' ? (
+                        <>
+                          <Clock className="ic ic-sm" aria-hidden />
+                          <span>
+                            <Mark text={x.q} needle={needle} />
+                          </span>
+                        </>
+                      ) : x.kind === 'subject' ? (
+                        <>
+                          <BookOpen className="ic ic-sm" aria-hidden />
+                          <b className="sh-code">
+                            <Mark text={x.s.code} needle={needle} />
+                          </b>
+                          <span className="sh-name">
+                            <Mark text={x.s.nameVi} needle={needle} />
+                          </span>
+                          <em className="sh-hint">
+                            {x.s.university?.code ? `${x.s.university.code} · ` : ''}
+                            {x.s.documentCount ? `${fmtInt(x.s.documentCount)} tài liệu` : 'chưa có tài liệu'}
+                          </em>
+                        </>
+                      ) : (
+                        <>
+                          <Layers className="ic ic-sm sh-deck-ic" aria-hidden />
+                          <span className="sh-name">
+                            <Mark text={x.d.title} needle={needle} />
+                          </span>
+                          <em className="sh-hint">Thẻ ghi nhớ · {fmtInt(x.d.questionCount)} câu</em>
+                        </>
+                      )}
                     </button>
-                    <button type="button" className="sh-del" aria-label={`Xóa “${q}” khỏi lịch sử`} onClick={() => history.remove(q)}>
-                      <X className="ic ic-sm" />
-                    </button>
+                    {x.kind === 'history' && (
+                      <button type="button" className="sh-del" aria-label={`Xóa “${x.q}” khỏi lịch sử`} onClick={() => history.remove(x.q)}>
+                        <X className="ic ic-sm" />
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>

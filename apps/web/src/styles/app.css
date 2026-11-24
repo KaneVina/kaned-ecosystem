@@ -1384,3 +1384,11 @@ a.ghv-name:hover span { color: var(--violet-600); text-decoration: underline; te
 .kb-chip.violet { background: var(--violet-50); color: var(--violet-600); }
 .pill.sw-fc-pill { gap: 5px; }
 .pill.sw-fc-pill[aria-pressed="true"] .ic { color: inherit; }
+/* Search suggestions: subjects and decks as you type */
+.sh-item .sh-code { flex: none; font-weight: 700; font-variant-numeric: tabular-nums; }
+.sh-item .sh-name { flex: 1; min-width: 0; color: var(--ink-2); }
+.sh-item .sh-hint { flex: none; font-style: normal; font-size: 12px; color: var(--ink-3); }
+.sh-item .sh-deck-ic { color: var(--violet); }
+.sh-mark { background: none; color: var(--violet-700); font-weight: 700; padding: 0; }
+.sh-subject + .sh-deck, .sh-history + .sh-subject, .sh-history + .sh-deck { border-top: 1px solid var(--line); border-radius: 0 0 10px 10px; margin-top: 4px; padding-top: 2px; }
+@media (max-width: 560px) { .sh-item .sh-hint { display: none; } }
