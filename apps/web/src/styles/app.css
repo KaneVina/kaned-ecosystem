@@ -433,7 +433,7 @@
 .auth-pane-head .brand { padding: 0; }
 .auth-back { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 8px; font-size: 14px; color: var(--ink-2); }
 .auth-back:hover { background: var(--sunk); color: var(--ink); }
-.auth-canvas .wm-k { color: #fff; }
+.auth-canvas .wm-k { color: #fff; --bolt: #BFD0FF; --bolt-glow: rgba(157, 182, 255, .7); --bolt-hot: #FFFFFF; }
 .auth-canvas .wm-e { color: rgba(255,255,255,.55); }
 .auth-canvas .brand:hover .wm-k i { color: #BFD0FF; }
 /* Sign in with an outside account */
