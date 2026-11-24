@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useId, useRef, type CSSProperties } from 'react';
 import { cn } from '@/lib/cn';
-import { pointerFxEnabled } from '@/lib/pointerFxPref';
 
 const KANED = ['K', 'A', 'N', 'E', 'D'];
 const ECOSYSTEM = 'ECOSYSTEM'.split('');
 
 const RUN = 900; // ms for the bolt to cross the word
-const EVERY = 9000; // ms between idle strikes, give or take
+const FIRST = 1200; // ms after the page opens
+const EVERY = 6000; // ms between strikes
 
 const reduced = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
@@ -17,10 +17,10 @@ const rnd = (a: number, b: number) => a + Math.random() * (b - a);
  *
  * A bolt of lightning runs through KANED from left to right: in front of K, N
  * and D, behind A and E, so it threads the letters. Each letter flashes as the
- * bolt reaches it, and the line under ECOSYSTEM sparks after it. It strikes on
- * hover, once shortly after the page opens, and now and then while the logo is
- * on screen. The path is drawn fresh each time, so no two strikes look alike.
- * Off with reduced motion; idle strikes also follow the effects setting.
+ * bolt reaches it, and the line under ECOSYSTEM sparks after it. It runs by
+ * itself: shortly after the page opens, then every EVERY ms while the logo is on
+ * screen and the tab is in front. The path is drawn fresh each time, so no two
+ * strikes look alike. Off with reduced motion.
  */
 export function Wordmark({ className }: { className?: string }) {
   const id = useId().replace(/:/g, '');
@@ -127,7 +127,7 @@ export function Wordmark({ className }: { className?: string }) {
     });
   }, []);
 
-  // Once after the page opens, then now and then while the logo is visible.
+  // Shortly after the page opens, then on a steady beat while the logo is visible.
   useEffect(() => {
     if (reduced()) return;
     let seen = false;
@@ -138,11 +138,11 @@ export function Wordmark({ className }: { className?: string }) {
     if (root.current) io.observe(root.current);
     const loop = (wait: number) => {
       timer = window.setTimeout(() => {
-        if (seen && !document.hidden && pointerFxEnabled()) strike();
-        loop(EVERY + rnd(-2000, 2500));
+        if (seen && !document.hidden) strike();
+        loop(EVERY);
       }, wait);
     };
-    loop(900);
+    loop(FIRST);
     return () => {
       window.clearTimeout(timer);
       io.disconnect();
@@ -150,7 +150,7 @@ export function Wordmark({ className }: { className?: string }) {
   }, [strike]);
 
   return (
-    <span ref={root} className={cn('brand', className)} aria-label="Kaned Ecosystem" onPointerEnter={strike} onFocus={strike}>
+    <span ref={root} className={cn('brand', className)} aria-label="Kaned Ecosystem">
       <span ref={word} className="wm-k" aria-hidden>
         {KANED.map((c, i) => (
           <i key={i}>{c}</i>
