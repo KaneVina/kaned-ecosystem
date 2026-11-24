@@ -1460,3 +1460,59 @@ a.ghv-name:hover span { color: var(--brand-600); text-decoration: underline; tex
 .pfx-ripple.is-tap.is-strong { background: radial-gradient(circle, rgba(36, 72, 216, .26) 0%, rgba(36, 72, 216, .15) 55%, rgba(36, 72, 216, 0) 72%); border-color: rgba(36, 72, 216, .36); }
 @media print { .pfx { display: none; } }
 @media (prefers-reduced-motion: reduce), (forced-colors: active) { .pfx { display: none; } }
+
+/* ── Interaction feedback ─────────────────────────────────────────── */
+
+/* Gliding selection (components/fx/SlideIndicators.tsx) */
+.has-sl { position: relative; isolation: isolate; }
+.sl-ind { position: absolute; left: 0; top: 0; z-index: -1; pointer-events: none; opacity: 0; }
+.sl-ind.is-ready { transition: transform .34s cubic-bezier(.2, .9, .25, 1), width .34s cubic-bezier(.2, .9, .25, 1), height .34s cubic-bezier(.2, .9, .25, 1), opacity .2s; }
+.sl-pill { border-radius: 6px; background: var(--paper); box-shadow: var(--sh-1), 0 0 0 1px var(--line); }
+.vec-seg > .sl-pill { border-radius: 8px; }
+.sl-line { z-index: 1; border-radius: 2px 2px 0 0; background: var(--brand); }
+.adm-tabs > .sl-line { background: var(--a-accent); }
+.sl-nav { border-radius: 7px; background: var(--brand-50); }
+.seg.has-sl > :is([aria-pressed="true"], [aria-checked="true"], [aria-selected="true"], .is-on),
+.vec-seg.has-sl > .is-on { background: transparent !important; box-shadow: none !important; }
+.tabs.has-sl [aria-selected="true"]::after, .adm-tabs.has-sl [aria-selected="true"]::after { display: none; }
+.nav-links.has-sl a.active { background: transparent; }
+.nav-links.has-sl a:hover:not(.active) { background: rgba(26, 32, 43, .045); }
+
+/* Press: things you tap give a little */
+.seg button:active, .vec-seg > :active, .pill:active, .chip:active, .dk-chip:active, .nav-links a:active, .tabs button:active, .adm-tab:active { transform: scale(.96); }
+.seg button, .vec-seg > *, .pill, .chip, .nav-links a, .tabs button, .adm-tab { transition-property: color, background-color, border-color, box-shadow, transform; transition-duration: .15s; }
+.doc-card:active, .dk-deck:active { transform: translateY(-1px) scale(.992); transition-duration: .08s; }
+
+/* Back to top (components/fx/BackToTop.tsx) */
+.to-top { position: fixed; right: 20px; bottom: 20px; z-index: 80; width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; border: 0; padding: 0;
+  background: var(--paper); color: var(--brand); box-shadow: 0 8px 24px -8px rgba(18, 24, 38, .28), 0 0 0 1px var(--line); cursor: pointer;
+  opacity: 0; transform: translateY(14px) scale(.85); pointer-events: none; transition: opacity .25s, transform .3s cubic-bezier(.2, 1.3, .35, 1), box-shadow .2s; }
+.to-top.is-on { opacity: 1; transform: none; pointer-events: auto; }
+.to-top .to-top-svg { position: absolute; inset: 1px; width: 44px; height: 44px; transform: rotate(-90deg); }
+.to-top-track { fill: none; stroke: var(--brand-50); stroke-width: 2.5; }
+.to-top-ring { fill: none; stroke: var(--brand); stroke-width: 2.5; stroke-linecap: round; transition: stroke-dashoffset .12s linear; }
+.to-top .ic { position: relative; transition: transform .2s var(--ease-out); }
+.to-top:hover { box-shadow: 0 12px 30px -8px rgba(36, 72, 216, .38), 0 0 0 1px var(--brand-200); }
+.to-top:hover .ic { transform: translateY(-3px); }
+.to-top:active { transform: scale(.92); }
+.to-top:focus-visible { outline: none; box-shadow: var(--ring), 0 0 0 1px var(--brand); }
+@media (max-width: 860px) { body:has(.dp-mobilebar) .to-top { bottom: 86px; } }
+@media (max-width: 560px) { .to-top { right: 14px; bottom: 14px; } }
+
+/* Practice: right answers pulse, counters bump, a +1 floats up */
+.dk-opt.is-ok:not(.is-reveal) { animation: okPulse .6s var(--ease-out); }
+@keyframes okPulse { 0% { box-shadow: 0 0 0 0 rgba(19, 121, 75, .35); } 100% { box-shadow: 0 0 0 12px rgba(19, 121, 75, 0); } }
+.dk-opt.is-ok:not(.is-reveal) .dk-tick { animation: pop .4s cubic-bezier(.3, 1.6, .5, 1); }
+.dk-bump-wrap { position: relative; }
+.dk-bump-wrap > .dk-num { display: inline-block; font: inherit; color: inherit; }
+.dk-bump { animation: dkBump .42s cubic-bezier(.3, 1.6, .5, 1); }
+@keyframes dkBump { 0% { transform: scale(1); } 35% { transform: scale(1.32); } 100% { transform: scale(1); } }
+.dk-plus { position: absolute; left: 50%; top: -2px; font-style: normal; font-size: 12px; font-weight: 700; pointer-events: none; animation: dkPlus .8s var(--ease-out) forwards; }
+@keyframes dkPlus { from { opacity: 0; transform: translate(-50%, 4px); } 25% { opacity: 1; } to { opacity: 0; transform: translate(-50%, -18px); } }
+.dk-mini .is-hot { color: #D9622B; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sl-ind.is-ready, .to-top, .to-top .ic { transition: none; }
+  .dk-opt.is-ok, .dk-tick, .dk-bump, .dk-plus { animation: none !important; }
+  .dk-plus { display: none; }
+}

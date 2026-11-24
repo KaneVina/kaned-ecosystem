@@ -11,6 +11,9 @@ function read(): boolean {
   }
 }
 
+/** Current value, for code outside React. */
+export const pointerFxEnabled = () => read();
+
 export function setPointerFxEnabled(on: boolean) {
   try {
     window.localStorage.setItem(KEY, on ? 'on' : 'off');

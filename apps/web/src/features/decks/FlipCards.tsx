@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Check, RefreshCw, RotateCcw, Shuffle, Star, X } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { buzz } from '@/lib/haptics';
 import { fmtInt } from '@/lib/format';
 import { useDeckCtx } from './context';
 import { beep, LET, makePerm, qLabel } from './model';
@@ -39,6 +40,7 @@ export function FlipCards() {
       if (!q || leaving) return;
       progress.record(q.id, ok, { streak: false });
       if (settings.sound) beep(ok);
+      buzz(ok ? 'ok' : 'bad');
       const finish = () => {
         setLeaving(null);
         setFlip((s) => ({ ...s, idx: s.idx + 1, know: ok ? [...s.know, q.id] : s.know, again: ok ? s.again : [...s.again, q.id] }));

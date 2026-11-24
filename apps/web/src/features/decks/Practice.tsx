@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronLeft, ChevronRight, Flame, RotateCcw, Star, Timer, X } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { buzz } from '@/lib/haptics';
 import { fmtInt } from '@/lib/format';
 import { useDeckCtx } from './context';
 import type { Grade } from '@kaned/shared';
@@ -61,6 +62,7 @@ export function Practice() {
       setPractice((s) => ({ ...s, res: { ...s.res, [q.id]: { sel: chosen, ok, g, base } } }));
       progress.record(q.id, ok, { grade: g });
       if (settings.sound) beep(ok);
+      buzz(ok ? 'ok' : 'bad');
       if (ok && settings.auto && !settings.srs) {
         const at = P.idx;
         autoTimer.current = window.setTimeout(() => {
@@ -319,15 +321,15 @@ export function Practice() {
             </h3>
             <div className="dk-mini">
               <div>
-                <b className="is-ok">{fmtInt(okN)}</b>
+                <Bump value={okN} className="is-ok" />
                 <span>Đúng</span>
               </div>
               <div>
-                <b className="is-bad">{fmtInt(done - okN)}</b>
+                <Bump value={done - okN} className="is-bad" />
                 <span>Sai</span>
               </div>
               <div>
-                <b>{fmtInt(state.streak)}</b>
+                <Bump value={state.streak} className={state.streak >= 3 ? 'is-hot' : undefined} />
                 <span>Chuỗi đúng</span>
               </div>
             </div>
@@ -391,6 +393,32 @@ export function Practice() {
  * After a right answer: how sure was it? Sure answers come back later and
  * later; guesses come back soon, as if they had been wrong.
  */
+/** A counter that bumps and floats a "+1" when it goes up. */
+function Bump({ value, className }: { value: number; className?: string }) {
+  const prev = useRef(value);
+  const [burst, setBurst] = useState<{ n: number; d: number } | null>(null);
+  useEffect(() => {
+    const d = value - prev.current;
+    prev.current = value;
+    if (d <= 0) return;
+    setBurst({ n: value, d });
+    const t = window.setTimeout(() => setBurst(null), 800);
+    return () => window.clearTimeout(t);
+  }, [value]);
+  return (
+    <b className={cn(className, 'dk-bump-wrap')}>
+      <em key={burst ? `s${burst.n}` : 'rest'} className={cn('dk-num', burst && 'dk-bump')}>
+        {fmtInt(value)}
+      </em>
+      {burst && (
+        <i key={`p${burst.n}`} className="dk-plus" aria-hidden>
+          +{fmtInt(burst.d)}
+        </i>
+      )}
+    </b>
+  );
+}
+
 function Confidence({ res, due, onPick }: { res: { ok: boolean; g?: Grade }; due?: number; onPick: (g: Grade) => void }) {
   const wait = due ? fmtWait(due - Date.now()) : '';
   if (!res.ok) {

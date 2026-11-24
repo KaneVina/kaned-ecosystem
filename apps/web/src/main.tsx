@@ -6,6 +6,8 @@ import App from './App';
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
 import { DevtoolsGuard } from '@/components/guard/DevtoolsGuard';
 import { PointerFx } from '@/components/fx/PointerFx';
+import { SlideIndicators } from '@/components/fx/SlideIndicators';
+import { BackToTop } from '@/components/fx/BackToTop';
 import { queryClient } from '@/lib/queryClient';
 import { AuthProvider } from '@/providers/AuthProvider';
 import { ToastProvider } from '@/providers/ToastProvider';
@@ -23,6 +25,8 @@ createRoot(container).render(
           <AuthProvider>
             <DevtoolsGuard />
             <PointerFx />
+            <SlideIndicators />
+            <BackToTop />
             <AnnouncementBar />
             <App />
           </AuthProvider>

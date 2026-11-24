@@ -300,8 +300,8 @@ function PointerFxPanel() {
     <Panel>
       <PanelHead
         icon={<MousePointer2 className="ic" />}
-        title="Hiệu ứng con trỏ"
-        description="Trên máy tính, một vòng sáng nhẹ đi theo chuột và ôm lấy nút bạn rê vào. Trên điện thoại, chỗ bạn chạm sẽ gợn lên một vòng. Tự tắt khi máy bật chế độ giảm chuyển động và trong phòng thi. Cài đặt lưu trên thiết bị này."
+        title="Hiệu ứng tương tác"
+        description="Trên máy tính, một vòng sáng nhẹ đi theo chuột và ôm lấy nút bạn rê vào. Trên điện thoại, chỗ bạn chạm sẽ gợn lên một vòng, và máy rung nhẹ khi bạn trả lời câu hỏi (máy Android). Tự tắt khi máy bật chế độ giảm chuyển động và trong phòng thi. Cài đặt lưu trên thiết bị này."
         actions={
           <label className="st-switch">
             <input type="checkbox" role="switch" checked={on} onChange={(e) => setPointerFxEnabled(e.target.checked)} />
