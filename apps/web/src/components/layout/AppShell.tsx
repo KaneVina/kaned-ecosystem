@@ -39,7 +39,7 @@ import { StarDefs } from '@/components/ui/Stars';
 import { SearchPalette } from './SearchPalette';
 import { useSavedDocuments } from '@/features/library/queries';
 import { cn } from '@/lib/cn';
-import type { ToolArtName } from '@/components/illustrations/ToolArt';
+import { ToolArt, type ToolArtName } from '@/components/illustrations/ToolArt';
 
 export interface Tool {
   to: string | null;
@@ -129,9 +129,7 @@ function ToolsMenu() {
         {TOOLS.map((tool, i) =>
           tool.to ? (
             <Link key={tool.label} role="menuitem" to={tool.to} className="tool-item" style={{ '--i': i } as CSSProperties}>
-              <span className={cn('tool-ic', `tone-${tool.tone}`)}>
-                <tool.icon className="ic" />
-              </span>
+              <ToolArt name={tool.art} className="tool-thumb" />
               <span className="tool-text">
                 <b>{tool.label}</b>
                 <small>{tool.description}</small>
@@ -140,9 +138,7 @@ function ToolsMenu() {
             </Link>
           ) : (
             <div key={tool.label} className="tool-item is-soon" aria-disabled="true" style={{ '--i': i } as CSSProperties}>
-              <span className={cn('tool-ic', `tone-${tool.tone}`)}>
-                <tool.icon className="ic" />
-              </span>
+              <ToolArt name={tool.art} className="tool-thumb" />
               <span className="tool-text">
                 <b>
                   {tool.label}

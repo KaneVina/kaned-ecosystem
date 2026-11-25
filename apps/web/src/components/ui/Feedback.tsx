@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
-import { RotateCcw, TriangleAlert } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { ToolArt } from '@/components/illustrations/ToolArt';
 
 export function Skeleton({ className, style }: { className?: string; style?: CSSProperties }) {
   return <div className={cn('skel', className)} style={style} aria-hidden />;
@@ -8,23 +9,7 @@ export function Skeleton({ className, style }: { className?: string; style?: CSS
 
 /** A notebook page with a magnifying glass: the prototype's empty-state art. */
 export function EmptyArt() {
-  return (
-    <svg className="empty-art" viewBox="0 0 160 120" aria-hidden>
-      <rect x="22" y="10" width="92" height="104" rx="6" fill="#fff" stroke="#D6DBE4" />
-      <g stroke="rgba(80,110,210,.18)">
-        {Array.from({ length: 12 }, (_, k) => (
-          <line key={k} x1="22" x2="114" y1={18 + k * 8} y2={18 + k * 8} />
-        ))}
-      </g>
-      <line x1="38" y1="10" x2="38" y2="114" stroke="#E0483E" strokeOpacity=".5" />
-      <rect x="46" y="26" width="46" height="5" rx="2.5" fill="#DFE6FE" />
-      <rect x="46" y="40" width="56" height="4" rx="2" fill="#EAEDF3" />
-      <rect x="46" y="50" width="40" height="4" rx="2" fill="#EAEDF3" />
-      <circle cx="110" cy="78" r="22" fill="#EEF2FF" stroke="#2448D8" strokeWidth="3" />
-      <line x1="126" y1="94" x2="142" y2="110" stroke="#2448D8" strokeWidth="6" strokeLinecap="round" />
-      <path d="M101 72 q9-7 18 0" stroke="#2448D8" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-    </svg>
-  );
+  return <ToolArt name="empty" className="empty-art" />;
 }
 
 export function EmptyState({
@@ -61,9 +46,7 @@ export function ErrorState({
 }) {
   return (
     <div className="empty empty-compact" role="alert">
-      <span className="confirm-ic is-danger">
-        <TriangleAlert className="ic ic-lg" />
-      </span>
+      <ToolArt name="error" className="empty-art" />
       <h3 className="t-h3">{title}</h3>
       <p>{description ?? 'Máy chủ không phản hồi. Kiểm tra API rồi thử lại.'}</p>
       {onRetry && (

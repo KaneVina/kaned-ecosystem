@@ -25,7 +25,7 @@ const C = {
   line: '#D4DDF3',
 };
 
-export type ToolArtName = 'library' | 'gpa' | 'subjects' | 'flashcards' | 'lecturers' | 'vec' | 'timetable';
+export type ToolArtName = 'library' | 'gpa' | 'subjects' | 'flashcards' | 'lecturers' | 'vec' | 'timetable' | 'empty' | 'error';
 
 /* ── shared pieces ─────────────────────────────────────────────── */
 
@@ -357,6 +357,61 @@ const SCENES: Record<ToolArtName, { title: string; draw: () => ReactNode }> = {
         <Books x={60} y={258} colors={[C.cobalt, C.leafDark, C.amber]} />
         <Leaf x={364} y={272} s={1} r={14} />
         <Sparks x={284} y={146} r={-10} />
+      </>
+    ),
+  },
+  empty: {
+    title: 'Chưa có gì ở đây',
+    draw: () => (
+      <>
+        <Ribbon d="M-10 210C70 270 120 140 200 170S330 250 410 170" />
+        <circle cx="352" cy="46" r="14" fill={C.leaf} />
+        <circle cx="46" cy="58" r="11" fill={C.coral} />
+        <Window x={84} y={40} w={232} h={160} tilt={-2}>
+          <rect x="16" y="14" width="200" height="22" rx="11" fill={C.paper2} stroke={C.line} />
+          <rect x="28" y="22" width="60" height="6" rx="3" fill={C.mist} />
+          <rect x="16" y="50" width="200" height="72" rx="10" fill="none" stroke={C.sky} strokeWidth="2" strokeDasharray="7 6" />
+          <path d="M100 86h32M116 70v32" stroke={C.sky} strokeWidth="4" strokeLinecap="round" opacity=".7" />
+        </Window>
+        <g transform="translate(290 178)">
+          <circle r="34" fill={C.paper} stroke={C.cobalt} strokeWidth="9" />
+          <path d="M-14-4a16 16 0 0 1 18-12" stroke={C.sky} strokeWidth="5" fill="none" strokeLinecap="round" />
+          <path d="M25 25l28 28" stroke={C.cobalt} strokeWidth="13" strokeLinecap="round" />
+        </g>
+        <Books x={56} y={262} colors={[C.leafDark, C.amber, C.cobalt]} />
+        <Leaf x={364} y={272} s={0.95} r={18} />
+        <Leaf x={344} y={274} s={0.75} r={-10} dark />
+        <Sparks x={250} y={130} r={-30} />
+      </>
+    ),
+  },
+  error: {
+    title: 'Không tải được',
+    draw: () => (
+      <>
+        <Ribbon d="M410 210C330 270 280 140 200 170S70 250-10 170" />
+        <circle cx="50" cy="46" r="14" fill={C.leaf} />
+        <circle cx="356" cy="50" r="11" fill={C.amber} />
+        <Window x={84} y={36} w={232} h={150} tilt={2}>
+          <g transform="translate(116 62)">
+            <path d="M-46 22a24 24 0 0 1 6-46 34 34 0 0 1 64-6 26 26 0 0 1 24 52z" fill={C.mist} />
+            <path d="M-12-6l24 24M12-6l-24 24" stroke={C.coral} strokeWidth="7" strokeLinecap="round" />
+          </g>
+        </Window>
+        <g stroke={C.navy} strokeWidth="7" strokeLinecap="round" fill="none">
+          <path d="M40 236c40 0 60-30 96-30" />
+          <path d="M360 236c-40 0-60-30-96-30" />
+        </g>
+        <g transform="translate(146 206)">
+          <rect x="-12" y="-14" width="26" height="28" rx="6" fill={C.cobalt} />
+          <path d="M14-7h10M14 7h10" stroke={C.navy} strokeWidth="5" strokeLinecap="round" />
+        </g>
+        <g transform="translate(254 206)">
+          <rect x="-14" y="-14" width="26" height="28" rx="6" fill={C.coral} />
+        </g>
+        <Sparks x={200} y={222} r={0} color={C.coral} />
+        <Leaf x={40} y={274} s={0.95} r={-16} />
+        <Leaf x={362} y={274} s={0.9} r={16} dark />
       </>
     ),
   },

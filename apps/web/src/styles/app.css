@@ -1534,3 +1534,13 @@ a.ghv-name:hover span { color: var(--brand-600); text-decoration: underline; tex
 .lv-zoom button:hover:not(:disabled) { background: var(--brand-50); color: var(--brand-600); }
 .lv-zoom button:disabled { color: var(--ink-4); cursor: default; }
 .lv-zoom .lv-zoom-n { min-width: 48px; }
+
+/* Illustrations in the Tools menu and empty states */
+.tool-thumb { flex: none; display: block; width: 68px; border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 1px var(--line); }
+.tool-thumb svg { display: block; width: 100%; height: auto; transition: transform .4s var(--ease-out); }
+.menu .tool-item:hover .tool-thumb svg, .menu .tool-item:focus-visible .tool-thumb svg { transform: scale(1.12); }
+.tool-item.is-soon .tool-thumb { filter: grayscale(.55); }
+.empty-art { display: block; width: 230px; max-width: 70vw; margin-bottom: 20px; border-radius: 18px; overflow: hidden; }
+.empty-art svg { display: block; width: 100%; height: auto; }
+.empty-compact .empty-art { width: 180px; }
+@media (prefers-reduced-motion: reduce) { .tool-thumb svg { transition: none; } }

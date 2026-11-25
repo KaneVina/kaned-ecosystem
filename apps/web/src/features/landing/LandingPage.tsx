@@ -11,6 +11,7 @@ import { SectionHead } from '@/components/ui/Panel';
 import { DocPage } from '@/components/paper/Paper';
 import type { PaperDoc } from '@/components/paper/render';
 import { TOOLS } from '@/components/layout/AppShell';
+import { ToolArt } from '@/components/illustrations/ToolArt';
 import { useDocuments } from '@/features/library/queries';
 import { useSubjects, useUniversities } from '@/features/catalog/queries';
 import { useAuth } from '@/providers/AuthProvider';
@@ -251,18 +252,14 @@ export function LandingPage() {
           />
           <div className="dash-tools">
             <Link to={home} className="dash-tool">
-              <span className="tool-ic tone-violet">
-                <Search className="ic" />
-              </span>
+              <ToolArt name="library" className="dash-tool-art" />
               <b>Thư viện học liệu</b>
               <small>Đề thi, slide, ghi chép — lọc theo trường, môn, học kỳ và định dạng.</small>
               <ArrowRight className="ic ic-sm dash-tool-go" />
             </Link>
             {TOOLS.map((t) => (
               <div key={t.label} className={cn('dash-tool', !t.to && 'is-soon')}>
-                <span className={cn('tool-ic', `tone-${t.tone}`)}>
-                  <t.icon className="ic" />
-                </span>
+                <ToolArt name={t.art} className="dash-tool-art" />
                 <b>
                   {t.label} {!t.to && <span className="badge badge-gray">Sắp có</span>}
                 </b>
