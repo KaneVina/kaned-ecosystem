@@ -16,6 +16,7 @@ import { useGradeSummary, usePlanner } from '@/features/grades/queries';
 import { useAuth } from '@/providers/AuthProvider';
 import { fmtToday, timeAgo } from '@/lib/format';
 import { cn } from '@/lib/cn';
+import { ToolArt } from '@/components/illustrations/ToolArt';
 
 const GREETINGS = ['hôm nay học gì?', 'ôn môn nào trước?', 'tìm đề thi cũ nhé?', 'GPA kỳ này lên nào!'];
 
@@ -217,28 +218,22 @@ export function DashboardPage() {
           />
           <div className="dash-tools">
             <Link to="/app/library" className="dash-tool">
-              <span className="tool-ic tone-violet">
-                <Library className="ic" />
-              </span>
+              <ToolArt name="library" className="dash-tool-art" />
               <b>Thư viện học liệu</b>
-              <small>Đề thi, slide, ghi chép — lọc theo trường, môn, học kỳ.</small>
+              <small>Đề thi, slide, ghi chép của sinh viên các trường, lọc theo trường, môn và học kỳ.</small>
               <ArrowRight className="ic ic-sm dash-tool-go" />
             </Link>
             {TOOLS.map((t) =>
               t.to ? (
                 <Link key={t.label} to={t.to} className="dash-tool">
-                  <span className={cn('tool-ic', `tone-${t.tone}`)}>
-                    <t.icon className="ic" />
-                  </span>
+                  <ToolArt name={t.art} className="dash-tool-art" />
                   <b>{t.label}</b>
                   <small>{t.description}</small>
                   <ArrowRight className="ic ic-sm dash-tool-go" />
                 </Link>
               ) : (
                 <div key={t.label} className="dash-tool is-soon">
-                  <span className={cn('tool-ic', `tone-${t.tone}`)}>
-                    <t.icon className="ic" />
-                  </span>
+                  <ToolArt name={t.art} className="dash-tool-art" />
                   <b>
                     {t.label} <span className="badge badge-gray">Sắp có</span>
                   </b>

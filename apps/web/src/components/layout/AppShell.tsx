@@ -39,6 +39,7 @@ import { StarDefs } from '@/components/ui/Stars';
 import { SearchPalette } from './SearchPalette';
 import { useSavedDocuments } from '@/features/library/queries';
 import { cn } from '@/lib/cn';
+import type { ToolArtName } from '@/components/illustrations/ToolArt';
 
 export interface Tool {
   to: string | null;
@@ -46,6 +47,8 @@ export interface Tool {
   description: string;
   icon: LucideIcon;
   tone: string;
+  /** Illustration for the module's card on the dashboard. */
+  art: ToolArtName;
 }
 
 /** The tools in the "Công cụ" menu. Adding a module is one line here. */
@@ -56,6 +59,7 @@ export const TOOLS: Tool[] = [
     description: 'Quy đổi điểm hệ 10 sang chữ và hệ 4, đặt mục tiêu',
     icon: Calculator,
     tone: 'violet',
+    art: 'gpa',
   },
   {
     to: '/app/subjects',
@@ -63,6 +67,7 @@ export const TOOLS: Tool[] = [
     description: 'Tra cứu môn, nhập điểm, xem môn nào học được hay bị chặn',
     icon: GraduationCap,
     tone: 'teal',
+    art: 'subjects',
   },
   {
     to: '/app/flashcards',
@@ -70,6 +75,7 @@ export const TOOLS: Tool[] = [
     description: 'Luyện trắc nghiệm, lật thẻ, thi thử và mẹo nhớ theo từng môn',
     icon: Layers,
     tone: 'amber',
+    art: 'flashcards',
   },
   {
     to: '/app/lecturers',
@@ -77,6 +83,7 @@ export const TOOLS: Tool[] = [
     description: 'Liên hệ, bộ môn và tài liệu của giảng viên, cán bộ',
     icon: Contact,
     tone: 'teal',
+    art: 'lecturers',
   },
   {
     to: '/app/vec',
@@ -84,6 +91,7 @@ export const TOOLS: Tool[] = [
     description: 'Thi trắc nghiệm trực tuyến có giám sát, tạo phiên và chấm điểm tự động',
     icon: MonitorCheck,
     tone: 'violet',
+    art: 'vec',
   },
   {
     to: null,
@@ -91,6 +99,7 @@ export const TOOLS: Tool[] = [
     description: 'Xếp lịch học và nhắc deadline theo môn',
     icon: CalendarDays,
     tone: 'blue',
+    art: 'timetable',
   },
 ];
 
