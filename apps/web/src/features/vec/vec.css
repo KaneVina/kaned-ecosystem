@@ -45,11 +45,20 @@
 .vec-role:hover { transform: translateY(-3px); box-shadow: var(--sh-3); border-color: var(--brand-200); }
 .vec-role h2 { font-size: 22px; font-weight: 800; margin: 0; letter-spacing: -.01em; }
 .vec-role p { color: var(--ink-2); margin: 0; max-width: 42ch; }
+.vec-role { padding: 14px 14px 26px; }
+.vec-role > h2, .vec-role > p, .vec-role > .vec-role-go { margin-left: 14px; margin-right: 14px; }
+.vec-role-art { display: block; aspect-ratio: 16 / 9; border-radius: 14px; overflow: hidden; margin-bottom: 8px; }
+.vec-role-art svg { display: block; width: 100%; height: 100%; transition: transform .6s var(--ease-out); }
+.vec-role:hover .vec-role-art svg { transform: scale(1.04); }
+.vec-kind-art { flex: none; display: block; width: 92px; border-radius: 10px; overflow: hidden; }
+.vec-kind-art svg { display: block; width: 100%; height: auto; }
+.vec-kind.is-soon .vec-kind-art { filter: grayscale(.5); }
+@media (prefers-reduced-motion: reduce) { .vec-role-art svg { transition: none; } .vec-role:hover .vec-role-art svg { transform: none; } }
 .vec-role-ic { width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center; background: var(--brand-50); color: var(--brand); }
 .vec-role-lecturer .vec-role-ic { background: var(--amber-50); color: #B7791F; }
 .vec-role-go { margin-top: 10px; display: inline-flex; align-items: center; gap: 8px; font-weight: 700; color: var(--brand-600); }
 .vec-kinds { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
-.vec-kind { display: flex; gap: 14px; align-items: flex-start; padding: 16px 18px; border-radius: var(--r-lg); background: var(--paper); border: 1px solid var(--line); }
+.vec-kind { display: flex; gap: 14px; align-items: center; padding: 16px 18px; border-radius: var(--r-lg); background: var(--paper); border: 1px solid var(--line); }
 .vec-kind > .ic { color: var(--brand); margin-top: 2px; flex: none; }
 .vec-kind > div { flex: 1; }
 .vec-kind b { display: block; }
@@ -478,3 +487,5 @@ p.vec-lockwhy { font-size: 15px; }
   .vec-timer.is-danger, .spin { animation: none; }
   .vec-role, .vec-srow { transition: none; }
 }
+
+@media (max-width: 560px) { .vec-kind-art { width: 64px; } .vec-kind { gap: 12px; padding: 14px; } }

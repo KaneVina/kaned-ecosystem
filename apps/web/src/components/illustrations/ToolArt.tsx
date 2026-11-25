@@ -25,7 +25,7 @@ const C = {
   line: '#D4DDF3',
 };
 
-export type ToolArtName = 'library' | 'gpa' | 'subjects' | 'flashcards' | 'lecturers' | 'vec' | 'timetable' | 'empty' | 'error';
+export type ToolArtName = 'library' | 'gpa' | 'subjects' | 'flashcards' | 'lecturers' | 'vec' | 'timetable' | 'empty' | 'error' | 'student' | 'lecturer' | 'fe' | 'pe';
 
 /* ── shared pieces ─────────────────────────────────────────────── */
 
@@ -115,7 +115,7 @@ function Check({ x, y, ok = true }: { x: number; y: number; ok?: boolean }) {
 
 function Frame({ children, title }: { children: ReactNode; title: string }) {
   return (
-    <svg viewBox="0 0 400 280" role="img" aria-label={title} xmlns="http://www.w3.org/2000/svg">
+    <svg viewBox="0 0 400 280" role="img" aria-label={title} preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
       <rect width="400" height="280" rx="22" fill={C.tile} />
       {children}
     </svg>
@@ -412,6 +412,161 @@ const SCENES: Record<ToolArtName, { title: string; draw: () => ReactNode }> = {
         <Sparks x={200} y={222} r={0} color={C.coral} />
         <Leaf x={40} y={274} s={0.95} r={-16} />
         <Leaf x={362} y={274} s={0.9} r={16} dark />
+      </>
+    ),
+  },
+  student: {
+    title: 'Sinh viên vào phòng thi',
+    draw: () => (
+      <>
+        <Ribbon d="M-10 80C70 20 130 150 200 120S320 30 410 110" />
+        <circle cx="358" cy="236" r="14" fill={C.leaf} />
+        <circle cx="44" cy="50" r="11" fill={C.coral} />
+        <Window x={70} y={40} w={260} h={150} tilt={-2}>
+          <text x="130" y="30" textAnchor="middle" fontFamily="Arial Black, Arial" fontSize="13" fontWeight="900" fill={C.navy}>Mã phòng thi</text>
+          {['4', '8', '2', '0', '7', '1', ''].map((d, i) => (
+            <g key={i}>
+              <rect x={22 + i * 31} y="44" width="26" height="34" rx="7" fill={d ? C.paper : C.paper2} stroke={d ? C.cobalt : C.line} strokeWidth={d ? 2 : 1.5} />
+              <text x={35 + i * 31} y="67" textAnchor="middle" fontFamily="Arial Black, Arial" fontSize="15" fontWeight="900" fill={C.navy}>{d}</text>
+            </g>
+          ))}
+          <path d="M215 52v18" stroke={C.cobalt} strokeWidth="2.4" strokeLinecap="round" />
+          <rect x="70" y="94" width="120" height="22" rx="11" fill={C.cobalt} />
+          <text x="130" y="109" textAnchor="middle" fontFamily="Arial" fontSize="11" fontWeight="700" fill={C.paper}>Vào phòng chờ</text>
+        </Window>
+        <g transform="translate(46 186) rotate(-7)">
+          <rect width="118" height="72" rx="12" fill={C.paper} stroke={C.line} strokeWidth="1.5" />
+          <rect width="118" height="18" rx="12" fill={C.cobalt} />
+          <rect y="10" width="118" height="8" fill={C.cobalt} />
+          <circle cx="28" cy="44" r="15" fill={C.sky} />
+          <circle cx="28" cy="40" r="6" fill={C.paper} />
+          <path d="M18 54a10 8 0 0 1 20 0" fill={C.paper} />
+          <rect x="52" y="34" width="52" height="7" rx="3.5" fill={C.navy} opacity=".85" />
+          <rect x="52" y="47" width="38" height="6" rx="3" fill={C.mist} />
+        </g>
+        <g transform="translate(300 186)">
+          <path d="M0-26l36 14-36 14-36-14z" fill={C.navy} />
+          <path d="M-20-5v14c0 6 40 6 40 0V-5L0 3z" fill={C.cobalt} />
+          <path d="M32-11v18" stroke={C.amber} strokeWidth="3" strokeLinecap="round" />
+          <circle cx="32" cy="9" r="4" fill={C.amber} />
+        </g>
+        <Leaf x={232} y={274} s={0.95} r={-14} />
+        <Leaf x={254} y={276} s={0.75} r={16} dark />
+        <Sparks x={346} y={40} r={20} />
+      </>
+    ),
+  },
+  lecturer: {
+    title: 'Giảng viên quản lý phiên thi',
+    draw: () => (
+      <>
+        <Ribbon d="M410 90C330 20 270 160 200 120S70 30-10 120" />
+        <circle cx="46" cy="236" r="14" fill={C.leaf} />
+        <circle cx="358" cy="44" r="11" fill={C.coral} />
+        <Window x={64} y={36} w={272} h={170} tilt={2}>
+          {[0, 1, 2, 3].map((i) => {
+            const st = [C.green, C.green, C.amber, C.coral][i];
+            return (
+              <g key={i} transform={`translate(16 ${12 + i * 30})`}>
+                <rect width="240" height="24" rx="7" fill={C.paper2} stroke={C.line} />
+                <circle cx="14" cy="12" r="7" fill={[C.sky, C.amber, C.mist, C.sky][i]} />
+                <rect x="28" y="8" width={70 - i * 6} height="8" rx="4" fill={C.navy} opacity=".8" />
+                <rect x="120" y="9" width="70" height="6" rx="3" fill={C.mist} />
+                <rect x="120" y="9" width={[64, 50, 30, 18][i]} height="6" rx="3" fill={C.cobalt} />
+                <rect x="202" y="6" width="30" height="12" rx="6" fill={st} />
+              </g>
+            );
+          })}
+        </Window>
+        <g transform="translate(70 198) rotate(-6)">
+          <rect width="96" height="58" rx="12" fill={C.navy} />
+          <text x="48" y="26" textAnchor="middle" fontFamily="Arial Black, Arial" fontSize="17" fontWeight="900" fill={C.paper}>8.75</text>
+          <rect x="18" y="36" width="60" height="8" rx="4" fill={C.sky} />
+        </g>
+        <g transform="translate(300 214)">
+          <rect x="-26" y="-30" width="52" height="60" rx="8" fill={C.paper} stroke={C.line} strokeWidth="1.5" />
+          <rect x="-12" y="-36" width="24" height="12" rx="4" fill={C.amber} />
+          <Check x={-18} y={-14} />
+          <rect x="2" y="-10" width="16" height="6" rx="3" fill={C.mist} />
+          <Check x={-18} y={8} />
+          <rect x="2" y="12" width="16" height="6" rx="3" fill={C.mist} />
+        </g>
+        <Leaf x={364} y={276} s={0.95} r={16} />
+        <Sparks x={52} y={52} r={-24} />
+      </>
+    ),
+  },
+  fe: {
+    title: 'FE – Trắc nghiệm',
+    draw: () => (
+      <>
+        <Ribbon d="M-10 220C70 280 130 150 210 180S330 250 410 160" />
+        <circle cx="356" cy="44" r="14" fill={C.leaf} />
+        <circle cx="44" cy="52" r="11" fill={C.coral} />
+        <g transform="rotate(-4 200 130)">
+          <rect x="110" y="34" width="180" height="200" rx="14" fill={C.paper} stroke={C.line} strokeWidth="1.5" />
+          <rect x="128" y="52" width="110" height="10" rx="5" fill={C.navy} opacity=".85" />
+          {[0, 1, 2, 3, 4].map((r) => (
+            <g key={r}>
+              <text x="130" y={92 + r * 28} fontFamily="Arial Black, Arial" fontSize="11" fontWeight="900" fill={C.navy}>{r + 1}</text>
+              {['A', 'B', 'C', 'D'].map((l, c) => {
+                const on = [1, 3, 0, 2, 1][r] === c;
+                return <circle key={l} cx={160 + c * 30} cy={88 + r * 28} r="9" fill={on ? C.cobalt : C.paper} stroke={on ? C.cobalt : C.line} strokeWidth="2" />;
+              })}
+            </g>
+          ))}
+        </g>
+        <g transform="translate(318 186)">
+          <circle r="30" fill={C.green} />
+          <path d="M-12 0l8 8 16-17" stroke={C.paper} strokeWidth="6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        </g>
+        <g transform="translate(60 196) rotate(-10)">
+          <rect x="-8" y="-40" width="16" height="70" rx="4" fill={C.amber} />
+          <path d="M-8 30h16l-8 16z" fill="#F6D7A0" />
+          <path d="M-3 42h6l-3 6z" fill={C.ink} />
+          <rect x="-8" y="-46" width="16" height="10" rx="3" fill={C.coral} />
+        </g>
+        <Leaf x={364} y={274} s={0.9} r={16} dark />
+        <Sparks x={300} y={56} r={20} />
+      </>
+    ),
+  },
+  pe: {
+    title: 'PE – Thực hành',
+    draw: () => (
+      <>
+        <Ribbon d="M410 220C330 280 270 150 190 180S70 250-10 160" />
+        <circle cx="46" cy="44" r="14" fill={C.leaf} />
+        <circle cx="358" cy="56" r="11" fill={C.coral} />
+        <g transform="translate(76 38)">
+          <rect x="4" y="6" width="220" height="150" rx="12" fill={C.navy} opacity=".14" />
+          <rect width="220" height="150" rx="12" fill={C.ink} />
+          <circle cx="14" cy="12" r="3.6" fill={C.coral} />
+          <circle cx="25" cy="12" r="3.6" fill={C.amber} />
+          <circle cx="36" cy="12" r="3.6" fill={C.leaf} />
+          {[
+            [16, 40, 40, C.sky],
+            [60, 40, 70, C.amber],
+            [28, 58, 90, C.mist],
+            [28, 76, 60, '#7FD1A8'],
+            [92, 76, 50, C.sky],
+            [28, 94, 110, C.mist],
+            [16, 112, 30, C.sky],
+          ].map(([x, y, w, col], i) => (
+            <rect key={i} x={x as number} y={y as number} width={w as number} height="8" rx="4" fill={col as string} opacity=".9" />
+          ))}
+          <rect x="150" y="104" width="3" height="16" fill={C.paper} />
+        </g>
+        <g transform="translate(300 176)">
+          <rect x="-34" y="-30" width="68" height="76" rx="10" fill={C.paper} stroke={C.line} strokeWidth="1.5" />
+          <rect x="-34" y="-30" width="68" height="20" rx="10" fill={C.amber} />
+          <text y="-15" textAnchor="middle" fontFamily="Arial Black, Arial" fontSize="10" fontWeight="900" fill={C.ink}>.ZIP</text>
+          <circle cy="16" r="16" fill={C.cobalt} />
+          <path d="M0 24V8m-7 6 7-7 7 7" stroke={C.paper} strokeWidth="3.4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        </g>
+        <Books x={60} y={258} colors={[C.cobalt, C.coral, C.leafDark]} />
+        <Leaf x={364} y={276} s={0.95} r={16} />
+        <Sparks x={262} y={44} r={20} />
       </>
     ),
   },

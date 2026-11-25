@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, ClipboardCheck, GraduationCap, History, MonitorPlay, Presentation, Radio } from 'lucide-react';
+import { ArrowRight, History, Radio } from 'lucide-react';
+import { ToolArt } from '@/components/illustrations/ToolArt';
 import { PageHead } from '@/components/ui/Panel';
 import { Badge } from '@/components/ui/Badge';
 import { useVecMe } from './api';
@@ -22,13 +23,13 @@ export default function HubPage() {
         )}
         <div className="vec-hub">
           <Link to="/app/vec/student" className="vec-role vec-role-student">
-            <span className="vec-role-ic"><GraduationCap className="ic ic-lg" /></span>
+            <ToolArt name="student" className="vec-role-art" />
             <h2>Tôi là sinh viên</h2>
             <p>Nhập mã phòng 7 chữ số từ giảng viên, xác nhận thông tin rồi vào phòng chờ.</p>
             <span className="vec-role-go">Vào phòng thi <ArrowRight className="ic" /></span>
           </Link>
           <Link to="/app/vec/lecturer" className="vec-role vec-role-lecturer">
-            <span className="vec-role-ic"><Presentation className="ic ic-lg" /></span>
+            <ToolArt name="lecturer" className="vec-role-art" />
             <h2>Tôi là giảng viên</h2>
             <p>Tạo phiên thi từ bộ đề có sẵn hoặc file .md, theo dõi thí sinh, mở khóa, chấm và xuất điểm.</p>
             <span className="vec-role-go">Quản lý phiên thi <ArrowRight className="ic" /></span>
@@ -38,12 +39,12 @@ export default function HubPage() {
         <h3 className="vec-h3">Hình thức thi</h3>
         <div className="vec-kinds">
           <div className="vec-kind">
-            <ClipboardCheck className="ic" />
+            <ToolArt name="fe" className="vec-kind-art" />
             <div><b>FE – Trắc nghiệm</b><p>Câu hỏi một hoặc nhiều đáp án, đảo câu và đáp án, chấm điểm tại máy chủ.</p></div>
             <Badge tone="green">Sẵn sàng</Badge>
           </div>
           <div className="vec-kind is-soon">
-            <MonitorPlay className="ic" />
+            <ToolArt name="pe" className="vec-kind-art" />
             <div><b>PE – Thực hành</b><p>Đề thực hành, nộp tệp bài làm, chấm thủ công.</p></div>
             <Badge tone="gray">Sắp có</Badge>
           </div>
