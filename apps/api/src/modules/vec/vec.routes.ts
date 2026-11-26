@@ -21,6 +21,10 @@ import {
   sessionPatchSchema,
   unlockRequestSchema,
   violationSchema,
+  peCloseSchema,
+  peGradeSchema,
+  peSignSchema,
+  peSubmitSchema,
 } from '@kaned/shared';
 import { env } from '../../env.js';
 import { ApiError } from '../../lib/errors.js';
@@ -33,6 +37,7 @@ import * as join from './vec.join.js';
 import * as attempts from './vec.attempts.js';
 import * as mon from './vec.monitor.js';
 import { tick } from './vec.tick.js';
+import * as pe from './vec.pe.js';
 
 /** /api/vec — Virtual Exam Center. */
 export const vecRouter = Router();
@@ -40,11 +45,32 @@ export const vecRouter = Router();
 vecRouter.use((_req, _res, next) => (env.vecEnabled ? next() : next(ApiError.notFound('Phòng thi ảo đang tạm tắt.'))));
 
 // The scheduler's call authenticates with a shared secret, not a user.
+// Vercel's daily cron: GET with "Authorization: Bearer <CRON_SECRET>".
+vecRouter.get('/internal/tick', async (req, res) => {
+  const want = Buffer.from(`Bearer ${process.env.CRON_SECRET ?? ''}`);
+  const given = Buffer.from(String(req.get('authorization') ?? ''));
+  if (!process.env.CRON_SECRET || given.length !== want.length || !timingSafeEqual(given, want)) throw ApiError.unauthorized();
+  res.json(await tick());
+});
 vecRouter.post('/internal/tick', async (req, res) => {
   const given = Buffer.from(String(req.get('x-vec-secret') ?? ''));
   const want = Buffer.from(env.VEC_FINALIZER_SECRET);
   if (!want.length || given.length !== want.length || !timingSafeEqual(given, want)) throw ApiError.unauthorized();
   res.json(await tick());
+});
+
+/* ── PE files moved with signed tickets (no session header: plain links and frames) ── */
+vecRouter.post('/blob/:id', async (req, res) => {
+  res.set('Cache-Control', 'no-store').json(await pe.receiveBlob(req, id(req), String(req.query.t ?? '')));
+});
+vecRouter.get('/blob/:id', async (req, res) => {
+  await pe.sendBlob(res, id(req), String(req.query.t ?? ''), req.query.dl === '1');
+});
+vecRouter.get('/embed/:id/:ticket', async (req, res) => {
+  await pe.embedPage(req, res, id(req), String(req.params.ticket));
+});
+vecRouter.get('/embed/:id/:ticket/file', async (req, res) => {
+  await pe.embedFile(req, res, id(req), String(req.params.ticket));
 });
 
 vecRouter.use(requireAuth);
@@ -75,7 +101,10 @@ const wrap = (fn: (req: Request) => Promise<unknown>): RequestHandler => async (
 };
 
 /* ── hub & lookups ── */
-vecRouter.get('/me', wrap((r) => join.meState(u(r))));
+vecRouter.get('/me', wrap(async (r) => {
+  await pe.lazySweep();
+  return join.meState(u(r));
+}));
 vecRouter.get('/me/prefill', wrap((r) => join.prefill(u(r))));
 vecRouter.get('/decks', wrap(() => sessions.listDecksForHost()));
 
@@ -85,7 +114,23 @@ vecRouter.post('/join/otp', writeLimiter, validateBody(joinOtpSchema), wrap((r) 
 vecRouter.post('/join/enter', writeLimiter, validateBody(joinEnterSchema), wrap((r) => join.enter(r, u(r), r.body.ticket, r.body.info)));
 
 /* ── hosting ── */
-vecRouter.get('/sessions', wrap((r) => sessions.listHosted(u(r))));
+vecRouter.get('/sessions', wrap(async (r) => {
+  await pe.lazySweep();
+  return sessions.listHosted(u(r));
+}));
+
+/* ── PE: library picker, uploads, grading ── */
+vecRouter.get('/pe/library', wrap((r) => pe.libraryPick(String(r.query.q ?? ''), u(r))));
+vecRouter.post('/pe/files/sign', writeLimiter, validateBody(peSignSchema), wrap((r) => pe.signFile(u(r), r.body)));
+vecRouter.post('/pe/files/:id/finish', wrap((r) => pe.finishDraft(u(r), id(r))));
+vecRouter.delete('/pe/files/:id', wrap((r) => pe.dropDraft(u(r), id(r))));
+vecRouter.get('/pe/files/:id/link', wrap((r) => pe.hostFileLink(id(r), u(r), role(r))));
+vecRouter.get('/pe/submissions/:id/link', wrap((r) => pe.submissionFileId(id(r), u(r), role(r))));
+vecRouter.get('/sessions/:id/pe/grading', wrap((r) => pe.grading(id(r), u(r), role(r))));
+vecRouter.get('/sessions/:id/pe/paper', wrap((r) => pe.hostPaper(id(r), u(r), role(r))));
+vecRouter.get('/sessions/:id/pe/items/:ref', wrap((r) => pe.hostMaterial(id(r), String(r.params.ref), u(r), role(r))));
+vecRouter.get('/sessions/:id/pe/latest', wrap((r) => pe.latestFiles(id(r), u(r), role(r))));
+vecRouter.put('/attempts/:id/pe/grade', validateBody(peGradeSchema), wrap((r) => pe.gradeAttempt(id(r), u(r), role(r), r.body)));
 vecRouter.post('/sessions', writeLimiter, idempotent(), validateBody(sessionInputSchema), async (req, res) => {
   res.status(201).json(await sessions.createSession(u(req), req.body));
 });
@@ -126,6 +171,12 @@ vecRouter.post('/attempts/:id/submit', validateBody(z.object({ items: z.array(an
 vecRouter.post('/attempts/:id/heartbeat', validateBody(heartbeatSchema), wrap((r) => attempts.heartbeat(r, id(r), u(r), r.body)));
 vecRouter.post('/attempts/:id/violations', validateBody(violationSchema), wrap((r) => attempts.reportViolation(id(r), u(r), r.body.type, r.body.data)));
 vecRouter.get('/attempts/:id/result', wrap((r) => attempts.attemptResult(id(r), u(r))));
+vecRouter.get('/attempts/:id/pe', wrap((r) => pe.peRoom(u(r), id(r))));
+vecRouter.get('/attempts/:id/pe/paper', wrap((r) => pe.candidatePaper(u(r), id(r))));
+vecRouter.get('/attempts/:id/pe/materials/:ref', wrap((r) => pe.candidateMaterial(u(r), id(r), String(r.params.ref))));
+vecRouter.get('/attempts/:id/pe/submissions/:sid', wrap((r) => pe.ownSubmissionLink(u(r), id(r), String(r.params.sid))));
+vecRouter.post('/attempts/:id/pe/submit', validateBody(peSubmitSchema), wrap((r) => pe.submitSolution(u(r), id(r), r.body)));
+vecRouter.post('/attempts/:id/pe/close', validateBody(peCloseSchema), wrap((r) => pe.closeRoom(u(r), id(r))));
 vecRouter.post('/attempts/:id/retake', wrap((r) => attempts.startRetake(id(r), u(r))));
 vecRouter.post('/attempts/:id/request', validateBody(unlockRequestSchema), wrap((r) => attempts.requestUnlock(id(r), u(r), r.body.kind, r.body.reason)));
 

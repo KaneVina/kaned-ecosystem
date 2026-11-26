@@ -330,7 +330,7 @@ export function embedHeaders(nonce: string): Record<string, string> {
       `script-src 'nonce-${nonce}' https://www.youtube.com https://s.ytimg.com`,
       "style-src 'unsafe-inline'",
       "img-src 'self' data: https:",
-      'frame-src https:',
+      "frame-src 'self' https:",
       "connect-src 'self'",
       "frame-ancestors 'self'",
       "base-uri 'none'",

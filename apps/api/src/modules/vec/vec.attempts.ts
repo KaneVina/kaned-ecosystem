@@ -241,7 +241,7 @@ export async function heartbeat(req: Request, attemptId: string, userId: string,
         .update(vecAttempts)
         .set({ lastSeenAt: new Date(now), connectionAt: new Date(now), fullscreen: body.fullscreen, visible: body.visible, focused: body.focused, currentIndex: body.current, lastIp: ip })
         .where(eq(vecAttempts.id, a.id));
-      if (a.state === 'IN_PROGRESS' && a.lastIp && ip && a.lastIp !== ip) {
+      if (s.kind !== 'PE' && a.state === 'IN_PROGRESS' && a.lastIp && ip && a.lastIp !== ip) {
         await recordViolation(a, s.settings as VecSettings, 'IP_CHANGE', { from: a.lastIp, to: ip }, now);
       }
     }
@@ -274,7 +274,8 @@ export async function heartbeat(req: Request, attemptId: string, userId: string,
 
 export async function reportViolation(attemptId: string, userId: string, type: ViolationType, data?: Record<string, unknown>) {
   const { attempt: a, session: s } = await loadMine(attemptId, userId);
-  if (a.state !== 'IN_PROGRESS') return { severity: 'INFO' as const, state: a.state, lockReason: a.lockReason };
+  // Practical rooms need the candidate's IDE and other windows: nothing is locked for leaving the page.
+  if (a.state !== 'IN_PROGRESS' || s.kind === 'PE') return { severity: 'INFO' as const, state: a.state, lockReason: a.lockReason };
   const r = await recordViolation(a, s.settings as VecSettings, type, data);
   const [fresh] = await db.select({ state: vecAttempts.state, lockReason: vecAttempts.lockReason }).from(vecAttempts).where(eq(vecAttempts.id, a.id)).limit(1);
   return { severity: r.severity, state: fresh?.state ?? a.state, lockReason: fresh?.lockReason ?? null };

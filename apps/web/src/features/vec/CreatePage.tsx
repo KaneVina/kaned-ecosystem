@@ -26,7 +26,7 @@ function defaultStart() {
   return { date: `${p.y}-${pad(p.mo)}-${pad(p.d)}`, time: `${pad(p.h)}:${pad(p.mi)}` };
 }
 /** A number box that keeps what you type but never hands on a value outside its range. */
-function NumberBox({ value, min, max, onChange, suffix, id }: { value: number; min: number; max: number; onChange: (n: number) => void; suffix?: string; id?: string }) {
+export function NumberBox({ value, min, max, onChange, suffix, id }: { value: number; min: number; max: number; onChange: (n: number) => void; suffix?: string; id?: string }) {
   const [text, setText] = useState(String(value));
   useEffect(() => setText(String(value)), [value]);
   const commit = () => {
@@ -361,7 +361,7 @@ export default function CreatePage() {
   );
 }
 
-function Toggle({ label, hint, on, onChange }: { label: string; hint?: string; on: boolean; onChange: (v: boolean) => void }) {
+export function Toggle({ label, hint, on, onChange }: { label: string; hint?: string; on: boolean; onChange: (v: boolean) => void }) {
   return (
     <label className="vec-toggle">
       <input type="checkbox" role="switch" checked={on} onChange={(e) => onChange(e.target.checked)} />

@@ -13,6 +13,7 @@ import { db } from '../../db/index.js';
 import { vecAttemptEvents, vecAttempts, vecParticipants, vecSessions, vecUnlockRequests, type VecAttemptRow, type VecSessionRow } from '../../db/schema.js';
 import { ApiError } from '../../lib/errors.js';
 import { audit, countsFor, loadHostedSession, ms, statusOf, toSessionDto } from './vec.common.js';
+import { peMonitorInfo } from './vec.pe.js';
 import { createAttempt, deadlineOf, finalizeAttempt, logEvent, nextAttemptNo, recomputeCounted, settleSession, voidAttempt } from './vec.engine.js';
 
 async function hostedAttempt(attemptId: string, userId: string, role: string): Promise<{ attempt: VecAttemptRow; session: VecSessionRow }> {
@@ -36,6 +37,7 @@ export async function monitor(sessionId: string, userId: string, role: string, s
     maxNo.set(a.userId, a.attemptNo);
   }
   const total = s.questionCount;
+  const peInfo = s.kind === 'PE' ? await peMonitorInfo(sessionId) : null;
   const rows: MonitorRow[] = [];
   for (const p of parts) {
     const a = latest.get(p.userId);
@@ -67,6 +69,7 @@ export async function monitor(sessionId: string, userId: string, role: string, s
       score10: a.score10,
       lockReason: a.lockReason,
       lockedAt: ms(a.lockedAt),
+      ...(peInfo ? { pe: { ...(peInfo.get(a.id) ?? { submissions: 0, lastAt: null, bytes: 0 }), closed: Boolean(a.peClosedAt) } } : {}),
     });
   }
   const names = new Map(rows.map((r) => [r.attemptId, r.fullName]));
@@ -107,6 +110,11 @@ export async function monitor(sessionId: string, userId: string, role: string, s
 
 const EVENT_LABEL: Record<string, string> = {
   STARTED: 'Bắt đầu làm bài',
+  PE_SUBMIT: 'Nộp bài làm',
+  PE_SUBMIT_LATE: 'Nộp bài làm (sát giờ)',
+  PE_CLOSE: 'Ký danh sách và đóng phòng thi',
+  PE_PAPER: 'Mở đề thi',
+  PE_MATERIAL: 'Tải tài liệu kèm theo',
   UNLOCK_REQUEST: 'Xin mở khóa',
   RETAKE_REQUEST: 'Xin làm lại',
   LECTURER_RESUME: 'Giảng viên mở khóa',

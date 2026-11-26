@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import {
   MAX_START_LEAD_MS,
+  PE_RETENTION_MS,
   MIN_START_LEAD_MS,
   computeEndsAt,
   csvCell,
@@ -31,6 +32,7 @@ import { ApiError } from '../../lib/errors.js';
 import { encryptOtp, newOtp, newRoomCode } from '../../lib/vec-crypto.js';
 import { audit, countsFor, hostNameOf, isUniqueViolation, loadHostedSession, statusOf, toSessionDto } from './vec.common.js';
 import { closeSession, finalizeAttempt, settleSession } from './vec.engine.js';
+import { createPeSession, peCsv, purgeSessionFiles } from './vec.pe.js';
 
 const RETENTION_MS = 180 * 24 * 3600_000;
 
@@ -73,7 +75,7 @@ async function createWithCode(values: Omit<typeof vecSessions.$inferInsert, 'roo
 }
 
 export async function createSession(hostId: string, input: SessionInput): Promise<VecSessionDto> {
-  if (input.kind === 'PE') throw ApiError.badRequest('Phòng thi thực hành (PE) đang được phát triển.');
+  if (input.kind === 'PE') return createPeSession(hostId, input, createWithCode);
   const now = Date.now();
   const startsAt = Date.parse(input.startsAt);
   if (startsAt < now + MIN_START_LEAD_MS) throw ApiError.badRequest('Giờ bắt đầu phải cách hiện tại ít nhất 5 phút.', { startsAt: 'Chọn giờ muộn hơn.' });
@@ -248,7 +250,7 @@ export async function postponeSession(id: string, userId: string, role: string, 
   if (!Number.isFinite(startsAt) || startsAt < Date.now() + MIN_START_LEAD_MS) throw ApiError.badRequest('Giờ mới phải cách hiện tại ít nhất 5 phút.');
   const settings = s.settings as VecSettings;
   const endsAt = computeEndsAt(startsAt, s.durationMin, settings.retake.max, settings.retake.extendWindow);
-  await db.update(vecSessions).set({ startsAt: new Date(startsAt), endsAt: new Date(endsAt), expiresAt: new Date(endsAt + RETENTION_MS) }).where(eq(vecSessions.id, id));
+  await db.update(vecSessions).set({ startsAt: new Date(startsAt), endsAt: new Date(endsAt), expiresAt: new Date(endsAt + (s.kind === 'PE' ? PE_RETENTION_MS : RETENTION_MS)) }).where(eq(vecSessions.id, id));
   await db.insert(vecMessages).values({ sessionId: id, senderId: userId, kind: 'SYSTEM', body: `Giờ thi được dời sang ${fmtVnFull(startsAt)}.` });
   await audit(id, userId, 'SESSION_POSTPONE', id, { startsAt });
   return getHosted(id, userId, role);
@@ -298,8 +300,10 @@ export async function deleteSession(id: string, userId: string, role: string, co
   if (status === 'LIVE' || status === 'PAUSED' || status === 'LOBBY') throw ApiError.conflict('Hãy kết thúc phiên trước khi xóa.');
   if (confirm.replace(/\D/g, '') !== s.roomCode) throw ApiError.badRequest('Mã phòng xác nhận chưa đúng.', { confirm: 'Nhập đúng mã phòng.' });
   await db.update(vecSessions).set({ statusOverride: 'DELETING' }).where(eq(vecSessions.id, id));
+  // Files go first: their rows lose the session link once the room is gone.
+  const files = s.kind === 'PE' ? await purgeSessionFiles(id) : 0;
   await db.delete(vecSessions).where(eq(vecSessions.id, id));
-  await audit(null, userId, 'SESSION_DELETE', null, { title: s.title, participants: (await countsFor([id])).get(id)?.joined ?? 0 });
+  await audit(null, userId, 'SESSION_DELETE', null, { title: s.title, participants: (await countsFor([id])).get(id)?.joined ?? 0, files });
   return { ok: true };
 }
 
@@ -376,6 +380,8 @@ export async function sessionResults(id: string, userId: string, role: string): 
 }
 
 export async function resultsCsv(id: string, userId: string, role: string) {
+  const host = await loadHostedSession(id, userId, role);
+  if (host.kind === 'PE') return peCsv(host, userId);
   const r = await sessionResults(id, userId, role);
   const header = ['STT', 'Mã SV', 'Họ và tên', 'Email', 'Lớp', 'Số lượt', 'Điểm tính', 'Xếp loại', 'Đúng', 'Sai', 'Bỏ trống', 'Nộp lúc', 'Khóa bài', 'Cảnh báo', 'Rủi ro', 'Trạng thái', 'Mã đề'];
   const rows = r.rows.map((x, i) => [

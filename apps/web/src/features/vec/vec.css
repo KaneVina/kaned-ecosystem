@@ -489,3 +489,10 @@ p.vec-lockwhy { font-size: 15px; }
 }
 
 @media (max-width: 560px) { .vec-kind-art { width: 64px; } .vec-kind { gap: 12px; padding: 14px; } }
+
+/* PE bits used outside the PE pages */
+.vec-kind.is-link { color: inherit; text-decoration: none; transition: border-color .15s, box-shadow .15s, transform .15s var(--ease); }
+.vec-kind.is-link:hover { border-color: var(--brand-200); box-shadow: var(--sh-2); transform: translateY(-1px); }
+.pe-kind-tag { display: inline-block; padding: 0 5px; border-radius: 4px; font-size: 10.5px; line-height: 17px; background: var(--amber-50); color: var(--amber-700); margin-right: 2px; }
+.pe-mon-n { display: block; font-size: 13.5px; }
+

@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, gt, inArray, sql } from 'drizzle-orm';
 import {
   ACTIVE_ATTEMPT_STATES,
+  PE_RETENTION_MS,
   LATE_SYNC_GRACE_MS,
   MERGE_WINDOW_MS,
   VIOLATION_LABEL,
@@ -65,6 +66,15 @@ export type FinalState = 'SUBMITTED' | 'AUTO_SUBMITTED' | 'FORCE_SUBMITTED';
 export async function finalizeAttempt(attempt: VecAttemptRow, final: FinalState, reason: string, now = Date.now()): Promise<VecAttemptRow | null> {
   const [s] = await db.select().from(vecSessions).where(eq(vecSessions.id, attempt.sessionId)).limit(1);
   if (!s) return null;
+  if (s.kind === 'PE') {
+    // Practical rooms are graded by hand: only the state and the time are recorded here.
+    const [done] = await db
+      .update(vecAttempts)
+      .set({ state: final, submittedAt: new Date(now), submitReason: reason, version: sql`${vecAttempts.version} + 1` })
+      .where(and(eq(vecAttempts.id, attempt.id), inArray(vecAttempts.state, ACTIVE)))
+      .returning();
+    return done ?? null;
+  }
   const settings = s.settings as VecSettings;
   const questions = await db
     .select({ qid: vecSessionQuestions.qid, answers: vecSessionQuestions.answers })
@@ -235,7 +245,15 @@ export async function closeSession(session: VecSessionRow, now: number, reason: 
   }
   await db
     .update(vecSessions)
-    .set({ statusOverride: 'ENDED', endedAt: new Date(now), endReason: reason, pausedAt: null, updatedAt: new Date() })
+    .set({
+      statusOverride: 'ENDED',
+      endedAt: new Date(now),
+      endReason: reason,
+      pausedAt: null,
+      updatedAt: new Date(),
+      // A practical room keeps its files for a week from when it actually closed.
+      ...(session.kind === 'PE' ? { expiresAt: new Date(now + PE_RETENTION_MS) } : {}),
+    })
     .where(and(eq(vecSessions.id, session.id), sql`${vecSessions.statusOverride} is distinct from 'ENDED'`));
 }
 

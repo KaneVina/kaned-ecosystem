@@ -8,7 +8,7 @@
  * is a new table pointing at users and subjects; nothing here has to change.
  */
 import { relations, sql } from 'drizzle-orm';
-import type { AssessmentItem, DeckContent, DeckProgress, PassCriteriaValues, PassCriterion, Requirement, VecSettings } from '@kaned/shared';
+import type { AssessmentItem, DeckContent, DeckProgress, PassCriteriaValues, PassCriterion, PeStoredConfig, Requirement, VecSettings } from '@kaned/shared';
 import {
   type AnyPgColumn,
   bigint,
@@ -974,6 +974,8 @@ export const vecSessions = pgTable(
     endReason: varchar('end_reason', { length: 16 }),
     questionCount: integer('question_count').notNull().default(0),
     settings: jsonb('settings').$type<VecSettings>().notNull(),
+    /** PE rooms: exam code, paper, materials and submission rules. */
+    pe: jsonb('pe').$type<PeStoredConfig>(),
     resultsReleasedAt: timestamp('results_released_at', { withTimezone: true }),
     expiresAt: timestamp('expires_at', { withTimezone: true }),
     createdAt: createdAt(),
@@ -1085,6 +1087,10 @@ export const vecAttempts = pgTable(
     visible: boolean('visible'),
     focused: boolean('focused'),
     lastIp: varchar('last_ip', { length: 64 }),
+    /** PE: the lecturer's note to the candidate, who graded, and when the candidate closed the room. */
+    gradeNote: text('grade_note'),
+    gradedBy: text('graded_by').references(() => users.id, { onDelete: 'set null' }),
+    peClosedAt: timestamp('pe_closed_at', { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -1206,6 +1212,68 @@ export const vecJoinAttempts = pgTable(
   (t) => ({ userIdx: index('vec_join_attempts_user_idx').on(t.userId, t.createdAt) }),
 );
 
+/**
+ * Every stored file of a PE room: paper and materials the lecturer uploaded, and the
+ * candidates' solutions. A row without a session (a draft, or a room that is gone)
+ * has its stored file removed by the scheduler after a day.
+ */
+export const vecFiles = pgTable(
+  'vec_files',
+  {
+    id: id(),
+    sessionId: text('session_id').references(() => vecSessions.id, { onDelete: 'set null' }),
+    attemptId: text('attempt_id').references(() => vecAttempts.id, { onDelete: 'set null' }),
+    ownerId: text('owner_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** PAPER | MATERIAL | SUBMISSION */
+    role: varchar('role', { length: 12 }).notNull(),
+    name: text('name').notNull(),
+    format: varchar('format', { length: 12 }).notNull(),
+    bytes: bigint('bytes', { mode: 'number' }).notNull(),
+    sha256: varchar('sha256', { length: 64 }),
+    /** CLOUDINARY | DISK */
+    storage: varchar('storage', { length: 12 }).notNull(),
+    storageKey: text('storage_key').notNull(),
+    /** PENDING | READY */
+    status: varchar('status', { length: 10 }).notNull().default('PENDING'),
+    createdAt: createdAt(),
+    readyAt: timestamp('ready_at', { withTimezone: true }),
+  },
+  (t) => ({ sessionIdx: index('vec_files_session_idx').on(t.sessionId) }),
+);
+
+export const vecSubmissions = pgTable(
+  'vec_submissions',
+  {
+    id: id(),
+    sessionId: text('session_id')
+      .notNull()
+      .references(() => vecSessions.id, { onDelete: 'cascade' }),
+    attemptId: text('attempt_id')
+      .notNull()
+      .references(() => vecAttempts.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    no: integer('no').notNull(),
+    fileId: text('file_id').references(() => vecFiles.id, { onDelete: 'set null' }),
+    path: text('path').notNull(),
+    fileName: text('file_name').notNull(),
+    fileCount: integer('file_count').notNull(),
+    bytes: bigint('bytes', { mode: 'number' }).notNull(),
+    sha256: varchar('sha256', { length: 64 }).notNull(),
+    note: text('note'),
+    late: boolean('late').notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (t) => ({
+    noIdx: uniqueIndex('vec_submissions_no_idx').on(t.attemptId, t.no),
+    sessionIdx: index('vec_submissions_session_idx').on(t.sessionId),
+  }),
+);
+
+export type VecFileRow = typeof vecFiles.$inferSelect;
 export type VecSessionRow = typeof vecSessions.$inferSelect;
 export type VecAttemptRow = typeof vecAttempts.$inferSelect;
 export type VecParticipantRow = typeof vecParticipants.$inferSelect;

@@ -34,6 +34,9 @@ const VecResults = vecPage('SessionResultsPage');
 const VecResult = vecPage('ResultPage');
 const VecHistory = vecPage('HistoryPage');
 const VecRoom = vecPage('RoomPage');
+const VecCreatePe = vecPage('CreatePePage');
+const VecPaper = vecPage('CandidatePaperWindow');
+const VecHostPaper = vecPage('HostPaperWindow');
 const admin = () => import('@/features/admin');
 const AdminShell = lazy(() => admin().then((m) => ({ default: m.AdminShell })));
 const OverviewPage = lazy(() => admin().then((m) => ({ default: m.OverviewPage })));
@@ -97,6 +100,8 @@ export default function App() {
       <Route path="/welcome" element={<RequireAuth><WelcomePage /></RequireAuth>} />
 
       <Route path="/app/vec/room/:attemptId" element={<RequireAuth><Suspense fallback={null}><VecRoom /></Suspense></RequireAuth>} />
+      <Route path="/vec/paper/host/:sessionId" element={<RequireAuth><Suspense fallback={null}><VecHostPaper /></Suspense></RequireAuth>} />
+      <Route path="/vec/paper/:attemptId" element={<RequireAuth><Suspense fallback={null}><VecPaper /></Suspense></RequireAuth>} />
 
       <Route path="/app" element={<RequireAuth><AppShell /></RequireAuth>}>
         <Route index element={<DashboardPage />} />
@@ -119,6 +124,7 @@ export default function App() {
         <Route path="vec/join" element={<Suspense fallback={null}><VecStudent /></Suspense>} />
         <Route path="vec/lecturer" element={<Suspense fallback={null}><VecLecturer /></Suspense>} />
         <Route path="vec/lecturer/new" element={<Suspense fallback={null}><VecCreate /></Suspense>} />
+        <Route path="vec/lecturer/new/pe" element={<Suspense fallback={null}><VecCreatePe /></Suspense>} />
         <Route path="vec/lecturer/:sessionId" element={<Suspense fallback={null}><VecMonitor /></Suspense>} />
         <Route path="vec/lecturer/:sessionId/monitor" element={<Suspense fallback={null}><VecMonitor /></Suspense>} />
         <Route path="vec/lecturer/:sessionId/results" element={<Suspense fallback={null}><VecResults /></Suspense>} />

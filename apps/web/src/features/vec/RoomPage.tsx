@@ -17,6 +17,7 @@ import { cn } from '@/lib/cn';
 import { Inline, QText } from '@/features/decks/parts';
 import { vec, vecKeys } from './api';
 import { canFullscreen, enterFullscreen, serverNow, syncClock, useAutosave, useExamGuard, useHeartbeat, useServerTick } from './hooks';
+import { PeRoom } from './pe/PeRoom';
 import './vec.css';
 
 const LETTERS = 'ABCDEFGH';
@@ -45,8 +46,10 @@ export default function RoomPage() {
 
   useEffect(() => {
     const s = q.data?.state;
+    // A practical room stays open after time runs out: the candidate still signs the list and closes it.
+    if (q.data?.session.kind === 'PE') return;
     if (s === 'SUBMITTED' || s === 'AUTO_SUBMITTED' || s === 'FORCE_SUBMITTED') nav(`/app/vec/result/${attemptId}`, { replace: true });
-  }, [q.data?.state, attemptId, nav]);
+  }, [q.data?.state, q.data?.session.kind, attemptId, nav]);
 
   if (q.isLoading) return <div className="vec-room-page"><div className="vec-center"><Skeleton style={{ height: 260, width: 'min(520px, 90vw)' }} /></div></div>;
   if (q.isError || !q.data) {
@@ -78,6 +81,7 @@ export default function RoomPage() {
       </div>
     );
   }
+  if (a.session.kind === 'PE') return <PeRoom a={a} onChange={refresh} />;
   if (a.state === 'LOBBY') return <Lobby a={a} now={tick} onStarted={refresh} />;
   if (a.state === 'SUSPENDED') return <LockedScreen a={a} onChange={refresh} />;
   if (a.state === 'IN_PROGRESS') return <ExamView key={a.id + a.state} a={a} onChange={refresh} />;

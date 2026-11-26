@@ -1,7 +1,8 @@
-import { and, inArray, lt, sql } from 'drizzle-orm';
+import { and, eq, inArray, lt, sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import { vecAttempts, vecJoinAttempts, vecSessions } from '../../db/schema.js';
 import { settleSession } from './vec.engine.js';
+import { purgeSessionFiles, sweepOrphanFiles } from './vec.pe.js';
 
 /**
  * Optional heartbeat for the whole system. Everything it does also happens
@@ -21,7 +22,12 @@ export async function tick() {
     await settleSession(s).catch((e) => console.error('[vec] settle failed', sid, e));
     settled++;
   }
+  // Practical rooms hold files: remove those before the rows that point at them.
+  const dueFiles = await db.select({ id: vecSessions.id }).from(vecSessions).where(and(lt(vecSessions.expiresAt, new Date()), eq(vecSessions.kind, 'PE'))).limit(50);
+  let files = 0;
+  for (const { id } of dueFiles) files += await purgeSessionFiles(id).catch(() => 0);
   const expired = await db.delete(vecSessions).where(and(lt(vecSessions.expiresAt, new Date()))).returning({ id: vecSessions.id });
+  files += await sweepOrphanFiles().catch(() => 0);
   await db.delete(vecJoinAttempts).where(lt(vecJoinAttempts.createdAt, new Date(Date.now() - 24 * 3600_000)));
-  return { settled, purged: expired.length };
+  return { settled, purged: expired.length, files };
 }

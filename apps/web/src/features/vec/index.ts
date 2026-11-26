@@ -9,3 +9,7 @@ import SessionPage from './SessionPage';
 import { createElement } from 'react';
 export const MonitorPage = () => createElement(SessionPage, { tab: 'monitor' });
 export const SessionResultsPage = () => createElement(SessionPage, { tab: 'results' });
+export { default as CreatePePage } from './pe/CreatePePage';
+import PaperWindow from './pe/PaperWindow';
+export const CandidatePaperWindow = () => createElement(PaperWindow, { host: false });
+export const HostPaperWindow = () => createElement(PaperWindow, { host: true });

@@ -12,7 +12,7 @@ export default function HubPage() {
   const hosting = me.data?.hosting ?? [];
   return (
     <>
-      <PageHead title="Phòng thi ảo" description="Tổ chức và tham gia kỳ thi trắc nghiệm trực tuyến có giám sát, chấm điểm tự động ngay trên Kaned." />
+      <PageHead title="Phòng thi ảo" description="Tổ chức và tham gia kỳ thi trực tuyến có giám sát ngay trên Kaned: trắc nghiệm chấm tự động, thực hành nộp bài và chấm tay." />
       <div className="container vec-body">
         {active && (
           <Link to={`/app/vec/room/${active.id}`} className="vec-resume">
@@ -38,16 +38,16 @@ export default function HubPage() {
 
         <h3 className="vec-h3">Hình thức thi</h3>
         <div className="vec-kinds">
-          <div className="vec-kind">
+          <Link to="/app/vec/lecturer/new" className="vec-kind is-link">
             <ToolArt name="fe" className="vec-kind-art" />
             <div><b>FE – Trắc nghiệm</b><p>Câu hỏi một hoặc nhiều đáp án, đảo câu và đáp án, chấm điểm tại máy chủ.</p></div>
             <Badge tone="green">Sẵn sàng</Badge>
-          </div>
-          <div className="vec-kind is-soon">
+          </Link>
+          <Link to="/app/vec/lecturer/new/pe" className="vec-kind is-link">
             <ToolArt name="pe" className="vec-kind-art" />
-            <div><b>PE – Thực hành</b><p>Đề thực hành, nộp tệp bài làm, chấm thủ công.</p></div>
-            <Badge tone="gray">Sắp có</Badge>
-          </div>
+            <div><b>PE – Thực hành</b><p>Xem đề ở cửa sổ riêng, tải tài liệu kèm theo, nộp thư mục bài làm; giảng viên tải về và chấm điểm.</p></div>
+            <Badge tone="green">Sẵn sàng</Badge>
+          </Link>
         </div>
 
         {hosting.length > 0 && (

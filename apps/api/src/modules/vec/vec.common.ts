@@ -102,6 +102,8 @@ export async function toSessionDto(s: VecSessionRow, opts: { host: boolean; coun
     counts,
     createdAt: s.createdAt.getTime(),
     hostName: opts.hostName,
+    pe: s.kind === 'PE' ? s.pe ?? null : null,
+    expiresAt: ms(s.expiresAt),
   };
 }
 
@@ -126,6 +128,7 @@ export async function toJoinDto(s: VecSessionRow): Promise<JoinSessionDto> {
     status: statusOf(s),
     roomCode: s.roomCode,
     settings: { integrity: settings.integrity, results: settings.results, retake: settings.retake, access: settings.access },
+    ...(s.kind === 'PE' && s.pe ? { examCode: s.pe.examCode } : {}),
   };
 }
 

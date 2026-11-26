@@ -120,6 +120,13 @@
       "when": 1795478400000,
       "tag": "0016_deck_sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1795564800000,
+      "tag": "0017_vec_pe",
+      "breakpoints": true
     }
   ]
 }

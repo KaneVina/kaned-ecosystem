@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, CircleAlert, Clock, Eye, EyeOff, RotateCcw, Send, XCircle } from 'lucide-react';
 import { RETAKE_BLOCK_TEXT, RETAKE_SCORING_LABEL, fmtDuration, fmtVnFull, type AttemptResultDto } from '@kaned/shared';
 import { Button } from '@/components/ui/Button';
@@ -15,11 +15,20 @@ import { cn } from '@/lib/cn';
 import { useToast } from '@/providers/ToastProvider';
 import { useServerTick } from './hooks';
 import { useAttemptResult, vec, vecKeys } from './api';
+import { PeResult } from './pe/PeResult';
 import './vec.css';
 
 const LETTERS = 'ABCDEFGH';
 
 export default function ResultPage() {
+  const { attemptId = '' } = useParams();
+  const st = useQuery({ queryKey: vecKeys.attempt(attemptId), queryFn: () => vec.attempt(attemptId), staleTime: 10_000 });
+  if (st.isLoading) return <div className="container vec-body"><Skeleton style={{ height: 280 }} /></div>;
+  if (st.data?.session.kind === 'PE') return <PeResult a={st.data} />;
+  return <FeResultPage />;
+}
+
+function FeResultPage() {
   const { attemptId = '' } = useParams();
   const nav = useNavigate();
   const qc = useQueryClient();

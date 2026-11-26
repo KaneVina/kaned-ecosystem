@@ -5,7 +5,7 @@ import {
   AlarmClockPlus, Ban, Check, CircleAlert, Copy, Download, Eye, EyeOff, Flag, Lock, LockOpen, Megaphone, MoreHorizontal, PauseCircle, PlayCircle, Radio, RotateCcw, Search, Send, Trash2, UserMinus, Users,
 } from 'lucide-react';
 import {
-  PRESET_LABEL, RETAKE_SCORING_LABEL, RISK_LABEL, clockText, fmtVnDate, fmtVnFull, fmtVnTime, foldVi, formatRoomCode, gradeLabel, riskLevel, vnToIso, vnToMs, vnParts,
+  PRESET_LABEL, RETAKE_SCORING_LABEL, RISK_LABEL, clockText, fmtBytes, fmtVnDate, fmtVnFull, fmtVnTime, foldVi, formatRoomCode, gradeLabel, riskLevel, vnToIso, vnToMs, vnParts,
   type MonitorDto, type MonitorEvent, type MonitorRow, type VecSessionDto,
 } from '@kaned/shared';
 import { Badge } from '@/components/ui/Badge';
@@ -21,6 +21,7 @@ import { useToast } from '@/providers/ToastProvider';
 import { syncClock, useServerTick, serverNow } from './hooks';
 import { csvUrl, vec, vecKeys } from './api';
 import { STATUS } from './HubPage';
+import { PeGrading } from './pe/PeGrading';
 import './vec.css';
 
 type Dialog =
@@ -102,7 +103,7 @@ export default function SessionPage({ tab }: { tab: 'monitor' | 'results' }) {
       <PageHead
         crumbs={[{ label: 'Phòng thi ảo', to: '/app/vec' }, { label: 'Giảng viên', to: '/app/vec/lecturer' }, { label: s.title }]}
         title={s.title}
-        description={`${s.subjectCode} · ${s.questionCount} câu · ${s.durationMin} phút · ${fmtVnFull(s.startsAt)}`}
+        description={s.kind === 'PE' ? `${s.subjectCode} · Thi thực hành · Paper ${s.pe?.examCode ?? ''} · ${s.durationMin} phút · ${fmtVnFull(s.startsAt)}` : `${s.subjectCode} · ${s.questionCount} câu · ${s.durationMin} phút · ${fmtVnFull(s.startsAt)}`}
         actions={
           <div className="vec-row">
             {s.status === 'LIVE' && <Button variant="secondary" icon={<PauseCircle className="ic" />} onClick={() => act('Chưa tạm dừng được', () => vec.action(s.id, 'pause'), 'Đã tạm dừng phòng thi')}>Tạm dừng</Button>}
@@ -135,7 +136,7 @@ export default function SessionPage({ tab }: { tab: 'monitor' | 'results' }) {
         </div>
         <div className="vec-seg vec-seg-lg" role="tablist" style={{ marginTop: 14 }}>
           <Link role="tab" aria-selected={tab === 'monitor'} className={cn(tab === 'monitor' && 'is-on')} to={`/app/vec/lecturer/${s.id}`}>Giám sát</Link>
-          <Link role="tab" aria-selected={tab === 'results'} className={cn(tab === 'results' && 'is-on')} to={`/app/vec/lecturer/${s.id}/results`}>Kết quả</Link>
+          <Link role="tab" aria-selected={tab === 'results'} className={cn(tab === 'results' && 'is-on')} to={`/app/vec/lecturer/${s.id}/results`}>{s.kind === 'PE' ? 'Bài nộp và chấm điểm' : 'Kết quả'}</Link>
         </div>
       </PageHead>
 
@@ -143,7 +144,7 @@ export default function SessionPage({ tab }: { tab: 'monitor' | 'results' }) {
         {tab === 'monitor' ? (
           <Monitor data={mon.data!} events={events} now={now} onDialog={setDialog} onApprove={(id, ok) => act('Chưa xử lý được', () => vec.decide(id, ok), ok ? 'Đã duyệt' : 'Đã từ chối')} />
         ) : (
-          <Results sessionId={s.id} />
+          s.kind === 'PE' ? <PeGrading s={s} /> : <Results sessionId={s.id} />
         )}
       </div>
 
@@ -223,7 +224,7 @@ function Monitor({ data, events, now, onDialog, onApprove }: { data: MonitorDto;
           ) : (
             <div className="vec-tablewrap">
               <table className="vec-table vec-table-mon">
-                <thead><tr><th>Thí sinh</th><th>Trạng thái</th><th>Tiến độ</th><th>Còn lại</th><th>Rủi ro</th><th /></tr></thead>
+                <thead><tr><th>Thí sinh</th><th>Trạng thái</th><th>{s.kind === 'PE' ? 'Bài nộp' : 'Tiến độ'}</th><th>Còn lại</th><th>Rủi ro</th><th /></tr></thead>
                 <tbody>
                   {list.map((r) => {
                     const risk = riskLevel(r.risk);
@@ -240,8 +241,17 @@ function Monitor({ data, events, now, onDialog, onApprove }: { data: MonitorDto;
                           {r.state === 'SUSPENDED' && <small className="vec-lockwhy">{r.lockReason}</small>}
                         </td>
                         <td>
-                          <div className="vec-prog"><i style={{ width: `${r.total ? (r.answered / r.total) * 100 : 0}%` }} /></div>
-                          <small>{r.answered}/{r.total} câu{r.score10 != null ? ` · ${r.score10} điểm` : ''}</small>
+                          {r.pe ? (
+                            <>
+                              <b className="pe-mon-n">{r.pe.submissions ? `${r.pe.submissions} lần nộp` : 'Chưa nộp'}</b>
+                              <small>{r.pe.lastAt ? `Mới nhất ${fmtVnTime(r.pe.lastAt)} · ${fmtBytes(r.pe.bytes)}` : '—'}{r.pe.closed ? ' · đã đóng' : ''}{r.score10 != null ? ` · ${r.score10} điểm` : ''}</small>
+                            </>
+                          ) : (
+                            <>
+                              <div className="vec-prog"><i style={{ width: `${r.total ? (r.answered / r.total) * 100 : 0}%` }} /></div>
+                              <small>{r.answered}/{r.total} câu{r.score10 != null ? ` · ${r.score10} điểm` : ''}</small>
+                            </>
+                          )}
                         </td>
                         <td className="vec-mono">{left != null ? clockText(left) : '—'}</td>
                         <td><span className={cn('vec-risk', `is-${risk.toLowerCase()}`)}>{RISK_LABEL[risk]}</span><small>{r.lock} khóa · {r.warn} cảnh báo</small></td>
@@ -251,7 +261,7 @@ function Monitor({ data, events, now, onDialog, onApprove }: { data: MonitorDto;
                             <Dropdown align="right" portal trigger={(p) => <button type="button" className="btn btn-ghost btn-sm btn-icon" aria-label={`Thao tác với ${r.fullName}`} {...p}><MoreHorizontal className="ic" /></button>}>
                               <MenuButton onClick={() => onDialog({ k: 'announce', row: r })} icon={<Megaphone className="ic" />}>Nhắn riêng</MenuButton>
                               {r.state === 'IN_PROGRESS' && <MenuButton onClick={() => onDialog({ k: 'extend', row: r })} icon={<AlarmClockPlus className="ic" />}>Cộng giờ</MenuButton>}
-                              <MenuButton onClick={() => onDialog({ k: 'redo', row: r })} icon={<RotateCcw className="ic" />}>Cho làm lại đề mới</MenuButton>
+                              {!r.pe && <MenuButton onClick={() => onDialog({ k: 'redo', row: r })} icon={<RotateCcw className="ic" />}>Cho làm lại đề mới</MenuButton>}
                               {r.state !== 'LOBBY' && <MenuButton onClick={() => onDialog({ k: 'force', row: r })} icon={<Send className="ic" />}>Thu bài ngay</MenuButton>}
                               <MenuSeparator />
                               <MenuButton danger onClick={() => onDialog({ k: 'remove', row: r })} icon={<UserMinus className="ic" />}>Loại khỏi phòng</MenuButton>
@@ -448,7 +458,7 @@ function Dialogs({ dialog, s, close, act, onDeleted }: { dialog: Dialog; s: VecS
       );
     case 'delete':
       return (
-        <Modal open onClose={close} title="Xóa phiên thi?" description={`Xóa vĩnh viễn phiên, bài làm và kết quả của ${s.counts.joined} thí sinh. Hãy xuất CSV trước nếu cần.`} size="sm" footer={footer('Xóa vĩnh viễn', () => void act('Chưa xóa được', async () => { await vec.remove(s.id, confirm); onDeleted(); }, 'Đã xóa phiên'), { danger: true, disabled: confirm.replace(/\D/g, '') !== s.roomCode })}>
+        <Modal open onClose={close} title="Xóa phiên thi?" description={s.kind === 'PE' ? `Xóa vĩnh viễn phiên, mọi bài nộp của ${s.counts.joined} thí sinh, điểm, ghi chú, đề và tài liệu đã tải lên cho phiên này. Không khôi phục được. Hãy tải bài và xuất CSV trước nếu cần.` : `Xóa vĩnh viễn phiên, bài làm và kết quả của ${s.counts.joined} thí sinh. Hãy xuất CSV trước nếu cần.`} size="sm" footer={footer('Xóa vĩnh viễn', () => void act('Chưa xóa được', async () => { await vec.remove(s.id, confirm); onDeleted(); }, 'Đã xóa phiên'), { danger: true, disabled: confirm.replace(/\D/g, '') !== s.roomCode })}>
           <Field label={`Nhập mã phòng ${formatRoomCode(s.roomCode)} để xác nhận`}><Input value={confirm} onChange={(e) => setConfirm(e.target.value)} inputMode="numeric" /></Field>
         </Modal>
       );

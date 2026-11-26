@@ -31,7 +31,7 @@ export default function LecturerPage() {
         crumbs={[{ label: 'Phòng thi ảo', to: '/app/vec' }, { label: 'Giảng viên' }]}
         title="Phiên thi của tôi"
         description="Tạo phiên mới, đưa mã phòng cho sinh viên và theo dõi ngay khi thi."
-        actions={<Link to="/app/vec/lecturer/new" className="btn btn-primary"><Plus className="ic" /> Tạo phiên thi</Link>}
+        actions={<div className="vec-row"><Link to="/app/vec/lecturer/new/pe" className="btn btn-secondary"><Plus className="ic" /> Phiên thực hành (PE)</Link><Link to="/app/vec/lecturer/new" className="btn btn-primary"><Plus className="ic" /> Phiên trắc nghiệm (FE)</Link></div>}
       />
       <div className="container vec-body">
         <div className="vec-seg vec-seg-lg" role="tablist">
@@ -51,7 +51,7 @@ export default function LecturerPage() {
                   <div className="vec-sroom"><small>Mã phòng</small><b>{formatRoomCode(s.roomCode)}</b></div>
                   <div className="vec-smain">
                     <b>{s.title}</b>
-                    <span>{s.subjectCode} · {s.questionCount} câu · {s.durationMin} phút</span>
+                    <span>{s.kind === 'PE' ? <><b className="pe-kind-tag">PE</b> {s.subjectCode} · {s.pe?.examCode} · {s.durationMin} phút</> : <>{s.subjectCode} · {s.questionCount} câu · {s.durationMin} phút</>}</span>
                     <span><CalendarClock className="ic ic-sm" /> {fmtVnTime(s.startsAt)}, {fmtVnDate(s.startsAt)}</span>
                   </div>
                   <div className="vec-sside">

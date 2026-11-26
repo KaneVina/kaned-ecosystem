@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { peConfigSchema, type PeStoredConfig } from './vecPe.js';
 import { stripAskedTags } from './askedTags.js';
 import { canShuffleOptions, type DeckQuestion } from './deck.js';
 
@@ -197,8 +198,13 @@ export const sessionInputSchema = z
     /** null = generate one when OTP is on; a 4–8 digit string = the lecturer's own. */
     otp: z.string().regex(/^\d{4,8}$/, 'OTP gồm 4–8 chữ số.').optional(),
     settings: vecSettingsSchema.default({}),
+    /** PE rooms only: paper, materials and how solutions are submitted. */
+    pe: peConfigSchema.optional(),
   })
-  .refine((v) => Boolean(v.deckId) !== Boolean(v.markdown), { message: 'Chọn một bộ đề hoặc tải file .md.', path: ['deckId'] });
+  .refine((v) => (v.kind === 'PE' ? Boolean(v.pe) && !v.deckId && !v.markdown : Boolean(v.deckId) !== Boolean(v.markdown)), {
+    message: 'Chọn một bộ đề hoặc tải file .md.',
+    path: ['deckId'],
+  });
 export type SessionInput = z.infer<typeof sessionInputSchema>;
 
 export const sessionPatchSchema = z.object({
@@ -755,6 +761,10 @@ export interface VecSessionDto {
   counts: { joined: number; inProgress: number; suspended: number; submitted: number; pendingRequests: number };
   createdAt: number;
   hostName?: string;
+  /** PE rooms: exam code, paper and materials (names only), submission rules. */
+  pe?: PeStoredConfig | null;
+  /** When everything of the room is deleted for good. */
+  expiresAt: number | null;
 }
 
 export interface JoinPrefillDto {
@@ -792,6 +802,7 @@ export interface JoinSessionDto {
   status: SessionStatus;
   roomCode: string;
   settings: Pick<VecSettings, 'integrity' | 'results' | 'retake' | 'access'>;
+  examCode?: string;
 }
 
 export interface PaperDto {
@@ -895,6 +906,8 @@ export interface MonitorRow {
   score10: number | null;
   lockReason: string | null;
   lockedAt: number | null;
+  /** PE rooms: how many solutions are on file and when the last one came in. */
+  pe?: { submissions: number; lastAt: number | null; bytes: number; closed: boolean };
 }
 
 export interface MonitorEvent {
