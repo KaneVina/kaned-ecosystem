@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { Suspense, lazy, useEffect, useState, type CSSProperties } from 'react';
 import { useScrollLock } from '@/lib/scrollLock';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -40,6 +40,23 @@ import { SearchPalette } from './SearchPalette';
 import { useSavedDocuments } from '@/features/library/queries';
 import { cn } from '@/lib/cn';
 import { ToolArt, type ToolArtName } from '@/components/illustrations/ToolArt';
+
+const Assistant = lazy(() => import('@/features/assistant/Assistant'));
+
+/** Kai loads once the page has settled, so it never slows the first paint. */
+function DeferredAssistant() {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number };
+    if (w.requestIdleCallback) w.requestIdleCallback(() => setReady(true), { timeout: 1500 });
+    else setTimeout(() => setReady(true), 800);
+  }, []);
+  return ready ? (
+    <Suspense fallback={null}>
+      <Assistant />
+    </Suspense>
+  ) : null;
+}
 
 export interface Tool {
   to: string | null;
@@ -383,6 +400,7 @@ export function AppShell() {
         <Outlet />
       </main>
       <SelectionTranslate />
+      <DeferredAssistant />
 
       <SiteFooter
         columns={[

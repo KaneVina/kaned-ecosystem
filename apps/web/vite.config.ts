@@ -43,6 +43,8 @@ export default defineConfig(({ mode }) => ({
       },
     },
   },
+  // Kai's on-device model runs in a module worker that loads its runtime on demand.
+  worker: { format: 'es' },
   build: {
     outDir: 'dist',
     sourcemap: false,

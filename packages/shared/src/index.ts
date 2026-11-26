@@ -16,3 +16,4 @@ export * from './vecPe.js';
 export * from './schemas.js';
 export * from './types.js';
 export * from './askedTags.js';
+export * from './assistant.js';
