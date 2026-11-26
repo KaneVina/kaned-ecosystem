@@ -53,6 +53,12 @@ interface Props {
   selected?: { day: string; m: number } | null;
   label: string;
   dense?: boolean;
+  /** paint: show the answers but take no input (the time is final). */
+  readOnly?: boolean;
+  /** paint: a tap marks the start, the next tap the end, and the rectangle between is filled. */
+  rangeMode?: boolean;
+  /** The start cell picked for a two-point range, so the page can say what to do next. */
+  onMark?: (cell: { day: string; m: number } | null) => void;
 }
 
 const key = (d: string, m: number) => `${d}|${m}`;
@@ -73,6 +79,13 @@ export const TimeGrid = memo(function TimeGrid(p: Props) {
   }, []);
   const hold = useRef<{ t: ReturnType<typeof setTimeout>; x: number; y: number; c: number; r: number; id: number } | null>(null);
   const [focus, setFocus] = useState<{ c: number; r: number }>({ c: 0, r: 0 });
+  // Two-point ranges: a visible start cell (double-click, or a tap in range mode) and the cell
+  // under the pointer, to preview the rectangle before the second click.
+  const [mark, setMark] = useState<{ c: number; r: number } | null>(null);
+  const [aim, setAim] = useState<{ c: number; r: number } | null>(null);
+  const anchor = useRef<{ c: number; r: number } | null>(null);
+  const lastTap = useRef<{ c: number; r: number; t: number } | null>(null);
+  const press = useRef<{ c: number; r: number; x: number; y: number } | null>(null);
 
   const rowH = p.dense ? 15 : p.slotMin === 15 ? 15 : p.slotMin === 60 ? 34 : 22;
   const inWindow = useCallback((c: number, r: number) => {
@@ -108,6 +121,55 @@ export const TimeGrid = memo(function TimeGrid(p: Props) {
     if (cells.length) p.onPaint?.(cells, d.to);
   }, [inWindow, p]);
 
+  const fillTo = (): CellState => (p.tool === 'erase' ? null : (p.tool ?? 'free'));
+  const fillRange = (a: { c: number; r: number }, b: { c: number; r: number }) => {
+    commit({ c0: a.c, r0: a.r, c1: b.c, r1: b.r, to: fillTo() });
+    anchor.current = b;
+    setMark(null);
+    setAim(null);
+    setFocus(b);
+  };
+  /** A plain click or tap: toggle the cell; twice on the same cell sets or uses the start mark. */
+  const tapped = (c: number, r: number, toggle: boolean) => {
+    if (toggle) commit({ c0: c, r0: r, c1: c, r1: r, to: decide(c, r) });
+    setFocus({ c, r });
+    const now = Date.now();
+    const prev = lastTap.current;
+    const double = Boolean(prev && prev.c === c && prev.r === r && now - prev.t < 380);
+    lastTap.current = double ? null : { c, r, t: now };
+    if (double) {
+      if (!mark) setMark({ c, r });
+      else if (mark.c === c && mark.r === r) setMark(null);
+      else fillRange(mark, { c, r });
+    } else {
+      anchor.current = { c, r };
+    }
+  };
+  /** Range mode: first tap marks, second fills. */
+  const rangeTap = (c: number, r: number) => {
+    setFocus({ c, r });
+    if (!mark) {
+      setMark({ c, r });
+      navigator.vibrate?.(8);
+    } else if (mark.c === c && mark.r === r) setMark(null);
+    else fillRange(mark, { c, r });
+  };
+  useEffect(() => {
+    if (!mark) return;
+    const k = (e: KeyboardEvent) => e.key === 'Escape' && (setMark(null), setAim(null));
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
+  }, [mark]);
+  useEffect(() => {
+    const m = mark && p.cols[mark.c] && p.rows[mark.r] != null ? { day: p.cols[mark.c]!.key, m: p.rows[mark.r]! } : null;
+    p.onMark?.(m);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mark]);
+  useEffect(() => {
+    if (!p.rangeMode) return;
+    setMark(null);
+  }, [p.rangeMode]);
+
   const startDrag = (c: number, r: number) => {
     const d = { c0: c, r0: r, c1: c, r1: r, to: decide(c, r) };
     setDrag(d);
@@ -115,10 +177,22 @@ export const TimeGrid = memo(function TimeGrid(p: Props) {
   };
 
   const onDown = (e: React.PointerEvent) => {
-    if (p.variant !== 'paint' || e.button > 0) return;
+    if (p.variant !== 'paint' || p.readOnly || e.button > 0) return;
     last.current = { x: e.clientX, y: e.clientY };
     const hit = cellAt(e.clientX, e.clientY);
     if (!hit || !inWindow(hit.c, hit.r) || p.lockedOf?.(p.cols[hit.c]!.key, p.rows[hit.r]!)) return;
+    // Shift + click: everything from the start mark (or the last cell clicked) to here.
+    const from = mark ?? anchor.current;
+    if (e.shiftKey && from) {
+      e.preventDefault();
+      fillRange(from, hit);
+      return;
+    }
+    if (p.rangeMode) {
+      press.current = { ...hit, x: e.clientX, y: e.clientY };
+      if (e.pointerType !== 'touch') e.preventDefault();
+      return;
+    }
     if (e.pointerType === 'touch') {
       // Hold to paint; a swipe before that scrolls.
       const h = { x: e.clientX, y: e.clientY, c: hit.c, r: hit.r, id: e.pointerId, t: setTimeout(() => {
@@ -175,21 +249,38 @@ export const TimeGrid = memo(function TimeGrid(p: Props) {
       clearTimeout(h.t);
       hold.current = null;
     }
+    const pr = press.current;
+    if (pr && Math.hypot(e.clientX - pr.x, e.clientY - pr.y) > 10) press.current = null;
+    if (mark && !dragRef.current && e.pointerType !== 'touch') {
+      const hit = cellAt(e.clientX, e.clientY);
+      if (hit ? hit.c !== aim?.c || hit.r !== aim?.r : aim) setAim(hit);
+    }
     extend();
   };
   const onUp = () => {
+    const pr = press.current;
+    if (pr) {
+      press.current = null;
+      rangeTap(pr.c, pr.r);
+      return;
+    }
     const h = hold.current;
     if (h) {
       // A tap: toggle just that cell.
       clearTimeout(h.t);
       hold.current = null;
-      commit({ c0: h.c, r0: h.r, c1: h.c, r1: h.r, to: decide(h.c, h.r) });
-      setFocus({ c: h.c, r: h.r });
+      tapped(h.c, h.r, true);
       return;
     }
     const d = dragRef.current;
-    if (d) commit(d);
     setDrag(null);
+    if (!d) return;
+    if (d.c0 === d.c1 && d.r0 === d.r1) tapped(d.c0, d.r0, true);
+    else {
+      commit(d);
+      anchor.current = { c: d.c1, r: d.r1 };
+      lastTap.current = null;
+    }
   };
 
   // While a finger paints, the page must not scroll.
@@ -203,9 +294,10 @@ export const TimeGrid = memo(function TimeGrid(p: Props) {
     return () => el.removeEventListener('touchmove', stop);
   }, []);
   useEffect(() => {
-    const up = () => (dragRef.current || hold.current) && onUpRef.current();
+    const up = () => (dragRef.current || hold.current || press.current) && onUpRef.current();
     // The browser took the gesture (a scroll): forget the pending hold, keep a started drag.
     const cancel = () => {
+      press.current = null;
       if (hold.current) {
         clearTimeout(hold.current.t);
         hold.current = null;
@@ -236,7 +328,16 @@ export const TimeGrid = memo(function TimeGrid(p: Props) {
     }
     if ((e.key === ' ' || e.key === 'Enter') && inWindow(focus.c, focus.r)) {
       e.preventDefault();
-      if (p.variant === 'paint') commit({ c0: focus.c, r0: focus.r, c1: focus.c, r1: focus.r, to: decide(focus.c, focus.r) });
+      if (p.variant === 'paint' && p.readOnly) return;
+      if (p.variant === 'paint') {
+        const from = mark ?? anchor.current;
+        if (e.shiftKey && from) fillRange(from, focus);
+        else if (p.rangeMode) rangeTap(focus.c, focus.r);
+        else {
+          commit({ c0: focus.c, r0: focus.r, c1: focus.c, r1: focus.r, to: decide(focus.c, focus.r) });
+          anchor.current = focus;
+        }
+      }
       else p.onPick?.({ day: p.cols[focus.c]!.key, m: p.rows[focus.r]! });
     }
   };
@@ -254,7 +355,8 @@ export const TimeGrid = memo(function TimeGrid(p: Props) {
     p.onPaint?.(open.map(([ci, ri]) => [p.cols[ci]!.key, p.rows[ri]!]), t === 'erase' || all ? null : t);
   };
 
-  const inDrag = (c: number, r: number) => drag && c >= Math.min(drag.c0, drag.c1) && c <= Math.max(drag.c0, drag.c1) && r >= Math.min(drag.r0, drag.r1) && r <= Math.max(drag.r0, drag.r1);
+  const box = drag ?? (mark && aim ? { c0: mark.c, r0: mark.r, c1: aim.c, r1: aim.r, to: fillTo() } : null);
+  const inDrag = (c: number, r: number) => box && c >= Math.min(box.c0, box.c1) && c <= Math.max(box.c0, box.c1) && r >= Math.min(box.r0, box.r1) && r <= Math.max(box.r0, box.r1);
 
   const style = { '--cols': p.cols.length, '--row': `${rowH}px` } as CSSProperties;
   const total = p.total ?? 0;
@@ -264,18 +366,18 @@ export const TimeGrid = memo(function TimeGrid(p: Props) {
   return (
     <div
       ref={root}
-      className={cn('tg', `tg-${p.variant}`, drag && 'is-dragging', p.focus && 'has-focus', p.dense && 'is-dense')}
+      className={cn('tg', `tg-${p.variant}`, drag && 'is-dragging', p.focus && 'has-focus', p.dense && 'is-dense', p.readOnly && 'is-readonly', (p.rangeMode || mark) && 'is-ranging')}
       style={style}
       role="grid"
       aria-label={p.label}
       onPointerDown={onDown}
       onPointerMove={onMove}
-      onPointerLeave={() => p.variant === 'heat' && p.onHover?.(null)}
+      onPointerLeave={() => (p.variant === 'heat' ? p.onHover?.(null) : aim && setAim(null))}
       onKeyDown={onKey}
     >
       <div className="tg-corner" />
       {p.cols.map((c, ci) =>
-        p.variant === 'paint' ? (
+        p.variant === 'paint' && !p.readOnly ? (
           <button key={c.key} type="button" className="tg-head" role="columnheader" style={{ gridColumn: ci + 2 }} title={`Tô cả ngày ${c.head}`} onClick={() => fillLine(ci, null)}>
             <b>{c.head}</b>
             {c.sub && <small>{c.sub}</small>}
@@ -288,7 +390,7 @@ export const TimeGrid = memo(function TimeGrid(p: Props) {
         ),
       )}
       {p.rows.map((m, r) => (
-        <Row key={m} m={m} r={r} p={p} total={total} inDrag={inDrag} drag={drag} inWindow={inWindow} focus={focus} onRow={() => fillLine(null, r)} />
+        <Row key={m} m={m} r={r} p={p} total={total} inDrag={inDrag} drag={box} mark={mark} inWindow={inWindow} focus={focus} onRow={() => fillLine(null, r)} />
       ))}
       {(p.overlays ?? []).map((o, i) => {
         const c = colOf.get(o.day);
@@ -305,12 +407,12 @@ export const TimeGrid = memo(function TimeGrid(p: Props) {
   );
 });
 
-function Row({ m, r, p, total, inDrag, drag, inWindow, focus, onRow }: { m: number; r: number; p: Props; total: number; inDrag: (c: number, r: number) => boolean | null; drag: { to: CellState } | null; inWindow: (c: number, r: number) => boolean; focus: { c: number; r: number }; onRow: () => void }) {
+function Row({ m, r, p, total, inDrag, drag, mark, inWindow, focus, onRow }: { m: number; r: number; p: Props; total: number; inDrag: (c: number, r: number) => boolean | null; drag: { to: CellState } | null; mark: { c: number; r: number } | null; inWindow: (c: number, r: number) => boolean; focus: { c: number; r: number }; onRow: () => void }) {
   const hour = m % 60 === 0;
   const last = r === p.rows.length - 1;
   return (
     <>
-      {p.variant === 'paint' ? (
+      {p.variant === 'paint' && !p.readOnly ? (
         <button type="button" tabIndex={-1} className={cn('tg-time', hour && 'is-hour')} style={{ gridRow: r + 2 }} title={`Tô ${fmtMin(m)} mọi ngày`} onClick={onRow}>{hour || p.slotMin >= 60 ? fmtMin(m) : ''}</button>
       ) : (
         <div className={cn('tg-time', hour && 'is-hour')} style={{ gridRow: r + 2 }} aria-hidden>{hour || p.slotMin >= 60 ? fmtMin(m) : ''}</div>
@@ -329,6 +431,7 @@ function Row({ m, r, p, total, inDrag, drag, inWindow, focus, onRow }: { m: numb
           const st = locked ? 'blocked' : p.stateOf?.(col.key, m) ?? null;
           cls = st ? `is-${st}` : '';
           if (!locked && inDrag(c, r)) cls += drag?.to ? ` is-pv is-pv-${drag.to}` : ' is-pv is-pv-erase';
+          if (mark && mark.c === c && mark.r === r) cls += ' is-mark';
           if (locked) title += ' · không thể họp';
         } else {
           const h = p.heat?.get(k);

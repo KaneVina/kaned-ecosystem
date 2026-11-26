@@ -80,6 +80,12 @@ button.tg-time:hover { color: var(--brand); }
 .tg-paint .tg-cell.is-pv-blocked { background: repeating-linear-gradient(45deg, #B9C2D1 0 2px, #E6EAF1 2px 6px) !important; }
 .tg-paint .tg-cell.is-pv-erase { background: var(--paper) !important; box-shadow: inset 0 0 0 1px #9AA6BC; }
 .tg-paint.is-dragging { cursor: crosshair; }
+.tg-paint.is-ranging .tg-cell:not(.is-off):not(.is-blocked) { cursor: cell; }
+.tg-paint .tg-cell.is-mark { z-index: 3; box-shadow: inset 0 0 0 2px var(--mt-pick), 0 0 0 3px rgba(242, 177, 59, .45); animation: tg-mark 1.2s ease-in-out infinite; }
+.tg-paint .tg-cell.is-mark::after { content: ""; position: absolute; left: 3px; top: 3px; width: 6px; height: 6px; border-radius: 50%; background: var(--mt-pick); }
+@keyframes tg-mark { 50% { box-shadow: inset 0 0 0 2px var(--mt-pick), 0 0 0 5px rgba(242, 177, 59, .2); } }
+.tg.is-readonly .tg-cell { cursor: default !important; }
+.tg.is-readonly.tg-paint .tg-cell.is-free { background: #4E6EF0; }
 
 /* heat */
 .tg-heat .tg-cell:not(.is-off) { cursor: pointer; border-left-color: rgba(36, 72, 216, .08); border-right-color: rgba(36, 72, 216, .08); }
@@ -401,7 +407,25 @@ button.tg-time:hover { color: var(--brand); }
 .mt-note label { font-size: 12.5px; font-weight: 650; color: var(--red-600); }
 .mt-note .input { width: 180px; flex: 1; min-width: 140px; background: #fff; }
 .mt-note-chips { display: flex; gap: 4px; }
-.mt-hint { margin: 10px 0 0; font-size: 12.5px; color: var(--ink-3); }
+.mt-hint { margin: 10px 0 0; font-size: 12.5px; color: var(--ink-3); line-height: 1.55; }
+.mt-hint kbd { display: inline-block; padding: 0 5px; border: 1px solid var(--line-2); border-bottom-width: 2px; border-radius: 4px; background: var(--paper); font: inherit; font-size: 11px; font-weight: 600; color: var(--ink-2); line-height: 16px; }
+.mt-hint.is-range { padding: 8px 12px; border-radius: 10px; background: #FFF6E3; color: #6B4706; }
+.mt-hint.is-range b { color: #3D2800; }
+.mt-toolbar2 { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+.mt-mode { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px; border-radius: 8px; border: 1px dashed var(--line-2); background: var(--paper); font: inherit; font-size: 12.5px; font-weight: 550; color: var(--ink-2); cursor: pointer; transition: all .15s; }
+.mt-mode:hover { border-color: var(--brand-200); color: var(--brand-700); }
+.mt-mode.is-on { border-style: solid; border-color: var(--mt-pick); background: #FFF6E3; color: #6B4706; }
+.mt-quickfill { margin-top: 10px; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--paper-2); display: grid; gap: 10px; justify-items: start; animation: mt-pop .2s var(--ease-out); }
+.mt-quickfill-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.mt-quickfill-row label { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-3); }
+.mt-quickfill-row .mt-time { width: 96px; height: 34px; }
+.mt-quickfill-days { display: flex; gap: 5px; flex-wrap: wrap; }
+.mt-locked { margin-top: 14px; display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 12px; background: var(--green-50); border: 1px solid #BFE3D0; color: var(--ink-2); font-size: 13.5px; }
+.mt-locked .ic { color: var(--green); margin-top: 2px; flex: none; }
+.mt-locked p { margin: 0; line-height: 1.5; }
+.mt-locked b { color: var(--green); }
+.mt-join.is-final { gap: 8px; }
+.mt-join-lock { width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; background: var(--green-50); color: var(--green); margin-bottom: 4px; }
 .mt-show-touch { display: none; }
 @media (hover: none) and (pointer: coarse) { .mt-show-touch { display: inline; } .mt-hide-touch { display: none; } }
 .mt-savebar {
@@ -548,6 +572,6 @@ button.tg-time:hover { color: var(--brand); }
   .mt-perday-day { width: 84px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .tg-cell.is-pulse, .tg-ov.is-hover, .mt-final.is-new, .mt-done, .mt-status-dot, .mt-live-dot { animation: none; }
+  .tg-cell.is-pulse, .tg-ov.is-hover, .tg-paint .tg-cell.is-mark, .mt-final.is-new, .mt-done, .mt-status-dot, .mt-live-dot { animation: none; }
 }
 .mt-create.is-done .mt-preview { position: static; }

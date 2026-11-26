@@ -319,7 +319,7 @@ function Editor({ existing }: { existing?: MeetEventDto }) {
                         <button type="button" className={cn(tool === 'blocked' && 'is-on')} onClick={() => setTool('blocked')}><Lock className="ic ic-sm" /> Tô giờ bận</button>
                         <button type="button" className={cn(tool === 'erase' && 'is-on')} onClick={() => setTool('erase')}><Eraser className="ic ic-sm" /> Xoá</button>
                       </div>
-                      <span className="mt-tools-info">{blockedCount ? `${blockedCount} ô · ${fmtDur(blockedCount * d.slotMin)}` : 'Kéo chuột trên lưới để tô'}</span>
+                      <span className="mt-tools-info">{blockedCount ? `${blockedCount} ô · ${fmtDur(blockedCount * d.slotMin)}` : 'Kéo để tô · Shift + click ô cuối để tô cả vùng'}</span>
                       {blockedCount > 0 && <button type="button" className="mt-textbtn" onClick={() => patch({ blocked: {} })}>Xoá hết</button>}
                     </div>
                     <div className="mt-gridwrap">

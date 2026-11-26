@@ -224,6 +224,11 @@ async function bySlug(slug: string) {
   return e;
 }
 
+/** Once the leader has picked the time, answers are frozen until they reopen it. */
+function assertOpen(e: EventRow) {
+  if (e.status === 'FINAL') throw new ApiError(409, 'MEET_FINAL', 'Trưởng nhóm đã chốt giờ họp nên lịch đã khoá. Nhờ trưởng nhóm mở lại nếu cần đổi.');
+}
+
 /** Who is asking: their browser's token, or their Kaned account. */
 async function whoIs(e: EventRow, token?: string, userId?: string): Promise<PartRow | null> {
   if (token) {
@@ -288,6 +293,8 @@ export async function join(slug: string, body: { name: string; pin?: string }, u
       return { token, state: await publicState(slug, token, userId) };
     }
   }
+  // Coming back is fine; a new answer after the final time is not.
+  assertOpen(e);
   const [row] = await db
     .insert(meetParticipants)
     .values({ eventId: e.id, name: body.name.trim(), nameKey: key, tokenHash: sha(token), userId: userId ?? null })
@@ -301,6 +308,7 @@ export async function saveMine(slug: string, body: z.output<typeof meetAvailabil
   const e = await bySlug(slug);
   const me = await whoIs(e, token, userId);
   if (!me) throw new ApiError(403, 'MEET_NOT_JOINED', 'Nhập tên trước khi lưu lịch.');
+  assertOpen(e);
   const free = cleanSlots(body.free as MeetSlots, e.days, e.slotMin, e.blocked);
   const busy = cleanSlots(body.busy as MeetSlots, e.days, e.slotMin, e.blocked);
   // A slot is either free or busy, never both: busy wins (it is the stronger statement).
@@ -329,6 +337,7 @@ export async function leave(slug: string, token?: string, userId?: string) {
   const e = await bySlug(slug);
   const me = await whoIs(e, token, userId);
   if (!me) return { ok: true };
+  assertOpen(e);
   await db.delete(meetParticipants).where(eq(meetParticipants.id, me.id));
   await touch(e.id);
   return { ok: true };

@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Link, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Ban, CalendarCheck2, CalendarDays, CalendarPlus, Check, CircleHelp, Clock3, Download, Eraser, KeyRound, Link2, Lock, LogOut, MapPin, MoreHorizontal,
-  Paintbrush, PencilLine, RotateCcw, Save, Sparkles, Trash2, Undo2, UserRound, Users, X,
+  Ban, CalendarCheck2, CalendarDays, CalendarPlus, Check, CircleHelp, Clock3, Clock4, Download, Eraser, KeyRound, Link2, Lock, LogOut, MapPin, MoreHorizontal,
+  Paintbrush, PencilLine, RotateCcw, Save, Sparkles, SquareDashedMousePointer, Trash2, Undo2, UserRound, Users, X,
 } from 'lucide-react';
 import {
   countSlots, dayLabel, fmtDur, fmtMin, gridRows, heatOf, nextDateFor, suggestTimes, validMeetRange,
@@ -678,6 +678,7 @@ function JoinGate({ slug, defaultName, ev, onJoined }: { slug: string; defaultNa
   const [need, setNeed] = useState(false);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+  const [back, setBack] = useState(false);
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return setErr('Nhập tên để mọi người biết bạn là ai.');
@@ -694,6 +695,16 @@ function JoinGate({ slug, defaultName, ev, onJoined }: { slug: string; defaultNa
       setBusy(false);
     }
   };
+  if (ev.status === 'FINAL' && !back) {
+    return (
+      <div className="mt-card mt-join is-final">
+        <span className="mt-join-lock"><Lock className="ic" /></span>
+        <h2>Đã chốt giờ họp</h2>
+        <p>Trưởng nhóm đã chọn giờ nên không cần tô lịch nữa. Xem giờ chốt ở trên và thêm vào lịch của bạn.</p>
+        <button type="button" className="mt-textbtn" onClick={() => setBack(true)}>Bạn đã tô lịch trước đó? Mở lại lịch của bạn</button>
+      </div>
+    );
+  }
   return (
     <div className="mt-card mt-join">
       <div className="mt-join-art" aria-hidden>
@@ -741,6 +752,10 @@ function MyCalendar({ slug, state, me, cols, rows, lockedOf, onSaved, onLeft }: 
   const [menu, setMenu] = useState(false);
   const [pinOpen, setPinOpen] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
+  const [rangeMode, setRangeMode] = useState(false);
+  const [mark, setMark] = useState<{ day: string; m: number } | null>(null);
+  const [quick, setQuick] = useState(false);
+  const locked = ev.status === 'FINAL';
   const busyN = sizeOf(busy);
   const noteNow = busyN ? note.trim() : '';
   const dirty = !sameMap(free, server.free) || !sameMap(busy, server.busy) || (busyN > 0 && noteNow !== (server.note || ''));
@@ -768,6 +783,21 @@ function MyCalendar({ slug, state, me, cols, rows, lockedOf, onSaved, onLeft }: 
       setBusy(server.busy);
     }
   }, [serverKey, server]);
+
+  // The leader picked the time: answers are frozen, so unsaved painting goes.
+  useEffect(() => {
+    if (!locked) return;
+    setConfirm(false);
+    setRangeMode(false);
+    if (dirtyRef.current) {
+      setFree(server.free);
+      setBusy(server.busy);
+      setNote(server.note || ev.blockedLabel || 'Lịch học');
+      hist.current = [];
+      toast.info('Lịch đã khoá', 'Trưởng nhóm vừa chốt giờ, phần bạn tô chưa lưu đã được bỏ.');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locked]);
 
   const stateOf = useCallback((d: string, m: number): CellState => (has(busy, d, m) ? 'busy' : has(free, d, m) ? 'free' : null), [free, busy]);
   const paint = useCallback((cells: Array<[string, number]>, to: CellState) => {
@@ -850,38 +880,71 @@ function MyCalendar({ slug, state, me, cols, rows, lockedOf, onSaved, onLeft }: 
               <div className="mt-menu-pop" role="menu">
                 <button type="button" role="menuitem" onClick={() => { setMenu(false); setPinOpen(true); }}><KeyRound className="ic ic-sm" /> {state.me?.hasPin ? 'Đổi mã PIN' : 'Đặt mã PIN'}</button>
                 <button type="button" role="menuitem" onClick={() => { setMenu(false); forget(); }}><LogOut className="ic ic-sm" /> Không phải {me.name}?</button>
-                <button type="button" role="menuitem" className="is-danger" onClick={() => { setMenu(false); setLeaveOpen(true); }}><Trash2 className="ic ic-sm" /> Xoá câu trả lời của tôi</button>
+                {!locked && <button type="button" role="menuitem" className="is-danger" onClick={() => { setMenu(false); setLeaveOpen(true); }}><Trash2 className="ic ic-sm" /> Xoá câu trả lời của tôi</button>}
               </div>
             </>
           )}
         </div>
       </div>
 
-      <div className="mt-toolbar" role="toolbar" aria-label="Công cụ tô">
-        <div className="mt-seg">
-          <button type="button" className={cn('is-free-t', tool === 'free' && 'is-on')} onClick={() => setTool('free')} aria-pressed={tool === 'free'}><span className="mt-sw is-free" /> Rảnh</button>
-          <button type="button" className={cn('is-busy-t', tool === 'busy' && 'is-on')} onClick={() => setTool('busy')} aria-pressed={tool === 'busy'}><span className="mt-sw is-busy" /> Chắc chắn bận</button>
-          <button type="button" className={cn(tool === 'erase' && 'is-on')} onClick={() => setTool('erase')} aria-pressed={tool === 'erase'}><Eraser className="ic ic-sm" /> Xoá</button>
+      {locked ? (
+        <div className="mt-locked" role="status">
+          <Lock className="ic ic-sm" />
+          <p>
+            <b>Lịch đã khoá vì trưởng nhóm đã chốt giờ họp.</b>
+            {state.isOwner ? ' Bấm "Đổi giờ" ở trên để mở lại cho mọi người sửa.' : ' Nếu cần đổi, nhắn trưởng nhóm mở lại.'}
+          </p>
         </div>
-        <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={undo} disabled={!hist.current.length} aria-label="Hoàn tác" title="Hoàn tác (Ctrl+Z)"><Undo2 className="ic ic-sm" /></button>
-      </div>
-      {tool === 'busy' && (
-        <div className="mt-note">
-          <label htmlFor="mt-note">Lý do bận</label>
-          <input id="mt-note" className="input input-sm" value={note} onChange={(e) => setNote(e.target.value)} maxLength={60} placeholder="Lịch học, đi làm thêm…" />
-          <div className="mt-note-chips">
-            {['Lịch học', 'Đi làm', 'Việc riêng'].map((x) => <button key={x} type="button" className={cn('mt-chip is-sm', note === x && 'is-on')} onClick={() => setNote(x)}>{x}</button>)}
+      ) : (
+        <>
+          <div className="mt-toolbar" role="toolbar" aria-label="Công cụ tô">
+            <div className="mt-seg">
+              <button type="button" className={cn('is-free-t', tool === 'free' && 'is-on')} onClick={() => setTool('free')} aria-pressed={tool === 'free'}><span className="mt-sw is-free" /> Rảnh</button>
+              <button type="button" className={cn('is-busy-t', tool === 'busy' && 'is-on')} onClick={() => setTool('busy')} aria-pressed={tool === 'busy'}><span className="mt-sw is-busy" /> Chắc chắn bận</button>
+              <button type="button" className={cn(tool === 'erase' && 'is-on')} onClick={() => setTool('erase')} aria-pressed={tool === 'erase'}><Eraser className="ic ic-sm" /> Xoá</button>
+            </div>
+            <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={undo} disabled={!hist.current.length} aria-label="Hoàn tác" title="Hoàn tác (Ctrl+Z)"><Undo2 className="ic ic-sm" /></button>
           </div>
-        </div>
+          <div className="mt-toolbar2">
+            <button type="button" className={cn('mt-mode', rangeMode && 'is-on')} onClick={() => setRangeMode((v) => !v)} aria-pressed={rangeMode} title="Chạm ô bắt đầu rồi chạm ô kết thúc để tô cả vùng">
+              <SquareDashedMousePointer className="ic ic-sm" /> Chọn 2 điểm
+            </button>
+            <button type="button" className={cn('mt-mode', quick && 'is-on')} onClick={() => setQuick((v) => !v)} aria-expanded={quick}>
+              <Clock4 className="ic ic-sm" /> Nhập giờ
+            </button>
+          </div>
+          {quick && <QuickFill ev={ev} tool={tool} lockedOf={lockedOf} onFill={(cells, to) => paint(cells, to)} />}
+          {tool === 'busy' && (
+            <div className="mt-note">
+              <label htmlFor="mt-note">Lý do bận</label>
+              <input id="mt-note" className="input input-sm" value={note} onChange={(e) => setNote(e.target.value)} maxLength={60} placeholder="Lịch học, đi làm thêm…" />
+              <div className="mt-note-chips">
+                {['Lịch học', 'Đi làm', 'Việc riêng'].map((x) => <button key={x} type="button" className={cn('mt-chip is-sm', note === x && 'is-on')} onClick={() => setNote(x)}>{x}</button>)}
+              </div>
+            </div>
+          )}
+          <p className={cn('mt-hint', (mark || rangeMode) && 'is-range')} aria-live="polite">
+            {mark ? (
+              <>
+                <b>Ô bắt đầu: {dayLabel(mark.day).short}{dayLabel(mark.day).date ? ` ${dayLabel(mark.day).date}` : ''} {fmtMin(mark.m)}.</b>{' '}
+                {rangeMode ? 'Chạm ô kết thúc để tô cả vùng.' : 'Nháy đúp hoặc Shift + click ô kết thúc để tô cả vùng.'} Chạm lại ô bắt đầu hoặc bấm Esc để huỷ.
+              </>
+            ) : rangeMode ? (
+              'Chạm ô bắt đầu, rồi chạm ô kết thúc: mọi ô ở giữa sẽ được tô.'
+            ) : (
+              <>
+                <span className="mt-hide-touch">Kéo để tô một vùng. Vùng dài: bấm ô đầu rồi <kbd>Shift</kbd> + click ô cuối, hoặc nháy đúp ô đầu và nháy đúp ô cuối. Bấm tên thứ để tô cả ngày.</span>
+                <span className="mt-show-touch">Chạm để chọn một ô, giữ rồi kéo để tô nhiều ô. Vùng dài: bật "Chọn 2 điểm" hoặc "Nhập giờ".</span>
+              </>
+            )}
+          </p>
+        </>
       )}
-      <p className="mt-hint">
-        <span className="mt-hide-touch">Kéo chuột để tô một vùng, bấm tên thứ để tô cả ngày.</span>
-        <span className="mt-show-touch">Chạm để chọn một ô, giữ rồi kéo để tô nhiều ô.</span>
-      </p>
       <div className="mt-gridwrap">
-        <TimeGrid label="Lịch của tôi" variant="paint" cols={cols} rows={rows} slotMin={ev.slotMin} tool={tool} stateOf={stateOf} onPaint={paint} lockedOf={lockedOf} />
+        <TimeGrid label="Lịch của tôi" variant="paint" cols={cols} rows={rows} slotMin={ev.slotMin} tool={tool} stateOf={stateOf} onPaint={paint} lockedOf={lockedOf} readOnly={locked} rangeMode={rangeMode} onMark={setMark} />
       </div>
 
+      {!locked && (
       <div className={cn('mt-savebar', dirty && 'is-on')}>
         <div className="mt-savebar-t">
           {dirty ? <><b>Chưa lưu</b><span>Rảnh {fmtDur(freeN * ev.slotMin)}{busyN ? ` · bận ${fmtDur(busyN * ev.slotMin)}` : ''}</span></> : <><Check className="ic ic-sm" /><span>{me.savedAt ? 'Đã lưu, mọi người đang thấy lịch này' : 'Tô giờ rảnh rồi bấm Lưu'}</span></>}
@@ -889,6 +952,7 @@ function MyCalendar({ slug, state, me, cols, rows, lockedOf, onSaved, onLeft }: 
         {dirty && <button type="button" className="btn btn-ghost btn-sm" onClick={reset} aria-label="Bỏ thay đổi" title="Bỏ thay đổi"><RotateCcw className="ic ic-sm" /><span className="mt-hide-sm">Bỏ thay đổi</span></button>}
         <Button size="sm" icon={<Save className="ic ic-sm" />} disabled={!dirty} onClick={() => setConfirm(true)}>Lưu lịch</Button>
       </div>
+      )}
 
       <Modal
         open={confirm}
@@ -922,6 +986,44 @@ function MyCalendar({ slug, state, me, cols, rows, lockedOf, onSaved, onLeft }: 
           }
         }}>Xoá</Button></>}
       />
+    </div>
+  );
+}
+
+/** "From 18:00 to 20:00 on these days": paint a long stretch without dragging. */
+function QuickFill({ ev, tool, lockedOf, onFill }: { ev: MeetEventDto; tool: PaintTool; lockedOf: (d: string, m: number) => boolean; onFill: (cells: Array<[string, number]>, to: CellState) => void }) {
+  const days = useMemo(() => colsOf(ev.days), [ev.days]);
+  const lo = Math.min(...ev.days.map((d) => d.start));
+  const hi = Math.max(...ev.days.map((d) => d.end));
+  const times: number[] = [];
+  for (let m = lo; m <= hi; m += ev.slotMin) times.push(m);
+  const [from, setFrom] = useState(() => Math.max(lo, Math.min(hi - ev.slotMin, 18 * 60 - (18 * 60 - lo) % ev.slotMin)));
+  const [to, setTo] = useState(() => Math.min(hi, from + 2 * 60));
+  const [pick, setPick] = useState<string[]>([]);
+  const target = pick.length ? pick : days.map((d) => d.key);
+  const cells: Array<[string, number]> = [];
+  for (const d of days) {
+    if (!target.includes(d.key)) continue;
+    for (let m = from; m < to; m += ev.slotMin) if (m >= d.start && m + ev.slotMin <= d.end && !lockedOf(d.key, m)) cells.push([d.key, m]);
+  }
+  const label = tool === 'busy' ? 'Tô bận' : tool === 'erase' ? 'Xoá' : 'Tô rảnh';
+  return (
+    <div className="mt-quickfill">
+      <div className="mt-quickfill-row">
+        <label>Từ <select className="input input-sm mt-time" value={from} onChange={(e) => { const v = Number(e.target.value); setFrom(v); if (to <= v) setTo(Math.min(hi, v + ev.slotMin)); }}>{times.slice(0, -1).map((m) => <option key={m} value={m}>{fmtMin(m)}</option>)}</select></label>
+        <label>đến <select className="input input-sm mt-time" value={to} onChange={(e) => setTo(Number(e.target.value))}>{times.filter((m) => m > from).map((m) => <option key={m} value={m}>{m === 1440 ? '24:00' : fmtMin(m)}</option>)}</select></label>
+      </div>
+      <div className="mt-quickfill-days" role="group" aria-label="Ngày áp dụng">
+        <button type="button" className={cn('mt-chip is-sm', !pick.length && 'is-on')} onClick={() => setPick([])}>Mọi ngày</button>
+        {days.map((d) => (
+          <button key={d.key} type="button" className={cn('mt-chip is-sm', pick.includes(d.key) && 'is-on')} onClick={() => setPick((x) => (x.includes(d.key) ? x.filter((k) => k !== d.key) : [...x, d.key]))}>
+            {d.head}{d.sub?.includes('/') ? ` ${d.sub}` : ''}
+          </button>
+        ))}
+      </div>
+      <Button size="sm" variant={tool === 'erase' ? 'secondary' : 'primary'} disabled={!cells.length} onClick={() => onFill(cells, tool === 'erase' ? null : tool)}>
+        {label} {fmtMin(from)}–{fmtMin(to)} · {cells.length} ô
+      </Button>
     </div>
   );
 }
