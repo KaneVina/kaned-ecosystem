@@ -504,7 +504,7 @@ mark { background: rgba(231, 160, 51, .32); color: inherit; border-radius: 3px; 
 .dk-conf { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); }
 .dk-conf-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .dk-conf-q { font-weight: 600; color: var(--ink); margin-right: 4px; }
-.dk-conf-btn { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 13px 0 7px; border-radius: 9px; border: 1px solid var(--line); background: var(--paper); color: var(--ink-2); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; transition: border-color .15s, background .15s, color .15s; }
+.dk-conf-btn { white-space: nowrap; display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 13px 0 7px; border-radius: 9px; border: 1px solid var(--line); background: var(--paper); color: var(--ink-2); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; transition: border-color .15s, background .15s, color .15s; }
 .dk-conf-btn kbd { min-width: 20px; height: 20px; font-size: 11px; }
 .dk-conf-btn:hover { border-color: var(--ink-3); color: var(--ink); }
 .dk-conf-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
@@ -520,7 +520,12 @@ mark { background: rgba(231, 160, 51, .32); color: inherit; border-radius: 3px; 
 .dk-plan { display: flex; align-items: flex-start; gap: 8px; margin: 10px 0 0; padding: 9px 12px; border-radius: 10px; background: var(--paper-2); border: 1px solid var(--line); font-size: 14px; color: var(--ink-2); max-width: 620px; }
 .dk-plan .ic { flex: none; margin-top: 2px; color: var(--brand); }
 .dk-plan b { color: var(--ink); }
-@media (max-width: 520px) { .dk-conf-q { width: 100%; } .dk-conf-btn { flex: 1; justify-content: center; } }
+@media (max-width: 520px) {
+  .dk-conf-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .dk-conf-q { grid-column: 1 / -1; margin: 0 0 2px; }
+  .dk-conf-btn { justify-content: center; min-width: 0; height: 40px; padding: 0 8px; white-space: nowrap; word-break: normal; overflow-wrap: normal; }
+}
+@media (hover: none) and (pointer: coarse) { .dk-conf-btn kbd { display: none; } }
 
 /* "Tự nhập" number box under the exam presets */
 .dk-custom { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin-top: 10px; }
@@ -672,3 +677,4 @@ html.exam-live .dk-body { padding-top: 26px; }
   .dk-tstat b { font-size: 19px; }
   .dk-today-actions .btn { flex: 1 1 auto; justify-content: center; }
 }
+@media (max-width: 520px) { .dk-notes p { grid-template-columns: 1fr; gap: 3px; } }
