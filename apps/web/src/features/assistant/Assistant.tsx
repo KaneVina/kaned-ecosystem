@@ -11,6 +11,7 @@ import { respond, type Block, type Ctx, type Mood, type Reply } from './brain';
 import { Blocks } from './Blocks';
 import { KB } from './kb';
 import { KaiBot, type BotMood } from './KaiBot';
+import { forks, jag, reducedMotion, rnd, strike } from './bolt';
 import { MODELS, forget, generate, interrupt, isCached, llmStore, loadModel, turnOff, webgpuSupport, type ModelChoice } from './llm';
 import './assistant.css';
 
@@ -220,6 +221,80 @@ export default function Assistant() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, prefs.deep]);
 
+  /* ── electricity: Kai's bolt jumps across the header, then a current runs round the frame ── */
+  const headRef = useRef<HTMLElement>(null);
+  const arcG = useRef<SVGGElement>(null);
+  const arcSvg = useRef<SVGSVGElement>(null);
+  const frameSvg = useRef<SVGSVGElement>(null);
+  const [zapKey, setZapKey] = useState(0);
+  const [launcherZap, setLauncherZap] = useState(false);
+  const zapCount = useRef(0);
+  const runFrame = useCallback(() => {
+    const svg = frameSvg.current;
+    const el = panel.current;
+    if (!svg || !el || reducedMotion()) return;
+    const W = el.clientWidth;
+    const H = el.clientHeight;
+    const rx = el.classList.contains('is-sheet') ? 22 : 21;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.querySelectorAll('rect').forEach((r, i) => {
+      r.setAttribute('x', '1');
+      r.setAttribute('y', '1');
+      r.setAttribute('width', String(W - 2));
+      r.setAttribute('height', String(H - 2));
+      r.setAttribute('rx', String(rx));
+      r.animate(
+        [
+          { strokeDashoffset: 0, opacity: 0 },
+          { opacity: 1, offset: 0.08 },
+          { opacity: 1, offset: 0.82 },
+          { strokeDashoffset: -1000, opacity: 0 },
+        ],
+        { duration: 1500, delay: i * 40, easing: 'cubic-bezier(.45,.05,.35,1)', fill: 'both' },
+      );
+    });
+  }, []);
+  const runArc = useCallback(() => {
+    const h = headRef.current;
+    const g = arcG.current;
+    const svg = arcSvg.current;
+    if (!h || !g || !svg || reducedMotion()) return;
+    const r = h.getBoundingClientRect();
+    const bot = h.querySelector('.kai-head-bot')?.getBoundingClientRect();
+    if (!bot || r.width < 50) return;
+    svg.setAttribute('viewBox', `0 0 ${r.width} ${r.height}`);
+    const sx = bot.right - r.left - 6;
+    const sy = bot.top - r.top + bot.height * 0.5;
+    const main = jag(
+      [
+        [sx, sy],
+        [sx + rnd(28, 46), r.height * rnd(0.18, 0.36)],
+        [r.width * rnd(0.34, 0.44), r.height * rnd(0.6, 0.82)],
+        [r.width * rnd(0.52, 0.62), r.height * rnd(0.2, 0.4)],
+        [r.width * rnd(0.7, 0.8), r.height * rnd(0.55, 0.8)],
+        [r.width + 10, r.height * rnd(0.3, 0.6)],
+      ],
+      0.16,
+      3,
+    );
+    void strike(g, main, { run: 720, branches: forks(main, 2, 20), widths: { glow: 5, core: 1.6, hot: 0.7 }, filter: 'url(#kai-arc-blur)' });
+    // The name lights up as the bolt passes it, like the letters of the logo.
+    h.querySelector('.kai-name')?.animate(
+      [{ color: 'inherit', textShadow: 'none' }, { color: '#E9FBFF', textShadow: '0 0 10px rgba(127,227,255,.95), 0 0 22px rgba(127,227,255,.55)', offset: 0.25 }, { color: 'inherit', textShadow: 'none' }],
+      { duration: 900, delay: 160, easing: 'ease-out' },
+    );
+    h.animate([{ boxShadow: 'inset 0 0 0 0 rgba(127,227,255,0)' }, { boxShadow: 'inset 0 -1px 0 0 rgba(127,227,255,.9), inset 0 0 40px 0 rgba(127,227,255,.18)', offset: 0.3 }, { boxShadow: 'inset 0 0 0 0 rgba(127,227,255,0)' }], { duration: 900 });
+  }, []);
+  const onHeadZap = useCallback(() => {
+    zapCount.current++;
+    setTimeout(runArc, 300);
+    if (zapCount.current % 2 === 1) setTimeout(runFrame, 620);
+  }, [runArc, runFrame]);
+  const onLauncherZap = useCallback(() => {
+    setLauncherZap(true);
+    setTimeout(() => setLauncherZap(false), 900);
+  }, []);
+
   const flash = (m: Mood | BotMood, ms = 2600) => {
     clearTimeout(moodTimer.current);
     setMood(m);
@@ -316,6 +391,10 @@ export default function Assistant() {
       if (wait && !placed) await new Promise((r) => setTimeout(r, wait));
       setMsgs((l) => (placed ? l.map((m) => (m.id === kaiId ? { ...m, reply, fresh: false } : m)) : [...l, { id: kaiId, role: 'kai', reply, at: Date.now(), fresh: true }]));
       flash(reply.mood ?? 'happy', reply.kind === 'fallback' ? 2200 : 2800);
+      if (reply.kind !== 'fallback') {
+        zapCount.current = 0;
+        setZapKey((k) => k + 1);
+      }
       if (reply.navigate) {
         const to = reply.navigate;
         setTimeout(() => {
@@ -577,7 +656,7 @@ export default function Assistant() {
       <button
         ref={launcherRef}
         type="button"
-        className={cn('kai-launcher', open && 'is-away', lpos && 'is-drag', `is-${prefs.launcher.side}`)}
+        className={cn('kai-launcher', open && 'is-away', lpos && 'is-drag', launcherZap && 'is-zap', `is-${prefs.launcher.side}`)}
         style={lpos ? ({ left: lpos.x - 34, top: lpos.y - 34, right: 'auto', bottom: 'auto' } as CSSProperties) : ({ [prefs.launcher.side]: 18, bottom: prefs.launcher.bottom } as CSSProperties)}
         onPointerDown={onLauncherDown}
         onPointerMove={onLauncherMove}
@@ -589,7 +668,9 @@ export default function Assistant() {
         title="Hỏi Kai (Alt+K)"
       >
         <span className="kai-launcher-halo" aria-hidden />
-        <KaiBot mood={mood} size={62} />
+        <span className="kai-hud" aria-hidden><i /><i /></span>
+        <span className="kai-sparks" aria-hidden><i /><i /><i /><i /><i /></span>
+        <KaiBot mood={mood} size={62} zap={!open} onZap={onLauncherZap} />
         <span className="kai-launcher-shadow" aria-hidden />
       </button>
       {greet && !open && (
@@ -608,11 +689,29 @@ export default function Assistant() {
           role="dialog"
           aria-label="Trợ lý Kai"
         >
-          <header className="kai-head" onPointerDown={startMove} onDoubleClick={() => !mobile && setPrefs((p) => ({ ...p, xl: !p.xl }))}>
+          <svg ref={frameSvg} className="kai-frame" aria-hidden preserveAspectRatio="none">
+            <defs>
+              <filter id="kai-frame-blur" x="-10%" y="-10%" width="120%" height="120%">
+                <feGaussianBlur stdDeviation="2.2" />
+              </filter>
+            </defs>
+            <rect className="kai-frame-glow" pathLength={1000} filter="url(#kai-frame-blur)" />
+            <rect className="kai-frame-core" pathLength={1000} />
+            <rect className="kai-frame-hot" pathLength={1000} />
+          </svg>
+          <header ref={headRef} className="kai-head" onPointerDown={startMove} onDoubleClick={() => !mobile && setPrefs((p) => ({ ...p, xl: !p.xl }))}>
+            <svg ref={arcSvg} className="kai-arc" aria-hidden>
+              <defs>
+                <filter id="kai-arc-blur" x="-20%" y="-60%" width="140%" height="220%">
+                  <feGaussianBlur stdDeviation="2.2" />
+                </filter>
+              </defs>
+              <g ref={arcG} />
+            </svg>
             {mobile && <span className="kai-grab" onPointerDown={onGrabDown} onPointerMove={onGrabMove} onPointerUp={onGrabUp} aria-hidden />}
-            <span className="kai-head-bot"><KaiBot mood={headMood} size={44} /></span>
+            <span className="kai-head-bot"><KaiBot mood={headMood} size={44} zap={open} zapKey={zapKey} onZap={onHeadZap} /></span>
             <div className="kai-head-text">
-              <b>Kai <span className={cn('kai-badge', deepReady && 'is-deep')}>{deepReady ? 'AI sâu' : 'Trợ lý'}</span></b>
+              <b><span className="kai-name">Kai</span> <span className={cn('kai-badge', deepReady && 'is-deep')}>{deepReady ? 'AI sâu' : 'AI · local'}</span></b>
               <small><i className={cn('kai-dot', (waiting || llm.s === 'loading') && 'is-busy')} />{statusText}</small>
             </div>
             <div className="kai-head-btns">
@@ -630,7 +729,10 @@ export default function Assistant() {
           <div className="kai-scroll" ref={scroller} onScroll={onScroll} aria-live="polite">
             {msgs.length === 0 ? (
               <div className="kai-welcome">
-                <div className="kai-welcome-bot"><KaiBot mood={mood === 'idle' ? 'wave' : headMood} size={96} /></div>
+                <div className="kai-welcome-bot">
+                  <span className="kai-orbit" aria-hidden><i /><i /><i /></span>
+                  <KaiBot mood={mood === 'idle' ? 'wave' : headMood} size={96} zap />
+                </div>
                 <h2>Chào {firstName || 'bạn'}, mình là Kai</h2>
                 <p>Hỏi mình cách dùng Kaned, hoặc nhờ mình tìm đề thi, bài tập, slide, flashcard, môn học và giảng viên.</p>
                 <div className="kai-sugg">
@@ -659,7 +761,12 @@ export default function Assistant() {
             {waiting && (
               <div className="kai-row is-kai kai-typing" aria-label="Kai đang trả lời">
                 <span className="kai-av"><KaiBot mood="think" size={30} track={false} /></span>
-                <div className="kai-bubble"><i /><i /><i /></div>
+                <div className="kai-bubble">
+                  <svg className="kai-scope" viewBox="0 0 64 20" aria-hidden>
+                    <path d="M0 10 Q4 1 8 10 T16 10 T24 10 T32 10 T40 10 T48 10 T56 10 T64 10 T72 10 T80 10 T88 10 T96 10" />
+                  </svg>
+                  <span>Kai đang xử lý…</span>
+                </div>
               </div>
             )}
           </div>
