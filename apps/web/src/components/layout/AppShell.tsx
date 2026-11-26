@@ -5,6 +5,7 @@ import {
   Bookmark,
   BookOpen,
   Calculator,
+  CalendarClock,
   CalendarDays,
   ChevronDown,
   ChevronRight,
@@ -109,6 +110,14 @@ export const TOOLS: Tool[] = [
     icon: MonitorCheck,
     tone: 'violet',
     art: 'vec',
+  },
+  {
+    to: '/app/tools/meet',
+    label: 'Hẹn họp nhóm',
+    description: 'Gửi một link, cả nhóm tô giờ rảnh, Kaned tìm giờ họp hợp nhất',
+    icon: CalendarClock,
+    tone: 'blue',
+    art: 'meet',
   },
   {
     to: null,

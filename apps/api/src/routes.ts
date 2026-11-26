@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { assistantRouter } from './modules/assistant/assistant.routes.js';
+import { meetRouter } from './modules/meet/meet.routes.js';
 import { activityRouter } from './modules/activity/activity.routes.js';
 import { adminRouter } from './modules/admin/admin.routes.js';
 import { authRouter } from './modules/auth/auth.routes.js';
@@ -24,6 +25,7 @@ export const api = Router();
 
 api.use('/activity', activityRouter);
 api.use('/assistant', assistantRouter);
+api.use('/meet', meetRouter);
 api.use('/admin', adminRouter);
 api.use('/auth', authRouter);
 api.use('/catalog', catalogRouter);

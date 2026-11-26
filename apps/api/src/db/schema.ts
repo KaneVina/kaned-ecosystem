@@ -8,7 +8,7 @@
  * is a new table pointing at users and subjects; nothing here has to change.
  */
 import { relations, sql } from 'drizzle-orm';
-import type { AssessmentItem, DeckContent, DeckProgress, PassCriteriaValues, PassCriterion, PeStoredConfig, Requirement, VecSettings } from '@kaned/shared';
+import type { AssessmentItem, DeckContent, DeckProgress, MeetDay, MeetSlots, PassCriteriaValues, PassCriterion, PeStoredConfig, Requirement, VecSettings } from '@kaned/shared';
 import {
   type AnyPgColumn,
   bigint,
@@ -1278,3 +1278,66 @@ export type VecSessionRow = typeof vecSessions.$inferSelect;
 export type VecAttemptRow = typeof vecAttempts.$inferSelect;
 export type VecParticipantRow = typeof vecParticipants.$inferSelect;
 export type VecQuestionRow = typeof vecSessionQuestions.$inferSelect;
+
+/* ───────────────────────── Hẹn họp nhóm ───────────────────────── */
+
+export const meetEvents = pgTable(
+  'meet_events',
+  {
+    id: id(),
+    /** The public link: /m/<slug>, no sign-in needed. */
+    slug: varchar('slug', { length: 16 }).notNull(),
+    ownerId: text('owner_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    title: varchar('title', { length: 120 }).notNull(),
+    description: text('description').notNull().default(''),
+    location: varchar('location', { length: 200 }).notNull().default(''),
+    /** WEEKLY (Monday…Sunday of a usual week) or DATES (calendar dates) */
+    mode: varchar('mode', { length: 8 }).notNull(),
+    days: jsonb('days').$type<MeetDay[]>().notNull(),
+    slotMin: integer('slot_min').notNull(),
+    durationMin: integer('duration_min').notNull(),
+    blocked: jsonb('blocked').$type<MeetSlots>().notNull().default({}),
+    blockedLabel: varchar('blocked_label', { length: 60 }).notNull().default('Lịch học'),
+    /** OPEN | FINAL */
+    status: varchar('status', { length: 8 }).notNull().default('OPEN'),
+    final: jsonb('final').$type<{ day: string; start: number; end: number; note: string; at: number }>(),
+    /** Goes up on every change, so open pages know when to refresh. */
+    version: integer('version').notNull().default(1),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (t) => ({
+    slugIdx: uniqueIndex('meet_events_slug_idx').on(t.slug),
+    ownerIdx: index('meet_events_owner_idx').on(t.ownerId, t.updatedAt),
+  }),
+);
+
+export const meetParticipants = pgTable(
+  'meet_participants',
+  {
+    id: id(),
+    eventId: text('event_id')
+      .notNull()
+      .references(() => meetEvents.id, { onDelete: 'cascade' }),
+    name: varchar('name', { length: 40 }).notNull(),
+    /** The name folded (no accents, lower case): one person per name in an event. */
+    nameKey: varchar('name_key', { length: 60 }).notNull(),
+    /** sha256 of the secret kept in the answerer's browser. */
+    tokenHash: varchar('token_hash', { length: 64 }).notNull(),
+    pinHash: varchar('pin_hash', { length: 64 }),
+    userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+    free: jsonb('free').$type<MeetSlots>().notNull().default({}),
+    busy: jsonb('busy').$type<MeetSlots>().notNull().default({}),
+    busyNote: varchar('busy_note', { length: 80 }).notNull().default(''),
+    savedAt: timestamp('saved_at', { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => ({
+    nameIdx: uniqueIndex('meet_participants_name_idx').on(t.eventId, t.nameKey),
+    tokenIdx: index('meet_participants_token_idx').on(t.tokenHash),
+  }),
+);

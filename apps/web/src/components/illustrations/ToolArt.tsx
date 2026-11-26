@@ -25,7 +25,7 @@ const C = {
   line: '#D4DDF3',
 };
 
-export type ToolArtName = 'library' | 'gpa' | 'subjects' | 'flashcards' | 'lecturers' | 'vec' | 'timetable' | 'empty' | 'error' | 'student' | 'lecturer' | 'fe' | 'pe';
+export type ToolArtName = 'library' | 'gpa' | 'subjects' | 'flashcards' | 'lecturers' | 'vec' | 'timetable' | 'meet' | 'empty' | 'error' | 'student' | 'lecturer' | 'fe' | 'pe';
 
 /* ── shared pieces ─────────────────────────────────────────────── */
 
@@ -357,6 +357,39 @@ const SCENES: Record<ToolArtName, { title: string; draw: () => ReactNode }> = {
         <Books x={60} y={258} colors={[C.cobalt, C.leafDark, C.amber]} />
         <Leaf x={364} y={272} s={1} r={14} />
         <Sparks x={284} y={146} r={-10} />
+      </>
+    ),
+  },
+  meet: {
+    title: 'Hẹn họp nhóm',
+    draw: () => (
+      <>
+        <Ribbon d="M-10 214C70 272 130 150 204 178S326 254 410 182" />
+        <circle cx="354" cy="42" r="14" fill={C.leaf} />
+        <circle cx="44" cy="56" r="11" fill={C.amber} />
+        <Window x={70} y={32} w={260} h={180} tilt={-2}>
+          {Array.from({ length: 5 }, (_, c) =>
+            Array.from({ length: 5 }, (_, r) => {
+              const heat = [[0, 1, 2, 1, 0], [1, 2, 3, 2, 1], [0, 2, 4, 3, 1], [0, 1, 4, 4, 2], [1, 0, 2, 1, 0]][c]![r]!;
+              const fill = [C.paper2, '#C9D6FF', '#8FA7FF', '#4E6EF0', C.cobalt][heat]!;
+              return <rect key={`${c}${r}`} x={16 + c * 46} y={12 + r * 27} width="40" height="22" rx="5" fill={fill} stroke={heat ? 'none' : C.line} />;
+            }),
+          )}
+          <rect x="105" y="62" width="96" height="76" rx="9" fill="none" stroke={C.green} strokeWidth="3.5" />
+        </Window>
+        <g transform="translate(300 190)">
+          {[[-30, 8, C.coral], [-6, -4, C.amber], [18, 8, C.leafDark]].map(([x, y, c]) => (
+            <g key={String(x)} transform={`translate(${x} ${y})`}>
+              <circle r="17" fill={c as string} stroke={C.paper} strokeWidth="4" />
+              <circle cy="-4" r="5.5" fill={C.paper} opacity=".9" />
+              <path d="M-9 10a9 8 0 0 1 18 0" fill={C.paper} opacity=".9" />
+            </g>
+          ))}
+        </g>
+        <Check x={232} y={146} />
+        <Books x={58} y={260} colors={[C.cobalt, C.amber, C.leafDark]} />
+        <Leaf x={366} y={272} s={1} r={14} />
+        <Sparks x={58} y={120} r={-20} />
       </>
     ),
   },

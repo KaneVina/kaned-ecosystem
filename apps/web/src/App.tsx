@@ -37,6 +37,9 @@ const VecRoom = vecPage('RoomPage');
 const VecCreatePe = vecPage('CreatePePage');
 const VecPaper = vecPage('CandidatePaperWindow');
 const VecHostPaper = vecPage('HostPaperWindow');
+const MeetPage = lazy(() => import('@/features/meet/MeetPage'));
+const MeetListPage = lazy(() => import('@/features/meet/MeetListPage'));
+const MeetCreatePage = lazy(() => import('@/features/meet/MeetCreatePage'));
 const admin = () => import('@/features/admin');
 const AdminShell = lazy(() => admin().then((m) => ({ default: m.AdminShell })));
 const OverviewPage = lazy(() => admin().then((m) => ({ default: m.OverviewPage })));
@@ -97,6 +100,8 @@ export default function App() {
       <Route path="/register" element={<GuestOnly><RegisterPage /></GuestOnly>} />
       {/* Back from Google / Microsoft / GitHub / Facebook; works signed in or out. */}
       <Route path="/auth/callback" element={<OAuthCallbackPage />} />
+      {/* Hẹn họp nhóm: the shared link works without an account. */}
+      <Route path="/m/:slug" element={<Suspense fallback={<Booting />}><MeetPage /></Suspense>} />
       <Route path="/welcome" element={<RequireAuth><WelcomePage /></RequireAuth>} />
 
       <Route path="/app/vec/room/:attemptId" element={<RequireAuth><Suspense fallback={null}><VecRoom /></Suspense></RequireAuth>} />
@@ -111,6 +116,9 @@ export default function App() {
         <Route path="subjects" element={<SubjectsWorkspace />} />
         <Route path="subjects/:code" element={<SubjectsWorkspace />} />
         <Route path="tools/gpa" element={<GpaPage />} />
+        <Route path="tools/meet" element={<Suspense fallback={null}><MeetListPage /></Suspense>} />
+        <Route path="tools/meet/new" element={<Suspense fallback={null}><MeetCreatePage /></Suspense>} />
+        <Route path="tools/meet/:id/edit" element={<Suspense fallback={null}><MeetCreatePage /></Suspense>} />
         <Route path="flashcards" element={<DecksPage />} />
         <Route path="lecturers" element={<LecturersPage />} />
         <Route path="lecturers/:id" element={<LecturerPage />} />
