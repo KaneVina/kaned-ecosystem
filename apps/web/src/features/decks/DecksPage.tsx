@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight,
@@ -499,10 +499,59 @@ function ExamTags({ d }: { d: DeckSummaryDto }) {
   );
 }
 
+/**
+ * A card that leans toward the pointer: tilt, a light that follows the
+ * cursor, and the sheets behind sliding the other way. Mouse and pen only,
+ * and never when the system asks for less motion.
+ */
+function useTilt<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof window.matchMedia !== 'function') return;
+    if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    let raf = 0;
+    const set = (x: number, y: number) => {
+      el.style.setProperty('--mx', `${(x * 100).toFixed(1)}%`);
+      el.style.setProperty('--my', `${(y * 100).toFixed(1)}%`);
+      el.style.setProperty('--px', (x - 0.5).toFixed(3));
+      el.style.setProperty('--py', (y - 0.5).toFixed(3));
+      el.style.setProperty('--rx', `${((0.5 - y) * 9).toFixed(2)}deg`);
+      el.style.setProperty('--ry', `${((x - 0.5) * 11).toFixed(2)}deg`);
+    };
+    const move = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') return;
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const r = el.getBoundingClientRect();
+        const x = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+        const y = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
+        el.classList.add('is-tilt');
+        set(x, y);
+      });
+    };
+    const leave = () => {
+      cancelAnimationFrame(raf);
+      el.classList.remove('is-tilt');
+      for (const k of ['--mx', '--my', '--px', '--py', '--rx', '--ry']) el.style.removeProperty(k);
+    };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerleave', leave);
+    return () => {
+      cancelAnimationFrame(raf);
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerleave', leave);
+    };
+  }, []);
+  return ref;
+}
+
 function DeckCard({ d, srs, terms, i }: { d: DeckSummaryDto; srs: boolean; terms: string[]; i: number }) {
   const f = useCardFacts(d, srs);
+  const tilt = useTilt<HTMLElement>();
   return (
-    <article className="dk-deck" style={{ ['--uni' as string]: d.subject.university.color, '--i': Math.min(i, 12) } as CSSProperties}>
+    <article ref={tilt} className="dk-deck" style={{ ['--uni' as string]: d.subject.university.color, '--i': Math.min(i, 12) } as CSSProperties}>
       <div className="dk-deck-top">
         <span className="dk-code">
           <Hl text={d.subject.code} terms={terms} />

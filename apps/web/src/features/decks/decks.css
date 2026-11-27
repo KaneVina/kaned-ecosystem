@@ -370,12 +370,82 @@ mark { background: rgba(231, 160, 51, .32); color: inherit; border-radius: 3px; 
 
 /* cards */
 .dk-deck-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 26px 22px; }
-.dk-deck { --uni: var(--brand); position: relative; display: flex; flex-direction: column; min-height: 250px; padding: 18px 20px 16px; margin: 0 8px 8px 0; background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-lg); color: var(--ink);
-  /* Two cards peek out behind: a deck, not a single sheet. */
-  box-shadow: 4px 4px 0 -1px var(--paper), 4px 4px 0 0 var(--line-2), 8px 8px 0 -1px var(--paper-2), 8px 8px 0 0 var(--line), var(--sh-2);
-  transition: transform .25s var(--ease-out), box-shadow .25s var(--ease-out), border-color .2s;
-  animation: dkRise .45s var(--ease-out) both; animation-delay: calc(var(--i, 0) * 45ms); }
-.dk-deck:hover, .dk-deck:focus-within { transform: translateY(-4px); border-color: var(--brand-200); box-shadow: 5px 6px 0 -1px var(--paper), 5px 6px 0 0 var(--line-2), 10px 12px 0 -1px var(--paper-2), 10px 12px 0 0 var(--line), var(--sh-3); }
+.dk-deck {
+  --uni: var(--brand); --px: 0; --py: 0; --rx: 0deg; --ry: 0deg; --lift: 0px;
+  position: relative; display: flex; flex-direction: column; min-height: 250px; padding: 18px 20px 16px; margin: 0 8px 8px 0;
+  background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-lg); color: var(--ink);
+  /* Two cards peek out behind: a deck, not a single sheet. They breathe while idle, fan out and slide against the pointer on hover. */
+  --off: calc(4px + var(--breath) + var(--fan));
+  box-shadow:
+    calc(var(--off) + var(--px) * -7px) calc(var(--off) + var(--py) * -7px) 0 -1px var(--paper),
+    calc(var(--off) + var(--px) * -7px) calc(var(--off) + var(--py) * -7px) 0 0 var(--line-2),
+    calc(var(--off) * 2 + var(--px) * -14px) calc(var(--off) * 2 + var(--py) * -14px) 0 -1px var(--paper-2),
+    calc(var(--off) * 2 + var(--px) * -14px) calc(var(--off) * 2 + var(--py) * -14px) 0 0 var(--line),
+    var(--sh-2);
+  transform: perspective(1100px) rotateX(var(--rx)) rotateY(var(--ry)) translateY(var(--lift));
+  transition: transform .6s cubic-bezier(.2, .9, .25, 1.15), box-shadow .3s var(--ease-out), border-color .2s, --fan .45s var(--ease-out);
+  animation: dkRise .45s var(--ease-out) backwards, dkBreathe 6s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * 45ms), calc(var(--i, 0) * -.8s);
+  will-change: transform;
+}
+.dk-deck:hover, .dk-deck:focus-within { --lift: -5px; --fan: 2px; border-color: color-mix(in srgb, var(--uni) 30%, var(--line)); }
+.dk-deck:hover { box-shadow:
+    calc(var(--off) + var(--px) * -7px) calc(var(--off) + var(--py) * -7px) 0 -1px var(--paper),
+    calc(var(--off) + var(--px) * -7px) calc(var(--off) + var(--py) * -7px) 0 0 var(--line-2),
+    calc(var(--off) * 2 + var(--px) * -14px) calc(var(--off) * 2 + var(--py) * -14px) 0 -1px var(--paper-2),
+    calc(var(--off) * 2 + var(--px) * -14px) calc(var(--off) * 2 + var(--py) * -14px) 0 0 var(--line),
+    calc(var(--px) * -18px) calc(14px + var(--py) * -10px) 30px -12px rgba(19, 33, 63, .28); }
+/* Following the pointer: quick, so the card stays under the hand; letting go springs back slowly. */
+.dk-deck.is-tilt { transition: transform .14s ease-out, box-shadow .18s ease-out, border-color .2s, --fan .45s var(--ease-out); }
+.dk-deck:active { --lift: -2px; }
+
+/* Idle: a short light runs along the border now and then, each card in its own time. */
+.dk-deck::before {
+  content: ""; position: absolute; inset: -1px; z-index: 2; border-radius: inherit; padding: 1.5px; pointer-events: none;
+  background: conic-gradient(from var(--beam), transparent 0deg 285deg, color-mix(in srgb, var(--uni) 55%, transparent) 325deg, var(--uni) 350deg, transparent 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  animation: dkBeam 9s linear infinite; animation-delay: calc(var(--i, 0) * -1.7s);
+}
+/* Hover: the border lights up where the pointer is instead. */
+.dk-deck.is-tilt::before {
+  animation: none; opacity: 1;
+  background: radial-gradient(200px circle at var(--mx) var(--my), var(--uni), color-mix(in srgb, var(--uni) 25%, transparent) 45%, transparent 75%);
+}
+/* A soft light that follows the pointer across the card. */
+.dk-deck::after {
+  content: ""; position: absolute; inset: 0; z-index: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity .35s; mix-blend-mode: multiply;
+  background: radial-gradient(340px circle at var(--mx, 50%) var(--my, 0%), color-mix(in srgb, var(--uni) 10%, transparent), transparent 62%);
+}
+.dk-deck.is-tilt::after { opacity: 1; }
+/* Depth: the top row drifts with the pointer, a little ahead of the card. */
+.dk-deck-top, .dk-deck h3 { transition: transform .5s cubic-bezier(.2, .9, .25, 1.15); }
+.dk-deck.is-tilt .dk-deck-top { transform: translate3d(calc(var(--px) * 7px), calc(var(--py) * 5px), 0); transition-duration: .18s; }
+.dk-deck.is-tilt h3 { transform: translate3d(calc(var(--px) * 4px), calc(var(--py) * 3px), 0); transition-duration: .2s; }
+
+/* The subject code catches the light every few seconds. */
+.dk-deck .dk-code { position: relative; overflow: hidden; isolation: isolate; }
+.dk-deck .dk-code::after {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, .55) 48%, transparent 66%);
+  transform: translateX(-120%); animation: dkShine 7s ease-in-out infinite; animation-delay: calc(var(--i, 0) * -1.3s + 1s);
+}
+.dk-deck:hover .dk-code::after { animation-duration: 1.4s; animation-iteration-count: 1; }
+/* The PE stub's stripes keep moving, slower when idle, faster under the pointer. */
+.dk-stub.is-pe:not(.is-none) { background-size: 16.97px 16.97px, auto; animation: dkStripes 3.2s linear infinite; }
+.dk-deck:hover .dk-stub.is-pe:not(.is-none) { animation-duration: .9s; }
+
+@property --beam { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+@property --breath { syntax: '<length>'; inherits: true; initial-value: 0px; }
+@property --fan { syntax: '<length>'; inherits: true; initial-value: 0px; }
+@keyframes dkBreathe { 50% { --breath: 1.6px; } }
+@keyframes dkBeam { 0% { --beam: 0deg; opacity: 0; } 8% { opacity: .9; } 52% { opacity: .9; } 62% { opacity: 0; } 100% { --beam: 360deg; opacity: 0; } }
+@keyframes dkShine { 0%, 72% { transform: translateX(-120%); } 100% { transform: translateX(120%); } }
+@keyframes dkStripes { to { background-position: 16.97px 0, 0 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .dk-deck, .dk-deck::before, .dk-deck .dk-code::after, .dk-stub.is-pe { animation: none !important; }
+  .dk-deck::before { opacity: 0; }
+}
 .dk-deck-link { color: inherit; text-decoration: none; }
 .dk-deck-link::after { content: ''; position: absolute; inset: 0; border-radius: inherit; z-index: 0; }
 .dk-deck-link:focus-visible { outline: none; }
