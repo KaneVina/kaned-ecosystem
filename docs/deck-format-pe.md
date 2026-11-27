@@ -194,6 +194,24 @@ Dòng `>` dài có thể viết tiếp ở dòng `>` ngay dưới, không có nh
 - **Số mẹo** cũng không trùng mẹo FE: FE có 52 mẹo → mẹo PE bắt đầu từ 60.
 - **Số đề** bắt đầu từ 1 và tăng dần.
 
+### Đề song ngữ (tiếng Anh + bản dịch)
+
+Nếu đề hoặc câu hỏi có cả bản tiếng Anh và bản dịch, tách hai phần bằng **hai dòng tiêu đề riêng**, đúng như sau (mỗi dòng đứng một mình, có dòng trống trước và sau):
+
+~~~markdown
+**Đề gốc (English)**
+
+The university has identified that…
+
+**Dịch đề (Tiếng Việt)**
+
+Nhà trường nhận thấy…
+~~~
+
+- Kaned sẽ hiện tiếng Anh bên trái, tiếng Việt bên phải; người học có thể tắt bản dịch.
+- Nếu hai phần có **cùng số đoạn** (cách nhau bằng dòng trống) thì mỗi đoạn tiếng Anh nằm ngang hàng với đoạn dịch của nó, nên giữ số đoạn hai bên bằng nhau.
+- Dòng tiêu đề câu hỏi (ví dụ `**Question 1 — Communication Plan (3 marks)**`) đặt **trước** `**Đề gốc (English)**`; số điểm trong ngoặc sẽ hiện thành nhãn “3 điểm”.
+
 ---
 
 ## 6. Mẹo cho PE

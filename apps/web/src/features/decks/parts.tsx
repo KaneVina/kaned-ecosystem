@@ -7,6 +7,7 @@ import { cn } from '@/lib/cn';
 import { fmtInt } from '@/lib/format';
 import { useDeckCtx } from './context';
 import { chapterTitle, matchesTermFilter, parseTermFilter, termFilterKey } from '@kaned/shared';
+import { Bilingual, splitLang, type Lang } from './pe';
 import { countsOf, highlight, makeStatus, NO_SLICE, sliceActive, type Order, type Scope, type Slice, type StudyQuestion } from './model';
 
 /** Lets long identifiers like `a.b(c(d))` wrap after . ( , ; : and before camelCase humps instead of running off the card. */
@@ -140,7 +141,8 @@ export function Notes({ q, compact }: { q: DeckQuestion; compact?: boolean }) {
 /** The answer warning (always), the memory tips and the look-alike questions (if turned on). */
 export function StudyAids({ q, sim = true }: { q: DeckQuestion; sim?: boolean }) {
   const { m, settings } = useDeckCtx();
-  const tips = settings.tips ? q.tips.map((n) => m.tips.get(n)).filter(Boolean) : [];
+  // A PE frame usually already holds the tip's template: show it once.
+  const tips = settings.tips ? q.tips.map((n) => m.tips.get(n)).filter((t) => t && !tipCoveredBy(t.body, q.frame)) : [];
   const similar = sim && settings.sim ? q.similar.map((id) => m.QI.get(id)).filter((x): x is StudyQuestion => Boolean(x)) : [];
   if (!q.warning && !tips.length && !similar.length) return null;
   return (
@@ -186,8 +188,20 @@ export function StudyAids({ q, sim = true }: { q: DeckQuestion; sim?: boolean })
   );
 }
 
-export function hasAids(q: DeckQuestion, settings: { tips: boolean; sim: boolean }) {
-  return Boolean(q.warning || (settings.tips && q.tips.length) || (settings.sim && q.similar.length));
+export function hasAids(q: DeckQuestion, settings: { tips: boolean; sim: boolean }, tips?: Map<number, { body: string }>) {
+  const ownTips = q.tips.filter((n) => !tips || !tipCoveredBy(tips.get(n)?.body ?? '', q.frame));
+  return Boolean(q.warning || (settings.tips && ownTips.length) || (settings.sim && q.similar.length));
+}
+
+const normLine = (s: string) => s.replace(/\*\*/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+
+/** Whether a question's frame already contains most of a tip (the frame was built from that tip). */
+export function tipCoveredBy(tip: string, frame?: string | null) {
+  if (!frame) return false;
+  const F = normLine(frame);
+  const lines = tip.split('\n').map(normLine).filter((l) => l.length > 3);
+  if (!lines.length) return false;
+  return lines.filter((l) => F.includes(l)).length / lines.length >= 0.5;
 }
 
 const SCOPES: Array<[Scope, string, keyof ReturnType<typeof countsOf>]> = [
@@ -552,7 +566,18 @@ const folded = new Map<number, boolean>();
  * its exam terms, and every question asked about it so the learner can move
  * between them or practise the whole paper.
  */
-export function PaperCard({ q, onGo, onPracticeAll }: { q: StudyQuestion; onGo?: (id: string) => void; onPracticeAll?: (ids: string[], label: string) => void }) {
+export function PaperCard({
+  q,
+  onGo,
+  onPracticeAll,
+  lang,
+}: {
+  q: StudyQuestion;
+  onGo?: (id: string) => void;
+  onPracticeAll?: (ids: string[], label: string) => void;
+  /** Given in the PE view: show the English and Vietnamese halves side by side. */
+  lang?: Lang;
+}) {
   const { m, state, settings } = useDeckCtx();
   const paper = q.paper != null ? m.papers.get(q.paper) : undefined;
   const [closed, setClosed] = useState(() => (paper ? (folded.get(paper.n) ?? false) : false));
@@ -564,7 +589,9 @@ export function PaperCard({ q, onGo, onPracticeAll }: { q: StudyQuestion; onGo?:
     folded.set(paper.n, !closed);
     setClosed(!closed);
   };
-  const long = paper.body.length > 900 || paper.body.split('\n').length > 24;
+  const bi = lang ? splitLang(paper.body) : null;
+  const shown = bi ? (lang === 'en' ? bi.en : lang === 'vi' ? bi.vi : bi.en.length > bi.vi.length ? bi.en : bi.vi) : paper.body;
+  const long = shown.length > (bi && lang === 'both' ? 1400 : 900) || shown.split('\n').length > 24;
   return (
     <section className={cn('dk-paper', closed && 'is-closed')} aria-label={`Đề ${paper.n}`}>
       <header className="dk-paper-head">
@@ -586,8 +613,15 @@ export function PaperCard({ q, onGo, onPracticeAll }: { q: StudyQuestion; onGo?:
       </header>
       {!closed && (
         <>
-          <div className={cn('dk-paper-body', long && !full && 'is-clipped')}>
-            <RichBody text={paper.body} />
+          <div className={cn('dk-paper-body', long && !full && 'is-clipped', bi && 'is-pe')}>
+            {bi ? (
+              <>
+                {bi.head && <RichBody text={bi.head} className="pe-head" />}
+                <Bilingual parts={bi} lang={lang!} />
+              </>
+            ) : (
+              <RichBody text={paper.body} />
+            )}
           </div>
           {long && (
             <button type="button" className="btn btn-ghost btn-sm dk-paper-more" onClick={() => setFull((f) => !f)}>

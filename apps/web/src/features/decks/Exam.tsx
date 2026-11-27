@@ -866,7 +866,7 @@ function ExamResult() {
                 ))}
               </ul>
               <Notes q={q} compact />
-              {hasAids(q, settings) &&
+              {hasAids(q, settings, m.tips) &&
                 (x.ok ? (
                   <details className="dk-tipd">
                     <summary>

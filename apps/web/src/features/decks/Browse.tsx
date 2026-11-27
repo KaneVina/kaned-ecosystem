@@ -154,12 +154,6 @@ export function Browse() {
                 </p>
               )}
               {q.written && !hidden && <Solution q={q} />}
-              {q.written && !hidden && q.frame && (
-                <details className="dk-tipd">
-                  <summary>Khung làm bài</summary>
-                  <Frame q={q} />
-                </details>
-              )}
               <ul className="dk-fopts">
                 {q.options.map((o, j) => (
                   <li key={j} className={!hidden && q.answers.includes(j) ? 'is-right' : ''}>
@@ -178,13 +172,14 @@ export function Browse() {
               ) : (
                 <>
                   <Notes q={q} compact />
-                  {hasAids(q, settings) && (
+                  {(hasAids(q, settings, m.tips) || (q.written && q.frame)) && (
                     <details className="dk-tipd">
                       <summary>
                         <Lightbulb className="ic ic-xs" />
                         Mẹo nhớ{settings.sim && q.similar.length ? ' và câu dễ nhầm' : ''}
                         {q.warning ? ' · có lưu ý đáp án' : ''}
                       </summary>
+                      {q.written && q.frame && <Frame q={q} />}
                       <StudyAids q={q} />
                     </details>
                   )}
