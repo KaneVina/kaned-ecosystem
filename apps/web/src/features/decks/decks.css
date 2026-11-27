@@ -749,3 +749,15 @@ html.exam-live .dk-body { padding-top: 26px; }
 .dk-prose li + li { margin-top: 2px; }
 .dk-prose ul { list-style: disc; } .dk-prose ol { list-style: decimal; } .dk-prose li::marker { color: var(--ink-3); }
 @media (max-width: 520px) { .dk-self .dk-conf-btn { font-size: 13px; padding: 0 4px; } }
+.dk-frame { border-radius: 14px; padding: 13px 16px; background: #FFF8EA; border: 1px solid #F1D49E; animation: fbIn .3s var(--ease-out) both; min-width: 0; }
+.dk-frame .dk-tip-h { color: var(--amber-700); }
+.dk-frame-btn { justify-self: start; }
+.dk-qrich { margin: 4px 0 2px; }
+.dk-qrich .dk-prose p, .dk-qrich .dk-prose ul, .dk-qrich .dk-prose ol { font-size: 16px; color: var(--ink); line-height: 1.6; }
+.dk-qrich.is-sm .dk-prose p { font-size: 14.5px; }
+.dk-table-wrap { margin: 8px 0 4px; overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); }
+.dk-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.dk-table th, .dk-table td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; color: var(--ink-2); }
+.dk-table th { background: var(--paper-2); color: var(--ink); font-weight: 650; white-space: nowrap; }
+.dk-table tr:last-child td { border-bottom: 0; }
+.dk-table td + td, .dk-table th + th { border-left: 1px solid var(--line); }

@@ -345,7 +345,7 @@ export function useDeckModel(deck: DeckDetailDto): DeckModel {
       base: Q.filter((q) => !q.parent).length,
       search: Q.map((q) =>
         foldVi(
-          `${q.id} ${q.text} ${q.options.join(' ')} ${q.note ?? ''} ${q.explain ?? ''} ${q.solution ?? ''} ${q.paper != null ? `de ${q.paper} ${papers.get(q.paper)?.title ?? ''}` : ''} ${q.seen.map((t) => t.label).join(' ')}`,
+          `${q.id} ${q.text} ${q.options.join(' ')} ${q.note ?? ''} ${q.explain ?? ''} ${q.solution ?? ''} ${q.frame ?? ''} ${q.paper != null ? `de ${q.paper} ${papers.get(q.paper)?.title ?? ''}` : ''} ${q.seen.map((t) => t.label).join(' ')}`,
         ),
       ),
     };

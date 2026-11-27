@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BookOpenCheck, Check, ChevronLeft, ChevronRight, Flame, RotateCcw, Star, Timer, X } from 'lucide-react';
+import { BookOpenCheck, LayoutTemplate, Check, ChevronLeft, ChevronRight, Flame, RotateCcw, Star, Timer, X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { buzz } from '@/lib/haptics';
 import { fmtInt } from '@/lib/format';
 import { useDeckCtx } from './context';
 import type { Grade } from '@kaned/shared';
 import { beep, CONFIDENCE, fmtWait, LET, makePerm, qLabel, sameSet, type StudyQuestion } from './model';
-import { Banner, FilterBar, SeenTags, Inline, KindTags, Notes, PaperCard, QText, Solution, StudyAids, StudyEmpty, HintToggle } from './parts';
+import { Banner, FilterBar, Frame, SeenTags, Inline, KindTags, Notes, PaperCard, QText, QuestionText, Solution, StudyAids, StudyEmpty, HintToggle } from './parts';
 
 export function Practice() {
   const { m, state, settings, practice: P, setPractice, startPractice, progress, go, setExam } = useDeckCtx();
@@ -153,7 +153,7 @@ export function Practice() {
       if (t.closest('input,select,textarea,[role="dialog"]') || e.metaKey || e.ctrlKey || e.altKey) return;
       const key = e.key.length === 1 ? e.key.toUpperCase() : e.key;
       if (written) {
-        const sg = !res && revealed ? SELF.find((c) => c.key === key) : undefined;
+        const sg = !res && revealed ? (q.solution ? SELF : SELF_FRAME).find((c) => c.key === key) : undefined;
         if (sg) {
           e.preventDefault();
           selfGrade(sg.g);
@@ -293,7 +293,7 @@ export function Practice() {
                 <Star className="ic ic-sm" />
               </button>
             </div>
-            <QText text={q.text} />
+            <QuestionText q={q} />
             {written ? (
               <WrittenAnswer
                 q={q}
@@ -328,7 +328,7 @@ export function Practice() {
               <div className={cn('dk-fb', res.ok ? 'is-ok' : 'is-bad')}>
                 <div className="dk-fb-head">
                   {res.ok ? <Check className="ic" /> : <X className="ic" />}
-                  {SELF.find((c) => c.g === res.g)?.verdict ?? (res.ok ? 'Làm được' : 'Chưa làm được')}
+                  {(q.solution ? SELF : SELF_FRAME).find((c) => c.g === res.g)?.verdict ?? (res.ok ? 'Làm được' : 'Chưa làm được')}
                 </div>
                 {settings.srs && <p className="dk-conf-next">{res.ok ? `Hẹn ôn lại sau ${fmtWait((state.st[q.id]?.n ?? Date.now()) - Date.now())}.` : `Câu này vào mục Cần ôn và sẽ quay lại sau ${fmtWait((state.st[q.id]?.n ?? Date.now()) - Date.now())}.`}</p>}
                 <Notes q={q} />
@@ -378,7 +378,7 @@ export function Practice() {
                     </>
                   ) : (
                     <>
-                      <kbd>Enter</kbd> xem lời giải
+                      <kbd>Enter</kbd> {q.solution ? 'xem lời giải' : 'tự chấm'}
                     </>
                   )
                 ) : multi && !res ? (
@@ -591,6 +591,12 @@ const SELF: Array<{ g: Grade; label: string; verdict: string; key: string; tone:
   { g: 2, label: 'Gần đúng', verdict: 'Gần đúng, còn thiếu một chút', key: '2', tone: 'is-unsure' },
   { g: 1, label: 'Chưa làm được', verdict: 'Chưa làm được', key: '3', tone: 'is-guess' },
 ];
+/** No model answer: the learner checks their work against the frame instead. */
+const SELF_FRAME: typeof SELF = [
+  { g: 3, label: 'Đủ ý', verdict: 'Bài của bạn đủ ý theo khung', key: '1', tone: 'is-sure' },
+  { g: 2, label: 'Còn thiếu', verdict: 'Còn thiếu vài ý so với khung', key: '2', tone: 'is-unsure' },
+  { g: 1, label: 'Chưa làm được', verdict: 'Chưa làm được', key: '3', tone: 'is-guess' },
+];
 
 /**
  * A PE question with no options: write your answer (optional, kept for this
@@ -613,10 +619,18 @@ function WrittenAnswer({
   graded?: Grade;
   onGrade: (g: Grade) => void;
 }) {
+  const [showFrame, setShowFrame] = useState(false);
+  const scale = q.solution ? SELF : SELF_FRAME;
   return (
     <div className="dk-written">
       {!revealed ? (
         <>
+          {q.frame && (showFrame ? <Frame q={q} /> : (
+            <button type="button" className="btn btn-ghost btn-sm dk-hint-btn dk-frame-btn" onClick={() => setShowFrame(true)}>
+              <LayoutTemplate className="ic ic-sm" />
+              Xem khung làm bài
+            </button>
+          ))}
           <label className="dk-draft">
             <span>Bài làm của bạn <small>không bắt buộc · chỉ giữ trong lượt này</small></span>
             <textarea
@@ -639,7 +653,7 @@ function WrittenAnswer({
           </label>
           <button type="button" className="btn btn-primary dk-reveal-sol" onClick={onReveal}>
             <BookOpenCheck className="ic ic-sm" />
-            Xem lời giải
+            {q.solution ? 'Xem lời giải' : 'Làm xong, tự chấm'}
           </button>
         </>
       ) : (
@@ -652,19 +666,19 @@ function WrittenAnswer({
               </pre>
             </div>
           )}
-          <Solution q={q} />
+          {q.solution ? <Solution q={q} /> : <Frame q={q} title="Đối chiếu với khung làm bài" />}
           {!graded && (
             <div className="dk-conf dk-self">
-              <div className="dk-conf-row" role="group" aria-label="So với lời giải, bạn làm được đến đâu?">
-                <span className="dk-conf-q">So với lời giải, bạn làm được đến đâu?</span>
-                {SELF.map((c) => (
+              <div className="dk-conf-row" role="group" aria-label={q.solution ? 'So với lời giải, bạn làm được đến đâu?' : 'So với khung, bài của bạn đủ ý chưa?'}>
+                <span className="dk-conf-q">{q.solution ? 'So với lời giải, bạn làm được đến đâu?' : 'So với khung, bài của bạn đủ ý chưa?'}</span>
+                {scale.map((c) => (
                   <button key={c.g} type="button" className={cn('dk-conf-btn', c.tone)} onClick={() => onGrade(c.g)}>
                     <kbd>{c.key}</kbd>
                     {c.label}
                   </button>
                 ))}
               </div>
-              <p className="dk-conf-next">Làm đúng thì câu này giãn lịch ôn; chưa làm được thì quay lại sớm.</p>
+              <p className="dk-conf-next">{q.solution ? 'Làm đúng' : 'Đủ ý'} thì câu này giãn lịch ôn; chưa làm được thì quay lại sớm.</p>
             </div>
           )}
         </>

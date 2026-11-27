@@ -5,7 +5,7 @@ import { cn } from '@/lib/cn';
 import { fmtInt } from '@/lib/format';
 import { useDeckCtx, type BrowseState } from './context';
 import { countsOf, fmtWait, LET, makeStatus, markTerms, matchScore, NEAR_MATCH, NEAR_MATCH_WITH_FULL, qLabel, searchTerms, type StudyQuestion } from './model';
-import { BigSearch, Inline, KindTags, Notes, QText, Solution, StudyAids, hasAids, SeenTags } from './parts';
+import { BigSearch, Frame, Inline, KindTags, Notes, QText, Solution, StudyAids, hasAids, SeenTags } from './parts';
 
 export function Browse() {
   const { m, state, settings, browse: B, setBrowse, startPractice, go, progress } = useDeckCtx();
@@ -154,6 +154,12 @@ export function Browse() {
                 </p>
               )}
               {q.written && !hidden && <Solution q={q} />}
+              {q.written && !hidden && q.frame && (
+                <details className="dk-tipd">
+                  <summary>Khung làm bài</summary>
+                  <Frame q={q} />
+                </details>
+              )}
               <ul className="dk-fopts">
                 {q.options.map((o, j) => (
                   <li key={j} className={!hidden && q.answers.includes(j) ? 'is-right' : ''}>

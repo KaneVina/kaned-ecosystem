@@ -5,7 +5,7 @@ import { buzz } from '@/lib/haptics';
 import { fmtInt } from '@/lib/format';
 import { useDeckCtx } from './context';
 import { beep, LET, makePerm, qLabel } from './model';
-import { Banner, FilterBar, SeenTags, Inline, Notes, QText, StudyAids, StudyEmpty, HintToggle, KindTags, PaperCard, Solution } from './parts';
+import { Banner, FilterBar, SeenTags, Inline, Notes, QText, StudyAids, StudyEmpty, HintToggle, Frame, KindTags, PaperCard, QuestionText, Solution } from './parts';
 
 const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -228,7 +228,7 @@ export function FlipCards() {
                   <Star className="ic ic-sm" />
                 </button>
               </div>
-              <QText text={q.text} />
+              <QuestionText q={q} />
               <ul className="dk-fopts">
                 {perm.map((k, pos) => (
                   <li key={k}>
@@ -240,7 +240,7 @@ export function FlipCards() {
               <HintToggle key={q.id} hint={q.hint} />
               <div className="dk-face-foot">
                 <RefreshCw className="ic ic-xs" />
-                {q.written ? 'Nghĩ cách làm rồi lật thẻ để xem lời giải' : <>Bấm vào thẻ hoặc phím <kbd>Space</kbd> để lật</>}
+                {q.written ? (q.solution ? 'Nghĩ cách làm rồi lật thẻ để xem lời giải' : 'Nghĩ cách làm rồi lật thẻ để xem khung làm bài') : <>Bấm vào thẻ hoặc phím <kbd>Space</kbd> để lật</>}
               </div>
             </div>
             <div className="dk-face is-back" aria-hidden={!flipped}>
@@ -248,7 +248,7 @@ export function FlipCards() {
                 <span className="dk-qnum">Đáp án</span>
                 <span className="dk-tag">{qLabel(q)}</span>
               </div>
-              {q.written && <Solution q={q} />}
+              {q.written && (q.solution ? <Solution q={q} /> : <Frame q={q} />)}
               <ul className="dk-ans">
                 {q.answers.map((k) => (
                   <li key={k}>
@@ -272,7 +272,7 @@ export function FlipCards() {
                   ))}
                 </ul>
               </details>
-              <div className="dk-face-foot">{q.written ? 'Bạn có làm ra được như lời giải không?' : 'Bạn đã nhớ đúng đáp án chưa?'}</div>
+              <div className="dk-face-foot">{q.written ? (q.solution ? 'Bạn có làm ra được như lời giải không?' : 'Bài bạn nghĩ ra đã đủ ý theo khung chưa?') : 'Bạn đã nhớ đúng đáp án chưa?'}</div>
             </div>
           </div>
         </div>

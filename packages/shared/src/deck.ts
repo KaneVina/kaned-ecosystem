@@ -89,6 +89,11 @@ export interface DeckQuestion {
    * learner works it out, opens the answer and says whether they got it.
    */
   solution?: string;
+  /**
+   * How to set out the answer (the frame to fill in, and what to take from the
+   * paper), without the answer itself: shown on "Xem khung làm bài".
+   */
+  frame?: string;
 }
 
 /** Written questions have no options to pick: they are checked against the model answer. */
@@ -174,8 +179,9 @@ interface QDraft {
   paper: number | null;
   /** Lines of "Lời giải:", while it is being read; null when the question has none. */
   solution: string[] | null;
-  /** Reading the solution now (until the next field line). */
-  inSolution: boolean;
+  frame: string[] | null;
+  /** Reading "Lời giải:" or "Khung:" now (until the next field line). */
+  inSolution: 'solution' | 'frame' | false;
   solFence: boolean;
 }
 
@@ -282,7 +288,7 @@ export function parseDeck(source: string): ParsedDeck {
         block = { kind: 'p', p: draft };
       } else if (q) {
         const rest = q[2].trim();
-        const draft: QDraft = { line: no, id: q[1] ?? null, text: rest ? [rest] : [], options: [], answers: [], chapter, tips: [], similar: [], asked: [], lastField: null, fence: false, paper, solution: null, inSolution: false, solFence: false };
+        const draft: QDraft = { line: no, id: q[1] ?? null, text: rest ? [rest] : [], options: [], answers: [], chapter, tips: [], similar: [], asked: [], lastField: null, fence: false, paper, solution: null, frame: null, inSolution: false, solFence: false };
         qs.push(draft);
         block = { kind: 'q', q: draft };
       } else if (t) {
@@ -318,20 +324,31 @@ export function parseDeck(source: string): ParsedDeck {
 
     const q = block.q;
     // The model answer: everything after "Lời giải:" (code kept exactly) until a field line.
+    const SOL = /^(l[ờo]i\s*gi[ảa]i|đ[áa]p\s*[áa]n\s*m[ẫa]u|solution)\s*:\s*(.*)$/i;
+    const FRAME = /^(khung(?:\s*l[àa]m\s*b[àa]i)?|c[áa]ch\s*l[àa]m|frame)\s*:\s*(.*)$/i;
     if (q.inSolution) {
-      const field = !q.solFence && (QUOTE.test(raw) || (/^(m[ẹeé]o|tips?|d[ễe]\s*nh[ầa]m|similar|c[âa]u\s*d[ễe]\s*nh[ầa]m)\s*:/i.test(line) || /^đ[ềe]\s*:\s*\d+\s*$/i.test(line)));
+      const field =
+        !q.solFence &&
+        (QUOTE.test(raw) ||
+          /^(m[ẹeé]o|tips?|d[ễe]\s*nh[ầa]m|similar|c[âa]u\s*d[ễe]\s*nh[ầa]m)\s*:/i.test(line) ||
+          /^đ[ềe]\s*:\s*\d+\s*$/i.test(line) ||
+          SOL.test(line) ||
+          FRAME.test(line));
       if (!field) {
         if (/^```/.test(line)) q.solFence = !q.solFence;
-        q.solution!.push(raw.replace(/\s+$/, ''));
+        q[q.inSolution]!.push(raw.replace(/\s+$/, ''));
         continue;
       }
       q.inSolution = false;
     }
     {
-      const sol = !q.fence && /^(l[ờo]i\s*gi[ảa]i|đ[áa]p\s*[áa]n\s*m[ẫa]u|solution)\s*:\s*(.*)$/i.exec(line);
-      if (sol) {
-        q.solution = sol[2] ? [sol[2]] : [];
-        q.inSolution = true;
+      const sol = !q.fence ? SOL.exec(line) : null;
+      const frame = !q.fence && !sol ? FRAME.exec(line) : null;
+      const m = sol ?? frame;
+      if (m) {
+        const key = sol ? 'solution' : 'frame';
+        q[key] = m[2] ? [m[2]] : [];
+        q.inSolution = key;
         q.lastField = null;
         continue;
       }
@@ -430,11 +447,13 @@ export function parseDeck(source: string): ParsedDeck {
     if (d.fence) err(d.line, `Câu ${id} mở khối code bằng \`\`\` nhưng chưa đóng.`);
     const text = d.text.join('\n').replace(/\n{3,}/g, '\n\n').trim();
     if (!text) err(d.line, `Câu ${id} chưa có nội dung câu hỏi.`);
-    if (d.solFence) err(d.line, `Lời giải câu ${id} mở khối code bằng \`\`\` nhưng chưa đóng.`);
+    if (d.solFence) err(d.line, `Lời giải/khung câu ${id} mở khối code bằng \`\`\` nhưng chưa đóng.`);
     const solution = d.solution ? d.solution.join('\n').replace(/\n{3,}/g, '\n\n').trim() : '';
+    const frame = d.frame ? d.frame.join('\n').replace(/\n{3,}/g, '\n\n').trim() : '';
     if (d.solution && !solution) err(d.line, `Câu ${id} có dòng "Lời giải:" nhưng chưa có nội dung lời giải.`);
+    if (d.frame && !frame) err(d.line, `Câu ${id} có dòng "Khung:" nhưng chưa có nội dung khung.`);
     if (!d.options.length) {
-      if (!d.solution) err(d.line, `Câu ${id} chưa có phương án "- [ ] …". Câu tự luận (PE) thì viết "Lời giải:" và đáp án mẫu bên dưới.`);
+      if (!d.solution && !d.frame) err(d.line, `Câu ${id} chưa có phương án "- [ ] …". Câu tự luận (PE) thì viết "Lời giải:" (đáp án mẫu) hoặc "Khung:" (cách trình bày) bên dưới.`);
     } else if (d.options.length < 2) err(d.line, `Câu ${id} cần ít nhất 2 phương án "- [ ] …", hoặc bỏ phương án và viết "Lời giải:" nếu là câu tự luận.`);
     if (d.options.length > OPTION_LETTERS.length) err(d.line, `Câu ${id} có quá ${OPTION_LETTERS.length} phương án.`);
     if (d.options.length >= 2 && !d.answers.length) err(d.line, `Câu ${id} chưa đánh dấu đáp án đúng — đổi "- [ ]" thành "- [x]".`);
@@ -455,6 +474,7 @@ export function parseDeck(source: string): ParsedDeck {
       ...(d.asked.length ? { asked: d.asked } : {}),
       ...(d.paper != null ? { paper: d.paper } : {}),
       ...(solution ? { solution } : {}),
+      ...(frame ? { frame } : {}),
     });
   }
 

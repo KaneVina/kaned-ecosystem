@@ -112,7 +112,12 @@ Có hai loại câu.
 
 ### 4a. Câu tự luận (viết code) – loại chính của PE
 
-Không có phương án `- [ ]`. Thay vào đó có **`Lời giải:`** là lời giải mẫu.
+Không có phương án `- [ ]`. Thay vào đó có **`Lời giải:`** (lời giải mẫu), **`Khung:`** (khung trình bày bài làm, không phải đáp án), hoặc cả hai. Câu tự luận phải có ít nhất một trong hai.
+
+- Có `Lời giải:` → người học bấm **Xem lời giải** rồi tự chấm *Làm đúng / Gần đúng / Chưa làm được*.
+- Chỉ có `Khung:` (bộ đề không muốn đưa đáp án) → người học mở **Xem khung làm bài** khi cần, làm xong bấm **Làm xong, tự chấm** và tự chấm *Đủ ý / Còn thiếu / Chưa làm được* bằng cách đối chiếu với khung.
+
+`Khung:` viết y như `Lời giải:` (một dòng `Khung:` rồi nội dung bên dưới), dùng cho: cấu trúc bài làm có chỗ trống `[ ]` để điền, các bước làm, "dữ liệu lấy từ đề". Trong khung **không** viết đáp án. Khung và lời giải hiển thị được bảng Markdown (`| cột | cột |`), gạch đầu dòng và chữ đậm.
 
 ~~~
 ## Câu 301
@@ -137,7 +142,7 @@ Quy tắc của `Lời giải:`:
 
 - Viết `Lời giải:` trên **một dòng riêng**, rồi nội dung lời giải ở các dòng bên dưới. Lời giải ngắn có thể viết luôn sau dấu hai chấm: `Lời giải: dùng jsonDecode rồi map sang Book.fromJson`.
 - Lời giải gồm code trong khối ```` ``` ```` và/hoặc lời văn (các bước làm, câu lệnh SQL, lệnh terminal…). Có thể có nhiều khối code và lời văn xen kẽ.
-- Lời giải **kết thúc** ở dòng đầu tiên (nằm ngoài khối code) bắt đầu bằng `>`, `Mẹo:`, `Dễ nhầm:` hoặc `Đề:`, hoặc ở tiêu đề `##`/`#` tiếp theo. Vì vậy đặt các dòng `>`, `Mẹo:`, `Dễ nhầm:` **sau** lời giải.
+- Lời giải **kết thúc** ở dòng đầu tiên (nằm ngoài khối code) bắt đầu bằng `>`, `Mẹo:`, `Dễ nhầm:`, `Đề: <số>`, `Khung:` hoặc `Lời giải:`, hoặc ở tiêu đề `##`/`#` tiếp theo. Vì vậy đặt các dòng `>`, `Mẹo:`, `Dễ nhầm:` **sau** lời giải.
 - Mọi khối ```` ``` ```` phải được đóng.
 - Lời giải nên **đủ để chấm**: code chạy được cho đúng phần yêu cầu đó (không cần cả project), kèm 1–3 câu nói ý chính. Nếu đề gốc không có lời giải, hãy viết lời giải chuẩn, đúng phiên bản công nghệ của môn.
 
@@ -167,7 +172,8 @@ Câu trắc nghiệm có thể có thêm `Lời giải:` nếu muốn hiện cod
 | Dòng | Ý nghĩa | Khi nào hiện |
 |---|---|---|
 | Dòng ngay sau `## Câu …` | Nội dung yêu cầu (có thể nhiều dòng, có code ```` ``` ````). | Luôn hiện |
-| `Lời giải:` + nội dung | Lời giải mẫu. Bắt buộc với câu tự luận. | Sau khi bấm "Xem lời giải" |
+| `Lời giải:` + nội dung | Lời giải mẫu. | Sau khi bấm "Xem lời giải" |
+| `Khung:` + nội dung | Khung trình bày bài làm, không chứa đáp án. Câu tự luận cần `Lời giải:` hoặc `Khung:`. | Khi bấm "Xem khung làm bài", và lúc tự chấm |
 | `> Gợi ý:` | Một gợi ý hướng làm, không lộ đáp án. | Khi người học bấm "Gợi ý" |
 | `> Giải thích:` | Vì sao làm như vậy, lỗi hay gặp. | Sau khi chấm |
 | `> Ghi chú:` | Lưu ý thêm (bẫy mất điểm, phiên bản thư viện…). | Sau khi chấm |
@@ -223,7 +229,7 @@ Kaned báo lỗi kèm số dòng khi nhập file. Các lỗi hay gặp:
 
 | Thông báo | Sửa |
 |---|---|
-| Câu X chưa có phương án … Câu tự luận (PE) thì viết "Lời giải:" | Câu tự luận thiếu `Lời giải:`. |
+| Câu X chưa có phương án … Câu tự luận (PE) thì viết "Lời giải:" … hoặc "Khung:" | Câu tự luận thiếu cả `Lời giải:` lẫn `Khung:`. |
 | Câu X cần ít nhất 2 phương án | Câu chỉ có một dòng `- [ ]`: thêm phương án, hoặc bỏ hết và viết `Lời giải:`. |
 | Lời giải câu X mở khối code bằng ``` nhưng chưa đóng | Thêm dòng ```` ``` ```` đóng khối. |
 | Câu X thuộc Đề N, nhưng file không có đề này | Sai số ở dòng `Đề:`, hoặc thiếu `## Đề N`. |
@@ -235,7 +241,8 @@ Danh sách tự kiểm:
 
 - [ ] Có dòng `# PE` (hoặc `# PE: …`) trước đề đầu tiên.
 - [ ] Mỗi đề có `## Đề n: tên`, mã kỳ thi ở dòng đầu (nếu biết) và nội dung đầy đủ.
-- [ ] Mỗi câu tự luận có `Lời giải:` và các dòng `>`/`Mẹo:`/`Dễ nhầm:` nằm **sau** lời giải.
+- [ ] Mỗi câu tự luận có `Lời giải:` hoặc `Khung:`, và các dòng `>`/`Mẹo:`/`Dễ nhầm:` nằm **sau** chúng.
+- [ ] Trong nội dung đề, khung, lời giải: không có dòng nào bắt đầu bằng `Mẹo:`, `Dễ nhầm:`, `Khung:`, `Lời giải:` hay `>` (Kaned sẽ hiểu đó là dòng đặc biệt). Cần viết thì đổi chữ, ví dụ `Mẹo nhỏ:`.
 - [ ] Mọi khối ```` ``` ```` đều đóng.
 - [ ] Số câu, số mẹo không trùng với phần FE.
 - [ ] Không có chữ nào nằm ngoài `## Câu`, `## Mẹo`, `## Đề`.
@@ -356,7 +363,7 @@ Khi được giao soạn phần PE từ đề gốc:
 
 1. Đọc toàn bộ file bộ đề hiện có để biết **số câu và số mẹo lớn nhất** đang dùng; đánh số PE theo mục 5.
 2. Mỗi đề gốc thành một `## Đề n`, chép nguyên đề (dịch sang tiếng Việt nếu đề gốc tiếng Anh và môn đang dùng tiếng Việt; giữ nguyên tên biến, tên hàm, dữ liệu mẫu).
-3. Tách đề thành các câu theo từng yêu cầu chấm điểm. Mỗi câu có: nội dung yêu cầu, `> Gợi ý:`, `Lời giải:` chạy được, `> Giải thích:`, và `> Ghi chú:` về lỗi mất điểm thường gặp nếu có.
+3. Tách đề thành các câu theo từng yêu cầu chấm điểm. Mỗi câu có: nội dung yêu cầu, `> Gợi ý:`, `Lời giải:` chạy được (hoặc chỉ `Khung:` nếu người giao việc dặn không đưa đáp án), `> Giải thích:`, và `> Ghi chú:` về lỗi mất điểm thường gặp nếu có.
 4. Thêm 1–2 câu trắc nghiệm cho các ý dễ nhầm của đề nếu hữu ích.
 5. Gom các quy tắc dùng lại được thành `## Mẹo` và gắn `Mẹo:` vào câu.
 6. Chỉ xuất **phần từ `# PE` trở xuống**, trong một khối Markdown, để người dùng dán vào cuối file bộ đề. Không viết lại phần FE.

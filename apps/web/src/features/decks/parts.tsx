@@ -1,7 +1,7 @@
 import { Fragment, useState, type ReactNode } from 'react';
 import { Search } from 'lucide-react';
 import { Typewriter } from '@/components/ui/Typewriter';
-import { ArrowDownUp, BookOpenCheck, ChevronDown, ChevronUp, Copy, FileCode2, Flame, Lightbulb, ListChecks, Maximize2, Minimize2, Shuffle, TriangleAlert } from 'lucide-react';
+import { ArrowDownUp, BookOpenCheck, LayoutTemplate, ChevronDown, ChevronUp, Copy, FileCode2, Flame, Lightbulb, ListChecks, Maximize2, Minimize2, Shuffle, TriangleAlert } from 'lucide-react';
 import type { DeckQuestion } from '@kaned/shared';
 import { cn } from '@/lib/cn';
 import { fmtInt } from '@/lib/format';
@@ -72,37 +72,9 @@ export function QText({ text, terms, small, as: Tag = 'h2' }: { text: string; te
   );
 }
 
-/** A tip's text: paragraphs split by a blank line, "- " lines as a list, **bold**. */
+/** A tip's text: paragraphs split by a blank line, "- " lines as a list, **bold**, pipe tables. */
 export function TipBody({ body }: { body: string }) {
-  const blocks = body.split(/\n{2,}/);
-  return (
-    <div className="dk-tipbody">
-      {blocks.map((b, i) => {
-        const lines = b.split('\n');
-        if (lines.every((l) => /^\s*[-•]\s+/.test(l))) {
-          return (
-            <ul key={i}>
-              {lines.map((l, j) => (
-                <li key={j}>
-                  <Inline text={l.replace(/^\s*[-•]\s+/, '')} />
-                </li>
-              ))}
-            </ul>
-          );
-        }
-        return (
-          <p key={i}>
-            {lines.map((l, j) => (
-              <Fragment key={j}>
-                {j > 0 && <br />}
-                <Inline text={l} />
-              </Fragment>
-            ))}
-          </p>
-        );
-      })}
-    </div>
-  );
+  return <Prose text={body} />;
 }
 
 export function Highlighted({ text, terms }: { text: string; terms: string[] }) {
@@ -509,10 +481,32 @@ export function RichBody({ text, className }: { text: string; className?: string
   );
 }
 
-/** Paragraphs, with runs of "- " or "1. " lines inside them shown as lists. */
-function Prose({ text }: { text: string }) {
+/** Paragraphs, with runs of "- " or "1. " lines inside them shown as lists, and pipe tables. */
+export function Prose({ text }: { text: string }) {
   const out: ReactNode[] = [];
   text.split(/\n{2,}/).forEach((para, i) => {
+    const rows = para.split('\n');
+    if (rows.length >= 2 && rows.every((r) => r.trim().startsWith('|'))) {
+      const cells = rows
+        .filter((r) => !/^\s*\|?\s*:?-{3,}/.test(r))
+        .map((r) => r.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => c.trim()));
+      const [head, ...body] = cells;
+      out.push(
+        <div key={i} className="dk-table-wrap">
+          <table className="dk-table">
+            <thead>
+              <tr>{head!.map((c, k) => <th key={k}><Inline text={c.replace(/^\*\*(.*)\*\*$/, '$1')} /></th>)}</tr>
+            </thead>
+            <tbody>
+              {body.map((r, j) => (
+                <tr key={j}>{r.map((c, k) => <td key={k}><Inline text={c} /></td>)}</tr>
+              ))}
+            </tbody>
+          </table>
+        </div>,
+      );
+      return;
+    }
     let run: { kind: 'ul' | 'ol' | 'p'; lines: string[] } | null = null;
     const runs: Array<{ kind: 'ul' | 'ol' | 'p'; lines: string[] }> = [];
     for (const l of para.split('\n')) {
@@ -647,6 +641,26 @@ export function Solution({ q, title = 'Lời giải mẫu' }: { q: StudyQuestion
       <RichBody text={q.solution} />
     </div>
   );
+}
+
+/** How to set out a written answer, without the answer. */
+export function Frame({ q, title = 'Khung làm bài' }: { q: StudyQuestion; title?: string }) {
+  if (!q.frame) return null;
+  return (
+    <div className="dk-frame">
+      <div className="dk-tip-h">
+        <LayoutTemplate className="ic ic-sm" />
+        {title}
+      </div>
+      <RichBody text={q.frame} />
+    </div>
+  );
+}
+
+/** A question's text: written (PE) ones may hold lists and tables. */
+export function QuestionText({ q, terms, small }: { q: StudyQuestion; terms?: string[]; small?: boolean }) {
+  if (q.written && !terms?.length) return <RichBody text={q.text} className={cn('dk-qrich', small && 'is-sm')} />;
+  return <QText text={q.text} terms={terms} small={small} as={small ? 'h3' : 'h2'} />;
 }
 
 /** Tags at the top of a question: chapter (or PE), paper, written. */

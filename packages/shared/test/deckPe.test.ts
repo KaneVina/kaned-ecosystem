@@ -83,7 +83,7 @@ test('PE: errors point at the line', () => {
   const bad = parseDeck(`# PE\n\n## Đề 1: X\nĐề bài.\n\n## Câu 5\nViết code.\n\n## Câu 6\nĐề: 3\nCâu hỏi\nLời giải:\n\`\`\`js\nopen\n`);
   const msgs = bad.issues.filter((i) => i.level === 'error').map((i) => i.message).join('\n');
   assert.match(msgs, /Câu 5 chưa có phương án/);
-  assert.match(msgs, /Lời giải câu 6 mở khối code/);
+  assert.match(msgs, /Lời giải\/khung câu 6 mở khối code/);
   assert.match(msgs, /Câu 6 thuộc Đề 3/);
 });
 
@@ -99,4 +99,14 @@ test('the template parses and FE rooms leave PE out', () => {
   const all = parseDeck(SRC).content.questions;
   const picked = pickQuestions(all, { questionCount: 50, chapters: [], dedupeVariants: false, balanceByChapter: false } as never, () => 0.5);
   assert.deepEqual(picked.map((q) => q.id), ['1']);
+});
+
+test('PE: a written question may carry only a frame (no answer)', () => {
+  const r = parseDeck(`# PE\n\n## Mẹo 20: Khung RACI\n- R: làm\n\n## Đề 1: Compass\n[SU26_PE2]\nKịch bản.\n\n## Câu 401\n**Question 1**\nDefine objectives.\nKhung:\n**Cấu trúc thực hiện**\n\nMẹo nhỏ: mỗi con số = 1 objective.\n\n| A | B |\n|---|---|\n| 1 | 2 |\nMẹo: 20\n`);
+  assert.deepEqual(r.issues.filter((i) => i.level === 'error'), []);
+  const q = r.content.questions[0]!;
+  assert.equal(q.solution, undefined);
+  assert.match(q.frame!, /Mẹo nhỏ: mỗi con số/);
+  assert.match(q.frame!, /\| 1 \| 2 \|$/);
+  assert.deepEqual(q.tips, [20]);
 });
