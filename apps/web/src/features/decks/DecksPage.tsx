@@ -23,6 +23,7 @@ import { useAuth } from '@/providers/AuthProvider';
 import { cn } from '@/lib/cn';
 import { fmtDateTime, fmtInt, fmtRelative, timeAgo } from '@/lib/format';
 import { useDecks } from './api';
+import { useSubjectColor } from './colors';
 import { fmtScore, summaryCounts, useStudySettings } from './model';
 import { BigSearch } from './parts';
 import './decks.css';
@@ -550,8 +551,9 @@ function useTilt<T extends HTMLElement>() {
 function DeckCard({ d, srs, terms, i }: { d: DeckSummaryDto; srs: boolean; terms: string[]; i: number }) {
   const f = useCardFacts(d, srs);
   const tilt = useTilt<HTMLElement>();
+  const color = useSubjectColor(d.subject.code);
   return (
-    <article ref={tilt} className="dk-deck" style={{ ['--uni' as string]: d.subject.university.color, '--i': Math.min(i, 12) } as CSSProperties}>
+    <article ref={tilt} className="dk-deck" style={{ ['--uni' as string]: color, '--i': Math.min(i, 12) } as CSSProperties}>
       <div className="dk-deck-top">
         <span className="dk-code">
           <Hl text={d.subject.code} terms={terms} />
@@ -619,8 +621,9 @@ function DeckCard({ d, srs, terms, i }: { d: DeckSummaryDto; srs: boolean; terms
 
 function DeckRow({ d, srs, terms, i }: { d: DeckSummaryDto; srs: boolean; terms: string[]; i: number }) {
   const f = useCardFacts(d, srs);
+  const color = useSubjectColor(d.subject.code);
   return (
-    <article className="dk-drow" style={{ ['--uni' as string]: d.subject.university.color, '--i': Math.min(i, 12) } as CSSProperties}>
+    <article className="dk-drow" style={{ ['--uni' as string]: color, '--i': Math.min(i, 12) } as CSSProperties}>
       <span className="dk-code">
         <Hl text={d.subject.code} terms={terms} />
       </span>

@@ -7,6 +7,7 @@ import { ErrorState, Skeleton } from '@/components/ui/Feedback';
 import { Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/providers/AuthProvider';
 import { fmtInt } from '@/lib/format';
+import { useSubjectColor } from './colors';
 import { useDeck } from './api';
 import { DeckContext, MODES, type BrowseState, type DeckCtx, type Mode, type StartOptions } from './context';
 import {
@@ -128,7 +129,7 @@ function DeckStudy({ deck, mode }: { deck: DeckDetailDto; mode: Mode }) {
       e.returnValue = '';
     };
     window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
+  return () => window.removeEventListener('beforeunload', warn);
   }, [exam.phase]);
 
   const ctx: DeckCtx = {
@@ -155,6 +156,7 @@ function DeckStudy({ deck, mode }: { deck: DeckDetailDto; mode: Mode }) {
   const staff = user && STAFF_ROLES.includes(user.role);
   const tipTotal = m.tips.size + m.warnings.length;
   const subject = deck.subject;
+  const subjectTint = useSubjectColor(deck.subject.code);
 
   return (
     <DeckContext.Provider value={ctx}>
@@ -164,7 +166,7 @@ function DeckStudy({ deck, mode }: { deck: DeckDetailDto; mode: Mode }) {
         description={
           <>
             <Link className="dk-subj" to={`/app/subjects/${subject.code}`}>
-              <i style={{ background: subject.university.color }} />
+              <i style={{ background: subjectTint }} />
               {subject.code} · {subject.nameVi}
             </Link>
             {deck.description ? ` — ${deck.description}` : ''}

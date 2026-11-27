@@ -5,6 +5,7 @@ import { Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/providers/AuthProvider';
 import { cn } from '@/lib/cn';
 import { fmtInt } from '@/lib/format';
+import { useSubjectColor } from './colors';
 import { useDeckCtx } from './context';
 import { clock, fmtScore, grade10, LET, makePerm, NO_SLICE, poolOf, qLabel, sameSet, shuffle } from './model';
 import { AnswerSheet } from './Practice';
@@ -308,6 +309,7 @@ function ExamSetup() {
 
 function ExamRun() {
   const { deck, m, exam: E, setExam } = useDeckCtx();
+  const subjectTint = useSubjectColor(deck.subject.code);
   const { user } = useAuth();
   const [, tick] = useState(0);
   const [ask, setAsk] = useState<Ask | null>(null);
@@ -324,7 +326,7 @@ function ExamRun() {
   useEffect(() => {
     document.documentElement.classList.add('exam-live');
     window.scrollTo({ top: 0 });
-    return () => {
+  return () => {
       document.documentElement.classList.remove('exam-live');
       if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
     };
@@ -490,7 +492,7 @@ function ExamRun() {
                 <span>Thí sinh</span>
               </div>
               <span className="dk-exam-subj" title={deck.subject.nameVi}>
-                <i style={{ background: deck.subject.university.color }} />
+                <i style={{ background: subjectTint }} />
                 {deck.subject.code}
               </span>
             </div>
