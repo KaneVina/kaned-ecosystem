@@ -887,9 +887,33 @@ html.exam-live .dk-body { padding-top: 26px; }
 @media (hover: none) and (pointer: coarse) { .pe-scale .dk-conf-btn kbd { display: none; } }
 @media (prefers-reduced-motion: reduce) { .pe-step, .pe-switch > i::after { animation: none; transition: none; } }
 
-/* FE / PE tags on deck cards, shown when a deck has PE questions */
-.dk-kinds { display: inline-flex; gap: 4px; margin-left: auto; }
-.dk-kind { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 6px; font-size: 11.5px; font-weight: 800; letter-spacing: .04em; white-space: nowrap; border: 1px solid transparent; }
-.dk-kind.is-fe { background: var(--brand-50); color: var(--brand-700); border-color: var(--brand-100); }
-.dk-kind.is-pe { background: #13213F; color: #fff; }
-.dk-drow-tags .dk-kinds { margin: 0; }
+/* FE / PE as an exam ticket on deck cards */
+.dk-ticket { display: inline-flex; align-items: stretch; margin-left: auto; height: 26px; flex: none; border-radius: 8px; filter: drop-shadow(0 1px 1px rgba(19, 33, 63, .08)); }
+.dk-stub {
+  position: relative; display: inline-flex; align-items: center; gap: 5px; padding: 0 9px 0 8px; border-radius: 8px;
+  font-size: 12px; font-weight: 800; letter-spacing: .05em; line-height: 1; white-space: nowrap;
+}
+.dk-stub .ic { width: 13px; height: 13px; stroke-width: 2.4; }
+.dk-stub small { font-size: 11.5px; font-weight: 600; letter-spacing: 0; font-variant-numeric: tabular-nums; opacity: .72; }
+.dk-stub.is-fe { background: var(--brand-50); color: var(--brand-700); box-shadow: inset 0 0 0 1px var(--brand-100); }
+.dk-stub.is-pe {
+  color: #fff;
+  background:
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, .06) 0 2px, transparent 2px 6px),
+    linear-gradient(135deg, #1E3366, #13213F);
+}
+.dk-stub.is-pe .ic { color: #FFC56B; }
+/* Joined: square inner corners, a perforated seam with two notches */
+.dk-ticket.is-both .dk-stub.is-fe { border-radius: 8px 0 0 8px; padding-right: 10px; }
+.dk-ticket.is-both .dk-stub.is-pe { border-radius: 0 8px 8px 0; padding-left: 10px; }
+.dk-ticket.is-both .dk-stub.is-pe::before {
+  content: ""; position: absolute; left: -1px; top: 4px; bottom: 4px; width: 0;
+  border-left: 2px dotted rgba(255, 255, 255, .55);
+}
+.dk-ticket.is-both .dk-stub.is-pe::after {
+  content: ""; position: absolute; left: -4px; top: 0; bottom: 0; width: 8px;
+  background: radial-gradient(circle at 50% 0, var(--paper) 3.5px, transparent 4px), radial-gradient(circle at 50% 100%, var(--paper) 3.5px, transparent 4px);
+}
+.dk-deck:hover .dk-stub.is-pe .ic { animation: dkTwinkle 1.6s ease-in-out 1; }
+.dk-drow-tags .dk-ticket { margin: 0; }
+@media (prefers-reduced-motion: reduce) { .dk-deck:hover .dk-stub.is-pe .ic { animation: none; } }

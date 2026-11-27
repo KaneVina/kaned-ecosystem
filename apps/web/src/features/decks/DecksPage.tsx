@@ -9,6 +9,8 @@ import {
   LayoutGrid,
   Layers,
   List,
+  ListChecks,
+  PenLine,
   Play,
   RotateCcw,
   Sparkles,
@@ -476,21 +478,30 @@ const QUICK = [
   { mode: 'exam', label: 'Thi thử', Icon: Timer },
 ] as const;
 
-/** FE and PE tags, counted from each deck's own questions: a tag shows when the deck has that kind. */
+/**
+ * What the deck covers, as an exam ticket: an FE stub for multiple choice and
+ * a PE stub for the practical exam, joined by a perforation when both exist.
+ * Counted from the deck's own questions.
+ */
 function ExamTags({ d }: { d: DeckSummaryDto }) {
   const pe = d.peCount ?? 0;
   const fe = Math.max(0, d.questionCount - pe);
   if (!fe && !pe) return null;
+  const label = [fe ? `${fmtInt(fe)} câu trắc nghiệm FE` : '', pe ? `${fmtInt(pe)} câu thi thực hành PE` : ''].filter(Boolean).join(', ');
   return (
-    <span className="dk-kinds">
+    <span className={cn('dk-ticket', fe > 0 && pe > 0 && 'is-both')} title={label} aria-label={label}>
       {fe > 0 && (
-        <span className="dk-kind is-fe" title={`${fmtInt(fe)} câu trắc nghiệm FE`}>
+        <span className="dk-stub is-fe">
+          <ListChecks className="ic" aria-hidden />
           FE
+          {pe > 0 && <small>{fmtInt(fe)}</small>}
         </span>
       )}
       {pe > 0 && (
-        <span className="dk-kind is-pe" title={`${fmtInt(pe)} câu thi thực hành PE`}>
+        <span className="dk-stub is-pe">
+          <PenLine className="ic" aria-hidden />
           PE
+          <small>{fmtInt(pe)}</small>
         </span>
       )}
     </span>
