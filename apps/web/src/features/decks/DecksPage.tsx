@@ -599,10 +599,10 @@ function DeckCard({ d, srs, terms, i }: { d: DeckSummaryDto; srs: boolean; terms
         <GrowBar ok={f.okp} bad={f.badp} />
         <div className="dk-deck-foot">
           <span>{f.started ? `${Math.round(f.okp)}% đã thuộc${f.bad ? ` · ${fmtInt(f.bad)} sai` : ''}` : 'Chưa học'}</span>
-          <b>
+          <Link to={`/app/flashcards/${d.id}`} className="dk-deck-go" tabIndex={-1}>
             {f.started ? 'Học tiếp' : 'Bắt đầu'}
             <ArrowRight className="ic ic-xs dk-go" />
-          </b>
+          </Link>
         </div>
         {f.started && <small className="dk-deck-when">Học lần cuối {timeAgo(f.p!.updatedAt)}</small>}
       </div>

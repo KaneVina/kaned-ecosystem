@@ -419,9 +419,9 @@ mark { background: rgba(231, 160, 51, .32); color: inherit; border-radius: 3px; 
 }
 .dk-deck.is-tilt::after { opacity: 1; }
 /* Depth: the top row drifts with the pointer, a little ahead of the card. */
-.dk-deck-top, .dk-deck h3 { transition: transform .5s cubic-bezier(.2, .9, .25, 1.15); }
+/* Only the top row moves: the title holds the link that covers the whole card, and a transform would shrink that cover to the title. */
+.dk-deck-top { transition: transform .5s cubic-bezier(.2, .9, .25, 1.15); }
 .dk-deck.is-tilt .dk-deck-top { transform: translate3d(calc(var(--px) * 7px), calc(var(--py) * 5px), 0); transition-duration: .18s; }
-.dk-deck.is-tilt h3 { transform: translate3d(calc(var(--px) * 4px), calc(var(--py) * 3px), 0); transition-duration: .2s; }
 
 /* The subject code catches the light every few seconds. */
 .dk-deck .dk-code { position: relative; overflow: hidden; isolation: isolate; }
@@ -465,7 +465,9 @@ mark { background: rgba(231, 160, 51, .32); color: inherit; border-radius: 3px; 
 .dk-deck-prog .dk-bar { height: 6px; }
 .dk-due { display: inline-flex; align-items: center; gap: 5px; margin-bottom: 8px; height: 22px; padding: 0 8px; border-radius: 99px; background: var(--red-50); color: var(--red); font-size: 12px; font-weight: 600; white-space: nowrap; }
 .dk-deck-foot { display: flex; justify-content: space-between; gap: 10px; margin-top: 8px; font-size: 13px; color: var(--ink-3); }
-.dk-deck-foot b { display: inline-flex; align-items: center; gap: 4px; color: var(--brand-600); font-weight: 600; }
+.dk-deck-foot b, .dk-deck-go { display: inline-flex; align-items: center; gap: 4px; color: var(--brand-600); font-weight: 600; }
+.dk-deck-go { position: relative; z-index: 1; text-decoration: none; border-radius: 6px; padding: 2px 4px; margin: -2px -4px; }
+.dk-deck-go:hover { background: var(--brand-50); }
 .dk-go { transition: transform .2s var(--ease-out); }
 .dk-deck:hover .dk-go { transform: translateX(3px); }
 .dk-deck-when { display: block; margin-top: 4px; font-size: 12px; color: var(--ink-4); }
