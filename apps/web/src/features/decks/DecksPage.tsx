@@ -9,8 +9,6 @@ import {
   LayoutGrid,
   Layers,
   List,
-  ListChecks,
-  PenLine,
   Play,
   RotateCcw,
   Sparkles,
@@ -492,14 +490,12 @@ function ExamTags({ d }: { d: DeckSummaryDto }) {
     <span className={cn('dk-ticket', fe > 0 && pe > 0 && 'is-both')} title={label} aria-label={label}>
       {fe > 0 && (
         <span className="dk-stub is-fe">
-          <ListChecks className="ic" aria-hidden />
           FE
           {pe > 0 && <small>{fmtInt(fe)}</small>}
         </span>
       )}
       {pe > 0 && (
         <span className="dk-stub is-pe">
-          <PenLine className="ic" aria-hidden />
           PE
           <small>{fmtInt(pe)}</small>
         </span>
