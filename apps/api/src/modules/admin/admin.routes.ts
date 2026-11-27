@@ -47,6 +47,7 @@ import { idempotentWrites } from '../../middleware/idempotency.js';
 import { parsedQuery, validateBody, validateQuery } from '../../middleware/validate.js';
 import * as institutions from './institutions.service.js';
 import * as monitoring from './monitoring.service.js';
+import * as library from './library.service.js';
 import * as gradeAdmin from './grades.service.js';
 import * as subjects from './subjects.service.js';
 import * as docs from './documents.service.js';
@@ -274,6 +275,7 @@ adminRouter.get('/users/:id/views', adminOnly, validateQuery(userViewsQuerySchem
 adminRouter.get('/users/:id/top-documents', adminOnly, async (req, res) =>
   res.json(await monitoring.userTopDocuments(req.params.id)),
 );
+adminRouter.get('/users/:id/library', adminOnly, async (req, res) => res.json(await library.userLibrary(req.params.id)));
 adminRouter.get('/users/:id/events', adminOnly, validateQuery(userEventsQuerySchema), async (req, res) =>
   res.json(await monitoring.userEventList(req.params.id, parsedQuery<UserEventsQuery>(res))),
 );

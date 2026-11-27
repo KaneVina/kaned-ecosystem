@@ -379,6 +379,8 @@ export interface AdminUserDto {
   university: Pick<UniversityDto, 'id' | 'code' | 'name' | 'color'> | null;
   major: { id: string; name: string } | null;
   uploadCount: number;
+  /** Documents saved (bookmarked) by this person. */
+  savedCount: number;
   signInMethods: SignInMethod[];
   lastSeenAt: string | null;
   online: boolean;
@@ -473,4 +475,40 @@ export interface AdminUserGradesDto {
   passMark: number;
   major: { id: string; code: string; nameVi: string } | null;
   grades: AdminUserGradeDto[];
+}
+
+/* ───────────────────── what one person keeps on Kaned ───────────────────── */
+
+/** A document as it appears in a person's library; `missing` when it has been deleted since. */
+export interface LibraryDocDto {
+  id: string;
+  title: string;
+  subjectCode: string | null;
+  format: string | null;
+  bytes: number | null;
+  status: string | null;
+  missing?: boolean;
+}
+
+export interface AdminUserLibraryDto {
+  counts: {
+    saved: number;
+    collections: number;
+    uploads: number;
+    downloads: number;
+    reviews: number;
+    decks: number;
+    exams: number;
+    files: number;
+    meets: number;
+  };
+  saved: Array<LibraryDocDto & { savedAt: string; collections: string[] }>;
+  collections: Array<{ id: string; name: string; createdAt: string; docs: Array<LibraryDocDto & { addedAt: string }> }>;
+  uploads: Array<LibraryDocDto & { downloads: number; views: number; ratingAvg: number; ratingCount: number; createdAt: string }>;
+  downloads: Array<LibraryDocDto & { times: number; lastAt: string }>;
+  reviews: Array<{ doc: LibraryDocDto; score: number; comment: string; at: string }>;
+  decks: Array<{ deckId: string; title: string; subjectCode: string | null; questions: number; seen: number; ok: number; bad: number; marked: number; sessions: number; answers: number; updatedAt: string }>;
+  exams: Array<{ sessionId: string; title: string; subjectCode: string; kind: string; attempts: number; best: number | null; counted: number | null; passed: boolean | null; lastAt: string }>;
+  files: Array<{ id: string; name: string; format: string; bytes: number; role: string; sessionTitle: string | null; createdAt: string }>;
+  meets: Array<{ slug: string; title: string; owner: boolean; status: string; free: number; savedAt: string | null; updatedAt: string }>;
 }

@@ -82,6 +82,7 @@ export async function listUsers(query: AdminUserQuery): Promise<Paginated<AdminU
       with: { university: true, major: true, identities: { columns: { provider: true } } },
       extras: {
         uploadCount: sql<number>`(select count(*)::int from documents d where d.uploader_id = ${users.id})`.as('upload_count'),
+        savedCount: sql<number>`(select count(*)::int from bookmarks b where b.user_id = ${users.id})`.as('saved_count'),
       },
       orderBy: byActivity ? [sql`${users.lastSeenAt} desc nulls last`, desc(users.createdAt)] : [desc(users.createdAt)],
       limit: query.pageSize,
@@ -102,6 +103,7 @@ export async function listUsers(query: AdminUserQuery): Promise<Paginated<AdminU
         : null,
       major: u.major ? { id: u.major.id, name: u.major.nameVi } : null,
       uploadCount: Number(u.uploadCount ?? 0),
+      savedCount: Number(u.savedCount ?? 0),
       signInMethods: [
         ...(u.passwordHash ? (['password'] as const) : []),
         ...u.identities.map((i) => i.provider as OAuthProviderId).filter((p) => OAUTH_PROVIDERS.includes(p)),

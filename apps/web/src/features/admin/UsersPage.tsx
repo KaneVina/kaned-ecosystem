@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ACTIVITY_FILTERS, ACTIVITY_FILTER_LABELS, OAUTH_PROVIDER_LABELS, ROLES, ROLE_LABELS, type ActivityFilter, type AdminUserDto, type Role } from '@kaned/shared';
 import { Avatar } from '@/components/ui/Avatar';
 import { useAuth } from '@/providers/AuthProvider';
@@ -104,15 +104,16 @@ export function UsersPage() {
                 <th>Người dùng</th>
                 <th>Hoạt động</th>
                 <th>Trường · ngành</th>
-                <th className="num">Tài liệu</th>
+                <th className="num">Đã đăng</th>
+                <th className="num">Đã lưu</th>
                 <th>Tham gia</th>
                 <th>Quyền</th>
               </tr>
             </thead>
             {isLoading ? (
-              <TableSkeleton cols={6} />
+              <TableSkeleton cols={7} />
             ) : !items.length ? (
-              <EmptyRow cols={6}>
+              <EmptyRow cols={7}>
                 <EmptyBlock icon={SearchX} title="Không có người dùng khớp" text="Thử bỏ bộ lọc hoặc tìm bằng từ khác." />
               </EmptyRow>
             ) : (
@@ -156,6 +157,7 @@ export function UsersPage() {
                       )}
                     </td>
                     <td className="num">{fmtInt(u.uploadCount)}</td>
+                    <td className="num">{u.savedCount ? <Link to={`/admin/users/${u.id}?tab=library`} className="lib-count" onClick={(e) => e.stopPropagation()}>{fmtInt(u.savedCount)}</Link> : '0'}</td>
                     <td className="w-date">{fmtDate(u.createdAt)}</td>
                     <td onClick={(e) => e.stopPropagation()}>
                       {u.id === me?.id ? (

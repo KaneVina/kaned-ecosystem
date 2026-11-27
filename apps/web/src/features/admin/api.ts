@@ -1,5 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
+  AdminUserLibraryDto,
   AdminDeckDetailDto,
   DeckLearnerDto,
   AdminDeckDto,
@@ -84,6 +85,7 @@ export const adminKeys = {
   sessionViews: (id: string) => ['admin', 'session-views', id] as const,
   userViews: (id: string, p: object) => ['admin', 'user-views', id, p] as const,
   userTopDocuments: (id: string) => ['admin', 'user-top-docs', id] as const,
+  userLibrary: (id: string) => ['admin', 'user-library', id] as const,
   userEvents: (id: string, p: object) => ['admin', 'user-events', id, p] as const,
   grades: (p: object) => ['admin', 'grades', p] as const,
   userGrades: (id: string) => ['admin', 'user-grades', id] as const,
@@ -119,6 +121,8 @@ export const useUserViews = (id: string, p: { kind?: TrackedKind; page: number }
   });
 export const useUserTopDocuments = (id: string) =>
   useQuery({ queryKey: adminKeys.userTopDocuments(id), queryFn: () => get<TopDocumentDto[]>(`/users/${id}/top-documents`) });
+export const useUserLibrary = (id: string) =>
+  useQuery({ queryKey: adminKeys.userLibrary(id), queryFn: () => get<AdminUserLibraryDto>(`/users/${id}/library`) });
 export const useUserEvents = (id: string, p: { type?: UserEventType; page: number }) =>
   useQuery({
     queryKey: adminKeys.userEvents(id, p),

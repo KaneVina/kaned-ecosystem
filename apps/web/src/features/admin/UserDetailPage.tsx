@@ -1,6 +1,6 @@
 import { Fragment, useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { Activity, CalendarClock, ChevronRight, Clock, Download, Eye, FileText, History, KeyRound, Link2, LogIn, LogOut, MonitorSmartphone, Search, ShieldOff, Star, Bookmark, Upload, UserPlus, type LucideIcon, GraduationCap } from 'lucide-react';
+import { Activity, CalendarClock, ChevronRight, Clock, Download, Eye, FileText, History, KeyRound, Link2, LogIn, LogOut, MonitorSmartphone, Search, ShieldOff, Star, Bookmark, Upload, UserPlus, type LucideIcon, GraduationCap, FolderOpen } from 'lucide-react';
 import {
   OAUTH_PROVIDER_LABELS,
   ROLE_LABELS,
@@ -25,9 +25,11 @@ import { useAdminCrumbs } from './AdminShell';
 import { ActionMenu, ConfirmDialog, EmptyBlock, EmptyRow, Pager, RoleBadge, TableSkeleton, type ConfirmState } from './ui';
 import { DeviceLine, KIND_LABEL, KindIcon, methodLabel, Presence } from './presence';
 import { UserGradesTab } from './UserGradesTab';
+import { UserLibraryTab } from './UserLibraryTab';
 
-type Tab = 'grades' | 'sessions' | 'views' | 'documents' | 'events';
+type Tab = 'library' | 'grades' | 'sessions' | 'views' | 'documents' | 'events';
 const TABS: Array<{ id: Tab; label: string; icon: LucideIcon }> = [
+  { id: 'library', label: 'File & dữ liệu', icon: FolderOpen },
   { id: 'grades', label: 'Điểm số', icon: GraduationCap },
   { id: 'sessions', label: 'Phiên truy cập', icon: MonitorSmartphone },
   { id: 'views', label: 'Lịch sử xem', icon: Eye },
@@ -480,7 +482,7 @@ export function UserDetailPage() {
   const { user: me } = useAuth();
   const toast = useToast();
   const [params, setParams] = useSearchParams();
-  const tab = (TABS.find((t) => t.id === params.get('tab'))?.id ?? 'sessions') as Tab;
+  const tab = (TABS.find((t) => t.id === params.get('tab'))?.id ?? 'library') as Tab;
   const { data, isLoading, error } = useUserActivity(id);
   const signOut = useSignOutEverywhere();
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
@@ -634,6 +636,7 @@ export function UserDetailPage() {
         </div>
         {id && (
           <>
+            {tab === 'library' && <UserLibraryTab userId={id} />}
             {tab === 'grades' && <UserGradesTab userId={id} />}
             {tab === 'sessions' && <SessionsTab userId={id} />}
             {tab === 'views' && <ViewsTab userId={id} />}
