@@ -775,7 +775,7 @@ html.exam-live .dk-body { padding-top: 26px; }
 .dk-paper-more { margin: 0 0 6px 14px; }
 .dk-paper-qs { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 16px 12px 20px; border-top: 1px dashed var(--line); background: var(--paper-2); }
 .dk-paper-qs > span { font-size: 12.5px; font-weight: 650; color: var(--ink-3); }
-.dk-paper-qs > div { display: flex; flex-wrap: wrap; gap: 5px; flex: 1; min-width: 0; }
+.dk-paper-qs > div { display: flex; flex-wrap: wrap; gap: 5px; flex: 1 1 240px; min-width: 0; }
 .dk-paper-q { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--paper); font: inherit; font-size: 12.5px; font-weight: 650; color: var(--ink-2); cursor: pointer; font-variant-numeric: tabular-nums; transition: border-color .15s, background .15s; }
 .dk-paper-q:hover:not(:disabled) { border-color: var(--brand-200); color: var(--brand-700); }
 .dk-paper-q:disabled { cursor: default; }
@@ -995,3 +995,14 @@ html.exam-live .dk-body { padding-top: 26px; }
 .dk-stub.is-pe.is-none { border-left: 0; }
 .dk-ticket .dk-stub.is-pe.is-none::before { border-left-color: var(--line-2); }
 .dk-ticket .dk-stub.is-fe:not(.is-none) + .dk-stub.is-pe.is-none::before { border-left-color: var(--brand-200); }
+
+/* Phones: the paper's question chips in one row, the PE switches compact */
+@media (max-width: 760px) {
+  .dk-paper-qs { gap: 8px; }
+  .dk-paper-qs > div { flex: 1 1 100%; order: 2; }
+  .dk-paper-qs > span { order: 1; flex: 1; }
+  .dk-paper-qs > .btn { order: 1; margin-left: auto; }
+  .pe-switch { height: 34px; padding: 0 8px; gap: 6px; font-size: 12.5px; white-space: nowrap; min-width: 0; }
+  .pe-switch > span { overflow: hidden; text-overflow: ellipsis; }
+  .pe-top { background: var(--bg); box-shadow: 0 6px 10px -8px rgba(19, 33, 63, .2); }
+}
