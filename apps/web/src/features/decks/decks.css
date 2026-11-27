@@ -890,10 +890,10 @@ html.exam-live .dk-body { padding-top: 26px; }
 /* FE / PE as an exam ticket on deck cards */
 .dk-ticket { display: inline-flex; align-items: stretch; margin-left: auto; height: 26px; flex: none; border-radius: 8px; filter: drop-shadow(0 1px 1px rgba(19, 33, 63, .08)); }
 .dk-stub {
-  position: relative; display: inline-flex; align-items: center; gap: 5px; padding: 0 9px; border-radius: 8px;
+  position: relative; display: inline-flex; align-items: center; padding: 0 9px; border-radius: 8px;
   font-size: 12px; font-weight: 800; letter-spacing: .05em; line-height: 1; white-space: nowrap;
 }
-.dk-stub small { font-size: 11.5px; font-weight: 600; letter-spacing: 0; font-variant-numeric: tabular-nums; opacity: .72; }
+.dk-stub small { margin-left: 5px; font-size: 11.5px; font-weight: 600; letter-spacing: 0; font-variant-numeric: tabular-nums; opacity: .72; }
 .dk-stub.is-fe { background: var(--brand-50); color: var(--brand-700); box-shadow: inset 0 0 0 1px var(--brand-100); }
 .dk-stub.is-pe {
   color: #fff;
@@ -902,14 +902,21 @@ html.exam-live .dk-body { padding-top: 26px; }
     linear-gradient(135deg, #1E3366, #13213F);
 }
 /* Joined: square inner corners, a perforated seam with two notches */
-.dk-ticket.is-both .dk-stub.is-fe { border-radius: 8px 0 0 8px; padding-right: 10px; }
-.dk-ticket.is-both .dk-stub.is-pe { border-radius: 0 8px 8px 0; padding-left: 10px; }
-.dk-ticket.is-both .dk-stub.is-pe::before {
+.dk-ticket .dk-stub.is-fe { border-radius: 8px 0 0 8px; padding-right: 10px; }
+.dk-ticket .dk-stub.is-pe { border-radius: 0 8px 8px 0; padding-left: 10px; }
+.dk-ticket .dk-stub.is-pe::before {
   content: ""; position: absolute; left: -1px; top: 4px; bottom: 4px; width: 0;
   border-left: 2px dotted rgba(255, 255, 255, .55);
 }
-.dk-ticket.is-both .dk-stub.is-pe::after {
+.dk-ticket .dk-stub.is-pe::after {
   content: ""; position: absolute; left: -4px; top: 0; bottom: 0; width: 8px;
   background: radial-gradient(circle at 50% 0, var(--paper) 3.5px, transparent 4px), radial-gradient(circle at 50% 100%, var(--paper) 3.5px, transparent 4px);
 }
 .dk-drow-tags .dk-ticket { margin: 0; }
+/* A kind the deck does not have: the same stub, faded, with a dashed outline */
+.dk-stub.is-none { background: var(--paper); color: var(--ink-4); box-shadow: none; border: 1px dashed var(--line-2); }
+.dk-stub.is-none small { opacity: 1; font-weight: 500; }
+.dk-stub.is-fe.is-none { border-right: 0; }
+.dk-stub.is-pe.is-none { border-left: 0; }
+.dk-ticket .dk-stub.is-pe.is-none::before { border-left-color: var(--line-2); }
+.dk-ticket .dk-stub.is-fe:not(.is-none) + .dk-stub.is-pe.is-none::before { border-left-color: var(--brand-200); }

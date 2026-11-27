@@ -485,21 +485,16 @@ function ExamTags({ d }: { d: DeckSummaryDto }) {
   const pe = d.peCount ?? 0;
   const fe = Math.max(0, d.questionCount - pe);
   if (!fe && !pe) return null;
-  const label = [fe ? `${fmtInt(fe)} câu trắc nghiệm FE` : '', pe ? `${fmtInt(pe)} câu thi thực hành PE` : ''].filter(Boolean).join(', ');
+  const label = `${fe ? `${fmtInt(fe)} câu trắc nghiệm FE` : 'Chưa có câu FE'}, ${pe ? `${fmtInt(pe)} câu thi thực hành PE` : 'chưa có câu PE'}`;
+  // Always both halves, so every card has the same ticket; a missing kind is a faded stub.
   return (
-    <span className={cn('dk-ticket', fe > 0 && pe > 0 && 'is-both')} title={label} aria-label={label}>
-      {fe > 0 && (
-        <span className="dk-stub is-fe">
-          FE
-          {pe > 0 && <small>{fmtInt(fe)}</small>}
-        </span>
-      )}
-      {pe > 0 && (
-        <span className="dk-stub is-pe">
-          PE
-          <small>{fmtInt(pe)}</small>
-        </span>
-      )}
+    <span className="dk-ticket" title={label} aria-label={label}>
+      <span className={cn('dk-stub is-fe', !fe && 'is-none')}>
+        FE<small>{fe ? fmtInt(fe) : '–'}</small>
+      </span>
+      <span className={cn('dk-stub is-pe', !pe && 'is-none')}>
+        PE<small>{pe ? fmtInt(pe) : '–'}</small>
+      </span>
     </span>
   );
 }
