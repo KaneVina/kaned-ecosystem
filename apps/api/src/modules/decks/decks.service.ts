@@ -29,11 +29,12 @@ const listColumns = {
   tipCount: decks.tipCount,
   chapterCount: decks.chapterCount,
   /** Practical-exam questions: in a PE chapter, about a paper, or answered in writing. */
-  peCount: sql<number>`(select count(*)::int from jsonb_array_elements(coalesce(${decks.content}->'questions', '[]'::jsonb)) q
+  peCount: sql<number>`(with c as (select case when jsonb_typeof(${decks.content}) = 'string' then (${decks.content} #>> '{}')::jsonb else ${decks.content} end as j)
+    select count(*)::int from c, jsonb_array_elements(coalesce(c.j->'questions', '[]'::jsonb)) q
     where (q->>'paper') is not null
        or jsonb_array_length(coalesce(q->'options', '[]'::jsonb)) < 2
-       or exists (select 1 from jsonb_array_elements(coalesce(${decks.content}->'chapters', '[]'::jsonb)) c
-                  where c->>'pe' = 'true' and c->>'n' = q->>'chapter'))`,
+       or exists (select 1 from jsonb_array_elements(coalesce(c.j->'chapters', '[]'::jsonb)) ch
+                  where ch->>'pe' = 'true' and ch->>'n' = q->>'chapter'))`,
   createdById: decks.createdById,
   createdAt: decks.createdAt,
   updatedAt: decks.updatedAt,
