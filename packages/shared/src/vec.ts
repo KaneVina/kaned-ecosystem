@@ -438,7 +438,8 @@ export const toSnapshot = (q: DeckQuestion): SnapshotQuestion => ({
  * only one of a family is drawn.
  */
 export function pickQuestions(pool: DeckQuestion[], opts: VecSettings['paper'], rnd: () => number): DeckQuestion[] {
-  let list = pool.filter((q) => !opts.chapters.length || opts.chapters.includes(q.chapter));
+  // A multiple-choice room: written PE questions and questions about a PE paper stay out.
+  let list = pool.filter((q) => q.options.length >= 2 && q.paper == null && (!opts.chapters.length || opts.chapters.includes(q.chapter)));
   if (opts.dedupeVariants) {
     const byFamily = new Map<string, DeckQuestion[]>();
     for (const q of list) {

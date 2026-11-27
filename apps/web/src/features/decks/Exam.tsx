@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { chapterTitle } from '@kaned/shared';
 import { BookOpen, CalendarClock, ChevronLeft, ChevronRight, Flag, Lightbulb, ListChecks, Play, RotateCcw, Send, Shuffle, Timer } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/providers/AuthProvider';
 import { cn } from '@/lib/cn';
 import { fmtInt } from '@/lib/format';
 import { useDeckCtx } from './context';
-import { clock, fmtScore, grade10, LET, makePerm, poolOf, qLabel, sameSet, shuffle } from './model';
+import { clock, fmtScore, grade10, LET, makePerm, NO_SLICE, poolOf, qLabel, sameSet, shuffle } from './model';
 import { AnswerSheet } from './Practice';
-import { Inline, Notes, QText, Ring, StudyAids, confetti, hasAids } from './parts';
+import { Inline, Notes, PaperCard, QText, Ring, StudyAids, confetti, hasAids } from './parts';
 
 const COUNTS = [20, 30, 50, 100];
 const MINUTES = [15, 30, 45, 60, 90];
@@ -114,7 +115,7 @@ function CustomNumber({
 
 function ExamSetup() {
   const { m, state, settings, setSetting, exam: E, setExam } = useDeckCtx();
-  const avail = poolOf(m, state, E.ch, 'all', false).length;
+  const avail = poolOf(m, state, E.ch, 'all', false, NO_SLICE, true).length;
 
   const { user } = useAuth();
   const { deck } = useDeckCtx();
@@ -135,7 +136,7 @@ function ExamSetup() {
     } catch {
       /* not supported (e.g. iPhone): the exam still runs, just not fullscreen */
     }
-    let ids = shuffle(poolOf(m, state, E.ch, 'all', false));
+    let ids = shuffle(poolOf(m, state, E.ch, 'all', false, NO_SLICE, true));
     if (E.n) ids = ids.slice(0, E.n);
     const perm = Object.fromEntries(ids.map((id) => [id, makePerm(m.QI.get(id)!, settings.shuf)]));
     const t0 = Date.now();
@@ -155,14 +156,14 @@ function ExamSetup() {
               value={E.ch}
               onChange={(e) => {
                 const ch = Number(e.target.value);
-                const av = poolOf(m, state, ch, 'all', false).length;
+                const av = poolOf(m, state, ch, 'all', false, NO_SLICE, true).length;
                 setExam({ ...E, ch, n: E.n > av ? 0 : E.n });
               }}
             >
-              <option value={0}>Tất cả chương ({fmtInt(m.Q.length)} câu)</option>
+              <option value={0}>Tất cả chương ({fmtInt(m.Q.filter((x) => !x.written).length)} câu)</option>
               {m.chapters.map((c) => (
                 <option key={c.n} value={c.n}>
-                  {c.n ? `Chương ${c.n}: ${c.name}` : c.name}
+                  {chapterTitle(c)}
                 </option>
               ))}
             </select>
@@ -567,6 +568,7 @@ function ExamRun() {
       </div>
       <div className="dk-study">
         <div className="dk-study-main">
+          {q.paper != null && <PaperCard q={q} />}
           <article key={id} className={cn('dk-card', dir > 0 ? 'enter-r' : dir < 0 ? 'enter-l' : '')}>
             <div className="dk-qhead">
               <span className="dk-qnum">Câu {E.idx + 1}</span>

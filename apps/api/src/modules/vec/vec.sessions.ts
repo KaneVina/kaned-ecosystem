@@ -43,7 +43,7 @@ export async function listDecksForHost() {
   }>(sql`
     select d.id, d.title, d.question_count, s.code as subject_code, s.name_vi as subject_name, u.color,
            d.content->'chapters' as chapters,
-           (select jsonb_object_agg(ch, n) from (select q->>'chapter' as ch, count(*)::int as n from jsonb_array_elements(d.content->'questions') q group by 1) x) as per_chapter
+           (select jsonb_object_agg(ch, n) from (select q->>'chapter' as ch, count(*)::int as n from jsonb_array_elements(d.content->'questions') q where jsonb_array_length(q->'options') >= 2 and q->'paper' is null group by 1) x) as per_chapter
     from decks d
     join subjects s on s.id = d.subject_id
     left join universities u on u.id = s.university_id
@@ -57,7 +57,8 @@ export async function listDecksForHost() {
     subjectCode: r.subject_code,
     subjectName: r.subject_name,
     color: r.color,
-    chapters: (r.chapters ?? []).map((c) => ({ n: c.n, name: c.name, count: Number(r.per_chapter?.[String(c.n)] ?? 0) })),
+    // PE papers and written questions are not part of a multiple-choice room.
+    chapters: (r.chapters ?? []).map((c) => ({ n: c.n, name: c.name, count: Number(r.per_chapter?.[String(c.n)] ?? 0) })).filter((c) => c.count > 0),
     unassigned: Number(r.per_chapter?.['0'] ?? 0),
   }));
 }

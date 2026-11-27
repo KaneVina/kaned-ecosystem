@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Check, ChevronLeft, ChevronRight, Flame, RotateCcw, Star, Timer, X } from 'lucide-react';
+import { BookOpenCheck, Check, ChevronLeft, ChevronRight, Flame, RotateCcw, Star, Timer, X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { buzz } from '@/lib/haptics';
 import { fmtInt } from '@/lib/format';
 import { useDeckCtx } from './context';
 import type { Grade } from '@kaned/shared';
-import { beep, CONFIDENCE, fmtWait, LET, makePerm, qLabel, sameSet } from './model';
-import { Banner, FilterBar, SeenTags, Inline, Notes, QText, StudyAids, StudyEmpty, HintToggle } from './parts';
+import { beep, CONFIDENCE, fmtWait, LET, makePerm, qLabel, sameSet, type StudyQuestion } from './model';
+import { Banner, FilterBar, SeenTags, Inline, KindTags, Notes, PaperCard, QText, Solution, StudyAids, StudyEmpty, HintToggle } from './parts';
 
 export function Practice() {
   const { m, state, settings, practice: P, setPractice, startPractice, progress, go, setExam } = useDeckCtx();
@@ -17,6 +17,11 @@ export function Practice() {
   const q = id ? m.QI.get(id) : undefined;
   const res = id ? P.res[id] : undefined;
   const multi = (q?.answers.length ?? 0) > 1;
+  const written = Boolean(q?.written);
+  // Written (PE) questions: what the learner typed, and whether the model answer is open.
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [opened, setOpened] = useState<Record<string, boolean>>({});
+  const revealed = Boolean(q && (opened[q.id] || res));
 
   // Answer order: kept per question for the session, reshuffled when the setting changes.
   const perm = useMemo(() => (q ? (P.perm[q.id] ?? makePerm(q, settings.shuf)) : []), [q, P.perm, settings.shuf]);
@@ -97,6 +102,39 @@ export function Practice() {
     [q, P.res, P.idx, setPractice, progress, settings.auto],
   );
 
+  /** A written question, checked by the learner against the model answer. */
+  const selfGrade = useCallback(
+    (g: Grade) => {
+      if (!q || P.res[q.id]) return;
+      const ok = g > 1;
+      const base = progress.state.st[q.id] ?? null;
+      setPractice((s) => ({ ...s, res: { ...s.res, [q.id]: { sel: [], ok, g, base } } }));
+      progress.record(q.id, ok, { grade: g });
+      if (settings.sound) beep(ok);
+      buzz(ok ? 'ok' : 'bad');
+    },
+    [q, P.res, setPractice, progress, settings.sound],
+  );
+
+  /** Jump to another question of the same paper: inside this session, or a session of the whole paper. */
+  const goTo = useCallback(
+    (qid: string) => {
+      const i = P.ids.indexOf(qid);
+      setSel([]);
+      if (i >= 0) {
+        setDir(i > P.idx ? 1 : -1);
+        setPractice((s) => ({ ...s, idx: i }));
+        return;
+      }
+      const paper = m.QI.get(qid)?.paper;
+      const ids = paper != null ? (m.paperQuestions.get(paper) ?? [qid]) : [qid];
+      const p = paper != null ? m.papers.get(paper) : undefined;
+      startPractice({ custom: { ids, label: p ? `Đang luyện Đề ${p.n}: ${p.title}` : `Câu ${qid}` } });
+      setPractice((s) => ({ ...s, idx: Math.max(0, s.ids.indexOf(qid)) }));
+    },
+    [P.ids, P.idx, setPractice, m, startPractice],
+  );
+
   const choose = useCallback(
     (k: number) => {
       if (!q || res) return;
@@ -114,6 +152,24 @@ export function Practice() {
       const t = e.target as HTMLElement;
       if (t.closest('input,select,textarea,[role="dialog"]') || e.metaKey || e.ctrlKey || e.altKey) return;
       const key = e.key.length === 1 ? e.key.toUpperCase() : e.key;
+      if (written) {
+        const sg = !res && revealed ? SELF.find((c) => c.key === key) : undefined;
+        if (sg) {
+          e.preventDefault();
+          selfGrade(sg.g);
+        } else if (key === 'Enter') {
+          e.preventDefault();
+          if (res) move(1);
+          else if (!revealed) setOpened((o) => ({ ...o, [q.id]: true }));
+        } else if (key === 'ArrowRight') {
+          e.preventDefault();
+          move(1);
+        } else if (key === 'ArrowLeft') {
+          e.preventDefault();
+          move(-1);
+        } else if (key === 'M') toggleMark();
+        return;
+      }
       const conf = res?.ok && settings.srs ? CONFIDENCE.find((c) => c.key === key) : undefined;
       if (conf) {
         e.preventDefault();
@@ -224,10 +280,11 @@ export function Practice() {
             </div>
           </div>
 
-          <article key={q.id} className={cn('dk-card', res && 'is-locked', dir > 0 ? 'enter-r' : dir < 0 ? 'enter-l' : '')}>
+          <PaperCard q={q} onGo={goTo} onPracticeAll={P.custom?.ids.join() === (m.paperQuestions.get(q.paper ?? -1) ?? []).join() ? undefined : (ids, label) => startPractice({ custom: { ids, label } })} />
+          <article key={q.id} className={cn('dk-card', res && 'is-locked', written && 'is-written', dir > 0 ? 'enter-r' : dir < 0 ? 'enter-l' : '')}>
             <div className="dk-qhead">
               <span className="dk-qnum">{qLabel(q)}</span>
-              {q.chapter > 0 && <span className="dk-tag">Chương {q.chapter}</span>}
+              <KindTags q={q} />
               <SeenTags q={q} />
               {q.parent && <span className="dk-tag is-var">Kiểu hỏi khác</span>}
               {multi && <span className="dk-tag is-multi">Chọn {q.answers.length} đáp án</span>}
@@ -237,6 +294,17 @@ export function Practice() {
               </button>
             </div>
             <QText text={q.text} />
+            {written ? (
+              <WrittenAnswer
+                q={q}
+                draft={drafts[q.id] ?? ''}
+                onDraft={(v) => setDrafts((d) => ({ ...d, [q.id]: v }))}
+                revealed={revealed}
+                onReveal={() => setOpened((o) => ({ ...o, [q.id]: true }))}
+                graded={res?.g}
+                onGrade={selfGrade}
+              />
+            ) : (
             <ol className={cn('dk-opts', multi && 'is-multi')}>
               {perm.map((k, pos) => {
                 const picked = res ? res.sel.includes(k) : sel.includes(k);
@@ -253,9 +321,20 @@ export function Practice() {
                 );
               })}
             </ol>
+            )}
 
-            {!res && <HintToggle key={q.id} hint={q.hint} />}
-            {res && (
+            {!res && !(written && revealed) && <HintToggle key={q.id} hint={q.hint} />}
+            {res && written && (
+              <div className={cn('dk-fb', res.ok ? 'is-ok' : 'is-bad')}>
+                <div className="dk-fb-head">
+                  {res.ok ? <Check className="ic" /> : <X className="ic" />}
+                  {SELF.find((c) => c.g === res.g)?.verdict ?? (res.ok ? 'Làm được' : 'Chưa làm được')}
+                </div>
+                {settings.srs && <p className="dk-conf-next">{res.ok ? `Hẹn ôn lại sau ${fmtWait((state.st[q.id]?.n ?? Date.now()) - Date.now())}.` : `Câu này vào mục Cần ôn và sẽ quay lại sau ${fmtWait((state.st[q.id]?.n ?? Date.now()) - Date.now())}.`}</p>}
+                <Notes q={q} />
+              </div>
+            )}
+            {res && !written && (
               <div className={cn('dk-fb', res.ok ? 'is-ok' : 'is-bad')}>
                 <div className="dk-fb-head">
                   {res.ok ? <Check className="ic" /> : <X className="ic" />}
@@ -288,7 +367,21 @@ export function Practice() {
               </button>
               <span className="spacer" />
               <span className="dk-hint">
-                {multi && !res ? (
+                {written ? (
+                  res ? (
+                    <>
+                      <kbd>Enter</kbd> câu tiếp
+                    </>
+                  ) : revealed ? (
+                    <>
+                      Tự chấm: <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd>
+                    </>
+                  ) : (
+                    <>
+                      <kbd>Enter</kbd> xem lời giải
+                    </>
+                  )
+                ) : multi && !res ? (
                   'Chọn đủ đáp án rồi bấm Kiểm tra'
                 ) : (
                   <>
@@ -488,6 +581,94 @@ export function AnswerSheet({
           </span>
         ))}
       </div>
+    </div>
+  );
+}
+
+/** How a written answer compares with the model answer: the learner's own grade. */
+const SELF: Array<{ g: Grade; label: string; verdict: string; key: string; tone: string }> = [
+  { g: 3, label: 'Làm đúng', verdict: 'Bạn làm đúng', key: '1', tone: 'is-sure' },
+  { g: 2, label: 'Gần đúng', verdict: 'Gần đúng, còn thiếu một chút', key: '2', tone: 'is-unsure' },
+  { g: 1, label: 'Chưa làm được', verdict: 'Chưa làm được', key: '3', tone: 'is-guess' },
+];
+
+/**
+ * A PE question with no options: write your answer (optional, kept for this
+ * session only), open the model answer, then say how close you were.
+ */
+function WrittenAnswer({
+  q,
+  draft,
+  onDraft,
+  revealed,
+  onReveal,
+  graded,
+  onGrade,
+}: {
+  q: StudyQuestion;
+  draft: string;
+  onDraft: (v: string) => void;
+  revealed: boolean;
+  onReveal: () => void;
+  graded?: Grade;
+  onGrade: (g: Grade) => void;
+}) {
+  return (
+    <div className="dk-written">
+      {!revealed ? (
+        <>
+          <label className="dk-draft">
+            <span>Bài làm của bạn <small>không bắt buộc · chỉ giữ trong lượt này</small></span>
+            <textarea
+              value={draft}
+              onChange={(e) => onDraft(e.target.value)}
+              spellCheck={false}
+              rows={Math.min(14, Math.max(5, draft.split('\n').length + 1))}
+              placeholder="Viết code hoặc các bước làm, rồi mở lời giải để so…"
+              onKeyDown={(e) => {
+                if (e.key === 'Tab') {
+                  e.preventDefault();
+                  const t = e.currentTarget;
+                  const a = t.selectionStart;
+                  const v = `${t.value.slice(0, a)}  ${t.value.slice(t.selectionEnd)}`;
+                  onDraft(v);
+                  requestAnimationFrame(() => t.setSelectionRange(a + 2, a + 2));
+                }
+              }}
+            />
+          </label>
+          <button type="button" className="btn btn-primary dk-reveal-sol" onClick={onReveal}>
+            <BookOpenCheck className="ic ic-sm" />
+            Xem lời giải
+          </button>
+        </>
+      ) : (
+        <>
+          {draft.trim() && (
+            <div className="dk-mine">
+              <div className="dk-tip-h">Bài làm của bạn</div>
+              <pre className="dk-codeblock">
+                <code>{draft}</code>
+              </pre>
+            </div>
+          )}
+          <Solution q={q} />
+          {!graded && (
+            <div className="dk-conf dk-self">
+              <div className="dk-conf-row" role="group" aria-label="So với lời giải, bạn làm được đến đâu?">
+                <span className="dk-conf-q">So với lời giải, bạn làm được đến đâu?</span>
+                {SELF.map((c) => (
+                  <button key={c.g} type="button" className={cn('dk-conf-btn', c.tone)} onClick={() => onGrade(c.g)}>
+                    <kbd>{c.key}</kbd>
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+              <p className="dk-conf-next">Làm đúng thì câu này giãn lịch ôn; chưa làm được thì quay lại sớm.</p>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

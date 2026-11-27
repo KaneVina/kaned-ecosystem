@@ -31,6 +31,20 @@ import { z } from 'zod';
 export interface DeckChapter {
   n: number;
   name: string;
+  /** A practical-exam (PE) part: shown as "PE" instead of "Chương n". */
+  pe?: boolean;
+}
+
+/**
+ * A PE paper (đề thực hành): one problem statement that several questions are
+ * asked about. Every question under it shows the paper while it is studied.
+ */
+export interface DeckPaper {
+  n: number;
+  title: string;
+  /** The statement: paragraphs, "- " lists, **bold**, `code` and ``` blocks. May start with term tags [SU26_B10]. */
+  body: string;
+  chapter: number;
 }
 
 export interface DeckTip {
@@ -67,13 +81,31 @@ export interface DeckQuestion {
   asked?: Array<{ q: string; a: string }>;
   /** For "12.1": "12". */
   parent?: string;
+  /** The PE paper this question is asked about. */
+  paper?: number;
+  /**
+   * The model answer of a written (PE) question, shown after "Xem lời giải":
+   * prose and ``` code blocks. A question with no options is written: the
+   * learner works it out, opens the answer and says whether they got it.
+   */
+  solution?: string;
 }
+
+/** Written questions have no options to pick: they are checked against the model answer. */
+export const isWritten = (q: Pick<DeckQuestion, 'options'>) => q.options.length === 0;
 
 export interface DeckContent {
   chapters: DeckChapter[];
   questions: DeckQuestion[];
   tips: DeckTip[];
+  /** PE papers; absent in decks saved before PE existed. */
+  papers?: DeckPaper[];
 }
+
+/** "PE" for a practical-exam part, "Chương 3" otherwise (empty for "no chapter"). */
+export const chapterTag = (c: Pick<DeckChapter, 'n' | 'pe'> | undefined, n?: number) => (c?.pe ? 'PE' : (c?.n ?? n) ? `Chương ${c?.n ?? n}` : '');
+/** "PE: Thi thực hành" or "Chương 3: Giá trị thặng dư". */
+export const chapterTitle = (c: Pick<DeckChapter, 'n' | 'name' | 'pe'>) => (c.pe ? (c.name && c.name !== 'PE' ? `PE: ${c.name}` : 'PE') : c.n ? `Chương ${c.n}: ${c.name}` : c.name);
 
 export interface DeckMeta {
   subject?: string;
@@ -139,6 +171,21 @@ interface QDraft {
   lastField: 'note' | 'hint' | 'explain' | 'alt' | 'warning' | 'asked' | null;
   /** Inside a ``` code block of the question text. */
   fence: boolean;
+  paper: number | null;
+  /** Lines of "Lời giải:", while it is being read; null when the question has none. */
+  solution: string[] | null;
+  /** Reading the solution now (until the next field line). */
+  inSolution: boolean;
+  solFence: boolean;
+}
+
+interface PDraft {
+  line: number;
+  n: number | null;
+  title: string;
+  body: string[];
+  chapter: number;
+  fence: boolean;
 }
 
 interface TDraft {
@@ -182,8 +229,13 @@ export function parseDeck(source: string): ParsedDeck {
   const chapters = new Map<number, string>();
   const qs: QDraft[] = [];
   const ts: TDraft[] = [];
+  const ps: PDraft[] = [];
+  const peChapters = new Set<number>();
   let chapter = 0;
-  let block: { kind: 'q'; q: QDraft } | { kind: 't'; t: TDraft } | null = null;
+  /** The paper the next questions belong to, until another paper or chapter starts. */
+  let paper: number | null = null;
+  let nextPaper = 0;
+  let block: { kind: 'q'; q: QDraft } | { kind: 't'; t: TDraft } | { kind: 'p'; p: PDraft } | null = null;
   let strayWarned = false;
 
   for (; i < lines.length; i++) {
@@ -191,12 +243,20 @@ export function parseDeck(source: string): ParsedDeck {
     const line = raw.trim();
     const no = i + 1;
 
-    const h1 = /^#\s+(.+)$/.exec(line);
+    // Inside a ``` block nothing is a heading: "# comment" in Python stays code.
+    const fenced = block?.kind === 'p' ? block.p.fence : block?.kind === 'q' ? block.q.fence || block.q.solFence : false;
+    const h1 = fenced ? null : /^#\s+(.+)$/.exec(line);
     if (h1) {
       block = null;
       const title = h1[1].trim();
       const m = /^ch(?:u|ư)(?:o|ơ)ng\s+(\d+)\s*[:.\-–—]?\s*(.*)$/i.exec(title);
-      if (m) {
+      const pe = /^PE(?![A-Za-z0-9])\s*[:.\-–—]?\s*(.*)$/i.exec(title);
+      paper = null;
+      if (pe) {
+        chapter = Math.max(0, ...chapters.keys()) + 1;
+        chapters.set(chapter, pe[1].trim() || 'PE');
+        peChapters.add(chapter);
+      } else if (m) {
         chapter = Number(m[1]);
         chapters.set(chapter, m[2].trim() || `Chương ${chapter}`);
       } else {
@@ -206,14 +266,23 @@ export function parseDeck(source: string): ParsedDeck {
       continue;
     }
 
-    const h2 = /^##\s+(.*)$/.exec(line) ?? (line === '##' ? ['##', ''] : null);
+    const h2 = fenced ? null : (/^##\s+(.*)$/.exec(line) ?? (line === '##' ? ['##', ''] : null));
     if (h2) {
       const head = h2[1].trim();
       const q = /^c[âa]u(?=[\s\d:.]|$)\s*(\d+(?:\.\d+)?)?\s*[:.\-–]?\s*(.*)$/i.exec(head);
       const t = /^m[ẹeé]o(?=[\s\d:.]|$)\s*(\d+)?\s*[:.\-–]?\s*(.*)$/i.exec(head);
-      if (q) {
+      const pp = /^đ[ềeế](?=[\s\d:.]|$)\s*(\d+)?\s*[:.\-–]?\s*(.*)$/i.exec(head);
+      if (pp) {
+        const n = pp[1] ? Number(pp[1]) : nextPaper + 1;
+        nextPaper = Math.max(nextPaper, n);
+        const draft: PDraft = { line: no, n, title: pp[2].trim(), body: [], chapter, fence: false };
+        if (!draft.title) err(no, 'Đề cần có tên, ví dụ "## Đề 1: Quản lý sách".');
+        ps.push(draft);
+        paper = n;
+        block = { kind: 'p', p: draft };
+      } else if (q) {
         const rest = q[2].trim();
-        const draft: QDraft = { line: no, id: q[1] ?? null, text: rest ? [rest] : [], options: [], answers: [], chapter, tips: [], similar: [], asked: [], lastField: null, fence: false };
+        const draft: QDraft = { line: no, id: q[1] ?? null, text: rest ? [rest] : [], options: [], answers: [], chapter, tips: [], similar: [], asked: [], lastField: null, fence: false, paper, solution: null, inSolution: false, solFence: false };
         qs.push(draft);
         block = { kind: 'q', q: draft };
       } else if (t) {
@@ -223,7 +292,7 @@ export function parseDeck(source: string): ParsedDeck {
         ts.push(draft);
         block = { kind: 't', t: draft };
       } else {
-        err(no, 'Dòng "##" phải bắt đầu bằng "Câu" hoặc "Mẹo".');
+        err(no, 'Dòng "##" phải bắt đầu bằng "Câu", "Mẹo" hoặc "Đề".');
         block = null;
       }
       continue;
@@ -241,8 +310,32 @@ export function parseDeck(source: string): ParsedDeck {
       block.t.body.push(raw.replace(/\s+$/, ''));
       continue;
     }
+    if (block.kind === 'p') {
+      if (/^```/.test(line)) block.p.fence = !block.p.fence;
+      block.p.body.push(raw.replace(/\s+$/, ''));
+      continue;
+    }
 
     const q = block.q;
+    // The model answer: everything after "Lời giải:" (code kept exactly) until a field line.
+    if (q.inSolution) {
+      const field = !q.solFence && (QUOTE.test(raw) || (/^(m[ẹeé]o|tips?|d[ễe]\s*nh[ầa]m|similar|c[âa]u\s*d[ễe]\s*nh[ầa]m)\s*:/i.test(line) || /^đ[ềe]\s*:\s*\d+\s*$/i.test(line)));
+      if (!field) {
+        if (/^```/.test(line)) q.solFence = !q.solFence;
+        q.solution!.push(raw.replace(/\s+$/, ''));
+        continue;
+      }
+      q.inSolution = false;
+    }
+    {
+      const sol = !q.fence && /^(l[ờo]i\s*gi[ảa]i|đ[áa]p\s*[áa]n\s*m[ẫa]u|solution)\s*:\s*(.*)$/i.exec(line);
+      if (sol) {
+        q.solution = sol[2] ? [sol[2]] : [];
+        q.inSolution = true;
+        q.lastField = null;
+        continue;
+      }
+    }
     // Code in the question: kept exactly, indentation and blank lines included.
     if (!q.options.length && (q.fence || /^```/.test(line))) {
       if (/^```/.test(line)) q.fence = !q.fence;
@@ -306,6 +399,11 @@ export function parseDeck(source: string): ParsedDeck {
       q.tips.push(...nums);
       continue;
     }
+    // "Đề: 2" puts the question under paper 2; "Đề: <text>" is ordinary question text.
+    if ((metaKey === 'de' || metaKey === 'paper') && /^\d+$/.test(metaLine![2].trim())) {
+      q.paper = Number(metaLine![2].trim());
+      continue;
+    }
     if (metaKey === 'denham' || metaKey === 'similar' || metaKey === 'caudenham') {
       q.similar.push(...ids(metaLine![2]));
       continue;
@@ -332,7 +430,12 @@ export function parseDeck(source: string): ParsedDeck {
     if (d.fence) err(d.line, `Câu ${id} mở khối code bằng \`\`\` nhưng chưa đóng.`);
     const text = d.text.join('\n').replace(/\n{3,}/g, '\n\n').trim();
     if (!text) err(d.line, `Câu ${id} chưa có nội dung câu hỏi.`);
-    if (d.options.length < 2) err(d.line, `Câu ${id} cần ít nhất 2 phương án "- [ ] …".`);
+    if (d.solFence) err(d.line, `Lời giải câu ${id} mở khối code bằng \`\`\` nhưng chưa đóng.`);
+    const solution = d.solution ? d.solution.join('\n').replace(/\n{3,}/g, '\n\n').trim() : '';
+    if (d.solution && !solution) err(d.line, `Câu ${id} có dòng "Lời giải:" nhưng chưa có nội dung lời giải.`);
+    if (!d.options.length) {
+      if (!d.solution) err(d.line, `Câu ${id} chưa có phương án "- [ ] …". Câu tự luận (PE) thì viết "Lời giải:" và đáp án mẫu bên dưới.`);
+    } else if (d.options.length < 2) err(d.line, `Câu ${id} cần ít nhất 2 phương án "- [ ] …", hoặc bỏ phương án và viết "Lời giải:" nếu là câu tự luận.`);
     if (d.options.length > OPTION_LETTERS.length) err(d.line, `Câu ${id} có quá ${OPTION_LETTERS.length} phương án.`);
     if (d.options.length >= 2 && !d.answers.length) err(d.line, `Câu ${id} chưa đánh dấu đáp án đúng — đổi "- [ ]" thành "- [x]".`);
     if (d.options.some((o) => !o)) err(d.line, `Câu ${id} có phương án để trống.`);
@@ -350,6 +453,8 @@ export function parseDeck(source: string): ParsedDeck {
       ...(d.alt ? { alt: d.alt } : {}),
       ...(d.warning ? { warning: d.warning } : {}),
       ...(d.asked.length ? { asked: d.asked } : {}),
+      ...(d.paper != null ? { paper: d.paper } : {}),
+      ...(solution ? { solution } : {}),
     });
   }
 
@@ -365,11 +470,24 @@ export function parseDeck(source: string): ParsedDeck {
     return { n, title: d.title, body, chapter: d.chapter };
   });
 
+  const paperLine = new Map<number, number>();
+  const papers: DeckPaper[] = ps.map((d) => {
+    const n = d.n!;
+    if (paperLine.has(n)) err(d.line, `Đề ${n} bị trùng số với đề ở dòng ${paperLine.get(n)}.`);
+    paperLine.set(n, d.line);
+    if (d.fence) err(d.line, `Đề ${n} mở khối code bằng \`\`\` nhưng chưa đóng.`);
+    const body = d.body.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+    if (!body) err(d.line, `Đề ${n} chưa có nội dung đề bài.`);
+    if (!peChapters.has(d.chapter)) warn(d.line, `Đề ${n} nằm ngoài phần "# PE" — vẫn dùng được, nhưng nên đặt các đề thực hành dưới "# PE".`);
+    return { n, title: d.title, body, chapter: d.chapter };
+  });
+
   // Links between questions and tips must point somewhere.
   const byId = new Set(questions.map((q) => q.id));
   for (const [k, q] of questions.entries()) {
     const line = qs[k].line;
     for (const n of q.tips) if (!tipLine.has(n)) err(line, `Câu ${q.id} dùng Mẹo ${n}, nhưng file không có mẹo này.`);
+    if (q.paper != null && !paperLine.has(q.paper)) err(line, `Câu ${q.id} thuộc Đề ${q.paper}, nhưng file không có đề này.`);
     const missing = q.similar.filter((s) => !byId.has(s));
     if (missing.length) warn(line, `Câu ${q.id}: không có câu ${missing.join(', ')} để so "dễ nhầm" — đã bỏ qua.`);
     q.similar = q.similar.filter((s) => byId.has(s));
@@ -386,10 +504,18 @@ export function parseDeck(source: string): ParsedDeck {
   tips.sort((a, b) => a.n - b.n);
   const used = new Set([...questions.map((q) => q.chapter), ...tips.map((t) => t.chapter)]);
   if (used.has(0) && chapters.size) chapters.set(0, 'Chưa xếp chương');
-  const chapterList = [...chapters.entries()].filter(([n]) => used.has(n)).sort(([a], [b]) => a - b).map(([n, name]) => ({ n, name }));
+  for (const p of papers) {
+    used.add(p.chapter);
+    if (!questions.some((q) => q.paper === p.n)) warn(paperLine.get(p.n)!, `Đề ${p.n} chưa có câu hỏi nào bên dưới.`);
+  }
+  papers.sort((a, b) => a.n - b.n);
+  const chapterList = [...chapters.entries()]
+    .filter(([n]) => used.has(n))
+    .sort(([a], [b]) => a - b)
+    .map(([n, name]) => (peChapters.has(n) ? { n, name, pe: true } : { n, name }));
 
   issues.sort((a, b) => a.line - b.line || (a.level === b.level ? 0 : a.level === 'error' ? -1 : 1));
-  return { meta, content: { chapters: chapterList, questions, tips }, issues };
+  return { meta, content: { chapters: chapterList, questions, tips, ...(papers.length ? { papers } : {}) }, issues };
 }
 
 /**
@@ -454,6 +580,29 @@ void main() {
 Đoạn code in ra gì?
 - [x] \`3\`
 - [ ] \`3.33\`
+
+# PE: Thi thực hành
+
+## Đề 1: Đếm số
+[SU26_B10]
+Viết ứng dụng có một \`Text\` hiển thị số đếm và nút **+** tăng thêm 1.
+
+## Câu 101
+Câu tự luận: không có phương án, viết lời giải mẫu sau "Lời giải:". Câu này luôn hiện kèm Đề 1 ở trên.
+Lời giải:
+\`\`\`dart
+FloatingActionButton(
+  onPressed: () => setState(() => count++),
+  child: const Icon(Icons.add),
+)
+\`\`\`
+Đổi biến trong setState để giao diện vẽ lại.
+> Gợi ý: Dữ liệu thay đổi thì cần StatefulWidget.
+
+## Câu 102
+Câu trắc nghiệm về cùng đề: hàm nào làm giao diện cập nhật?
+- [ ] build()
+- [x] setState()
 `;
 
 /* ───────────────────────────── API shapes ───────────────────────────── */

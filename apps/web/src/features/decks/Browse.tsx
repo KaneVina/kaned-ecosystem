@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CircleCheckBig, Eye, EyeOff, Lightbulb, Search, Star } from 'lucide-react';
-import { foldVi } from '@kaned/shared';
+import { chapterTitle, foldVi } from '@kaned/shared';
 import { cn } from '@/lib/cn';
 import { fmtInt } from '@/lib/format';
 import { useDeckCtx, type BrowseState } from './context';
 import { countsOf, fmtWait, LET, makeStatus, markTerms, matchScore, NEAR_MATCH, NEAR_MATCH_WITH_FULL, qLabel, searchTerms, type StudyQuestion } from './model';
-import { BigSearch, Inline, Notes, QText, StudyAids, hasAids, SeenTags } from './parts';
+import { BigSearch, Inline, KindTags, Notes, QText, Solution, StudyAids, hasAids, SeenTags } from './parts';
 
 export function Browse() {
   const { m, state, settings, browse: B, setBrowse, startPractice, go, progress } = useDeckCtx();
@@ -84,7 +84,7 @@ export function Browse() {
             <option value={0}>Tất cả chương</option>
             {m.chapters.map((c) => (
               <option key={c.n} value={c.n}>
-                {c.n ? `Chương ${c.n}: ${c.name}` : c.name}
+                {chapterTitle(c)}
               </option>
             ))}
           </select>
@@ -131,7 +131,7 @@ export function Browse() {
             <article key={q.id} className={cn('dk-qitem', hidden && 'is-hidden')}>
               <div className="dk-qhead">
                 <span className="dk-qnum">{qLabel(q)}</span>
-                {q.chapter > 0 && <span className="dk-tag">Chương {q.chapter}</span>}
+                <KindTags q={q} />
                 <SeenTags q={q} />
                 {q.parent && <span className="dk-tag is-var">Kiểu hỏi khác</span>}
                 {q.answers.length > 1 && <span className="dk-tag is-multi">{q.answers.length} đáp án</span>}
@@ -148,6 +148,12 @@ export function Browse() {
                 </button>
               </div>
               <QText text={q.text} terms={marks} small as="h3" />
+              {q.paper != null && m.papers.get(q.paper) && (
+                <p className="dk-paper-ref">
+                  Thuộc <b>Đề {q.paper}: {m.papers.get(q.paper)!.title}</b>
+                </p>
+              )}
+              {q.written && !hidden && <Solution q={q} />}
               <ul className="dk-fopts">
                 {q.options.map((o, j) => (
                   <li key={j} className={!hidden && q.answers.includes(j) ? 'is-right' : ''}>

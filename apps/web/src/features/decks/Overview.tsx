@@ -1,4 +1,5 @@
 import { useMemo, type ReactNode } from 'react';
+import { cn } from '@/lib/cn';
 import { matchesTermFilter } from '@kaned/shared';
 import { Bookmark, CalendarClock, CircleCheckBig, Flame, Layers, Lightbulb, Play, RotateCcw, Timer } from 'lucide-react';
 import { CountUp } from '@/components/ui/CountUp';
@@ -224,11 +225,11 @@ export function Overview() {
               const badp = k.all ? (k.bad / k.all) * 100 : 0;
               return (
                 <div key={ch.n} className="dk-lrow">
-                  <span className="dk-lnum">{ch.n || '–'}</span>
+                  <span className={cn('dk-lnum', ch.pe && 'is-pe')}>{ch.pe ? 'PE' : ch.n || '–'}</span>
                   <div className="dk-lname">
-                    <b>{ch.name}</b>
+                    <b>{ch.pe && ch.name === 'PE' ? 'Thi thực hành (PE)' : ch.name}</b>
                     <small>
-                      {fmtInt(k.all)} câu{k.mk ? `, ${fmtInt(k.mk)} đánh dấu` : ''}
+                      {fmtInt(k.all)} câu{ch.pe && m.papers.size ? ` trong ${fmtInt([...m.papers.values()].filter((p) => p.chapter === ch.n).length)} đề` : ''}{k.mk ? `, ${fmtInt(k.mk)} đánh dấu` : ''}
                     </small>
                   </div>
                   <div className="dk-lbar">

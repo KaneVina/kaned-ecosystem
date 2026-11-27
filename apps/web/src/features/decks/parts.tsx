@@ -1,13 +1,13 @@
 import { Fragment, useState, type ReactNode } from 'react';
 import { Search } from 'lucide-react';
 import { Typewriter } from '@/components/ui/Typewriter';
-import { ArrowDownUp, ChevronDown, Copy, Flame, Lightbulb, Shuffle, TriangleAlert } from 'lucide-react';
+import { ArrowDownUp, BookOpenCheck, ChevronDown, ChevronUp, Copy, FileCode2, Flame, Lightbulb, ListChecks, Maximize2, Minimize2, Shuffle, TriangleAlert } from 'lucide-react';
 import type { DeckQuestion } from '@kaned/shared';
 import { cn } from '@/lib/cn';
 import { fmtInt } from '@/lib/format';
 import { useDeckCtx } from './context';
-import { matchesTermFilter, parseTermFilter, termFilterKey } from '@kaned/shared';
-import { countsOf, highlight, NO_SLICE, sliceActive, type Order, type Scope, type Slice, type StudyQuestion } from './model';
+import { chapterTitle, matchesTermFilter, parseTermFilter, termFilterKey } from '@kaned/shared';
+import { countsOf, highlight, makeStatus, NO_SLICE, sliceActive, type Order, type Scope, type Slice, type StudyQuestion } from './model';
 
 /** Lets long identifiers like `a.b(c(d))` wrap after . ( , ; : and before camelCase humps instead of running off the card. */
 const breakable = (x: string) => x.split(/(?<=[.(,;:\]\[{}<>=+\-/_])|(?<=[a-z])(?=[A-Z])/).flatMap((part, i) => (i ? [<wbr key={i} />, part] : [part]));
@@ -204,7 +204,7 @@ export function StudyAids({ q, sim = true }: { q: DeckQuestion; sim?: boolean })
                 <Inline text={r.text.replace(/```\w*\n?/g, '')} />
               </span>
               <span className="dk-sim-a">
-                <Inline text={r.answers.map((k) => r.options[k]).join('; ')} />
+                {r.written ? <em>Câu tự luận · xem lời giải ở câu {r.id}</em> : <Inline text={r.answers.map((k) => r.options[k]).join('; ')} />}
               </span>
             </div>
           ))}
@@ -274,7 +274,7 @@ export function FilterBar({
               <option value={0}>Tất cả chương</option>
               {m.chapters.map((c) => (
                 <option key={c.n} value={c.n}>
-                  {c.n ? `Chương ${c.n}: ${c.name}` : c.name}
+                  {chapterTitle(c)}
                 </option>
               ))}
             </select>
@@ -474,3 +474,190 @@ export function HintToggle({ hint }: { hint?: string }) {
 
 /** The library's big search box: typing examples until you click in it. */
 export { BigSearch } from '@/components/ui/BigSearch';
+
+/* ─────────────────────────────── PE ─────────────────────────────── */
+
+/** Statement or model answer: ``` code blocks kept exactly, the rest as paragraphs and "- " lists. */
+export function RichBody({ text, className }: { text: string; className?: string }) {
+  const blocks: Array<{ code: boolean; lang: string; lines: string[] }> = [];
+  let fence = false;
+  for (const line of text.split('\n')) {
+    const f = /^\s*```\s*([\w#+.-]*)/.exec(line);
+    if (f) {
+      fence = !fence;
+      blocks.push({ code: fence, lang: fence ? f[1] : '', lines: [] });
+      continue;
+    }
+    const last = blocks[blocks.length - 1];
+    if (last && last.code === fence) last.lines.push(line);
+    else blocks.push({ code: fence, lang: '', lines: [line] });
+  }
+  return (
+    <div className={cn('dk-rich', className)}>
+      {blocks
+        .filter((b) => b.lines.some((l) => l.trim()) || b.code)
+        .map((b, i) =>
+          b.code ? (
+            <pre key={i} className="dk-codeblock" data-lang={b.lang || undefined}>
+              <code>{b.lines.join('\n')}</code>
+            </pre>
+          ) : (
+            <Prose key={i} text={b.lines.join('\n').trim()} />
+          ),
+        )}
+    </div>
+  );
+}
+
+/** Paragraphs, with runs of "- " or "1. " lines inside them shown as lists. */
+function Prose({ text }: { text: string }) {
+  const out: ReactNode[] = [];
+  text.split(/\n{2,}/).forEach((para, i) => {
+    let run: { kind: 'ul' | 'ol' | 'p'; lines: string[] } | null = null;
+    const runs: Array<{ kind: 'ul' | 'ol' | 'p'; lines: string[] }> = [];
+    for (const l of para.split('\n')) {
+      const kind = /^\s*[-•*]\s+/.test(l) ? 'ul' : /^\s*\d+[.)]\s+/.test(l) ? 'ol' : 'p';
+      if (!run || run.kind !== kind) runs.push((run = { kind, lines: [] }));
+      run.lines.push(kind === 'ul' ? l.replace(/^\s*[-•*]\s+/, '') : kind === 'ol' ? l.replace(/^\s*\d+[.)]\s+/, '') : l);
+    }
+    runs.forEach((r, j) => {
+      const key = `${i}-${j}`;
+      if (r.kind === 'p')
+        out.push(
+          <p key={key}>
+            {r.lines.map((l, k) => (
+              <Fragment key={k}>
+                {k > 0 && <br />}
+                <Inline text={l} />
+              </Fragment>
+            ))}
+          </p>,
+        );
+      else {
+        const L = r.kind;
+        out.push(
+          <L key={key}>
+            {r.lines.map((l, k) => (
+              <li key={k}>
+                <Inline text={l} />
+              </li>
+            ))}
+          </L>,
+        );
+      }
+    });
+  });
+  return <div className="dk-tipbody dk-prose">{out}</div>;
+}
+
+/** Whether each paper is folded, kept while moving between its questions. */
+const folded = new Map<number, boolean>();
+
+/**
+ * The PE paper a question is about, above the question: the full statement,
+ * its exam terms, and every question asked about it so the learner can move
+ * between them or practise the whole paper.
+ */
+export function PaperCard({ q, onGo, onPracticeAll }: { q: StudyQuestion; onGo?: (id: string) => void; onPracticeAll?: (ids: string[], label: string) => void }) {
+  const { m, state, settings } = useDeckCtx();
+  const paper = q.paper != null ? m.papers.get(q.paper) : undefined;
+  const [closed, setClosed] = useState(() => (paper ? (folded.get(paper.n) ?? false) : false));
+  const [full, setFull] = useState(false);
+  if (!paper) return null;
+  const ids = m.paperQuestions.get(paper.n) ?? [];
+  const { status } = makeStatus(state, settings.srs);
+  const toggle = () => {
+    folded.set(paper.n, !closed);
+    setClosed(!closed);
+  };
+  const long = paper.body.length > 900 || paper.body.split('\n').length > 24;
+  return (
+    <section className={cn('dk-paper', closed && 'is-closed')} aria-label={`Đề ${paper.n}`}>
+      <header className="dk-paper-head">
+        <span className="dk-paper-ic">
+          <FileCode2 className="ic ic-sm" />
+        </span>
+        <div className="dk-paper-title">
+          <small>Đề {paper.n} · {ids.length} câu</small>
+          <b>{paper.title}</b>
+        </div>
+        <div className="dk-paper-tags">
+          {paper.seen.map((t) => (
+            <span key={t.code} className="dk-tag dk-term">{t.label}</span>
+          ))}
+        </div>
+        <button type="button" className="icon-btn" onClick={toggle} aria-expanded={!closed} aria-label={closed ? 'Mở đề' : 'Thu gọn đề'} data-tip={closed ? 'Mở đề' : 'Thu gọn đề'}>
+          {closed ? <ChevronDown className="ic ic-sm" /> : <ChevronUp className="ic ic-sm" />}
+        </button>
+      </header>
+      {!closed && (
+        <>
+          <div className={cn('dk-paper-body', long && !full && 'is-clipped')}>
+            <RichBody text={paper.body} />
+          </div>
+          {long && (
+            <button type="button" className="btn btn-ghost btn-sm dk-paper-more" onClick={() => setFull((f) => !f)}>
+              {full ? <Minimize2 className="ic ic-xs" /> : <Maximize2 className="ic ic-xs" />}
+              {full ? 'Thu ngắn đề' : 'Xem toàn bộ đề'}
+            </button>
+          )}
+        </>
+      )}
+      {ids.length > 1 && (
+        <footer className="dk-paper-qs">
+          <span>Câu trong đề</span>
+          <div>
+            {ids.map((id) => {
+              const st = status(id);
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  className={cn('dk-paper-q', id === q.id && 'is-cur', st !== 'new' && `is-${st}`)}
+                  aria-current={id === q.id ? 'true' : undefined}
+                  disabled={!onGo || id === q.id}
+                  onClick={() => onGo?.(id)}
+                >
+                  {m.QI.get(id)?.written ? <BookOpenCheck className="ic ic-xs" /> : <ListChecks className="ic ic-xs" />}
+                  {id}
+                </button>
+              );
+            })}
+          </div>
+          {onPracticeAll && (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => onPracticeAll(ids, `Đang luyện Đề ${paper.n}: ${paper.title}`)}>
+              Luyện cả đề
+            </button>
+          )}
+        </footer>
+      )}
+    </section>
+  );
+}
+
+/** The model answer of a written question. */
+export function Solution({ q, title = 'Lời giải mẫu' }: { q: StudyQuestion; title?: string }) {
+  if (!q.solution) return null;
+  return (
+    <div className="dk-solution">
+      <div className="dk-tip-h">
+        <BookOpenCheck className="ic ic-sm" />
+        {title}
+      </div>
+      <RichBody text={q.solution} />
+    </div>
+  );
+}
+
+/** Tags at the top of a question: chapter (or PE), paper, written. */
+export function KindTags({ q }: { q: StudyQuestion }) {
+  const { m } = useDeckCtx();
+  const ch = m.chapterTag(q.chapter);
+  return (
+    <>
+      {ch && <span className={cn('dk-tag', ch === 'PE' && 'is-pe')}>{ch}</span>}
+      {q.paper != null && <span className="dk-tag is-paper">Đề {q.paper}</span>}
+      {q.written && <span className="dk-tag is-written">Tự luận</span>}
+    </>
+  );
+}

@@ -5,7 +5,7 @@ import { buzz } from '@/lib/haptics';
 import { fmtInt } from '@/lib/format';
 import { useDeckCtx } from './context';
 import { beep, LET, makePerm, qLabel } from './model';
-import { Banner, FilterBar, SeenTags, Inline, Notes, QText, StudyAids, StudyEmpty, HintToggle } from './parts';
+import { Banner, FilterBar, SeenTags, Inline, Notes, QText, StudyAids, StudyEmpty, HintToggle, KindTags, PaperCard, Solution } from './parts';
 
 const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -205,6 +205,7 @@ export function FlipCards() {
         </div>
       </div>
 
+      {q.paper != null && <PaperCard q={q} />}
       <div className="dk-flip">
         <div
           key={q.id}
@@ -218,7 +219,7 @@ export function FlipCards() {
             <div className="dk-face is-front" aria-hidden={flipped}>
               <div className="dk-qhead">
                 <span className="dk-qnum">{qLabel(q)}</span>
-                {q.chapter > 0 && <span className="dk-tag">Chương {q.chapter}</span>}
+                <KindTags q={q} />
                 <SeenTags q={q} />
                 {q.parent && <span className="dk-tag is-var">Kiểu hỏi khác</span>}
                 {q.answers.length > 1 && <span className="dk-tag is-multi">{q.answers.length} đáp án</span>}
@@ -239,7 +240,7 @@ export function FlipCards() {
               <HintToggle key={q.id} hint={q.hint} />
               <div className="dk-face-foot">
                 <RefreshCw className="ic ic-xs" />
-                Bấm vào thẻ hoặc phím <kbd>Space</kbd> để lật
+                {q.written ? 'Nghĩ cách làm rồi lật thẻ để xem lời giải' : <>Bấm vào thẻ hoặc phím <kbd>Space</kbd> để lật</>}
               </div>
             </div>
             <div className="dk-face is-back" aria-hidden={!flipped}>
@@ -247,6 +248,7 @@ export function FlipCards() {
                 <span className="dk-qnum">Đáp án</span>
                 <span className="dk-tag">{qLabel(q)}</span>
               </div>
+              {q.written && <Solution q={q} />}
               <ul className="dk-ans">
                 {q.answers.map((k) => (
                   <li key={k}>
@@ -259,6 +261,7 @@ export function FlipCards() {
               <StudyAids q={q} sim={false} />
               <details className="dk-review">
                 <summary>Xem lại câu hỏi</summary>
+                {/* written questions have no options to list */}
                 <QText text={q.text} small as="div" />
                 <ul className="dk-fopts">
                   {perm.map((k, pos) => (
@@ -269,7 +272,7 @@ export function FlipCards() {
                   ))}
                 </ul>
               </details>
-              <div className="dk-face-foot">Bạn đã nhớ đúng đáp án chưa?</div>
+              <div className="dk-face-foot">{q.written ? 'Bạn có làm ra được như lời giải không?' : 'Bạn đã nhớ đúng đáp án chưa?'}</div>
             </div>
           </div>
         </div>

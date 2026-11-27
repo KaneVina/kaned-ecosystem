@@ -52,7 +52,7 @@ export function TipsView() {
               const n = [...m.tips.values()].filter((t) => t.chapter === c.n).length + m.warnings.filter((q) => q.chapter === c.n).length;
               return n ? (
                 <button key={c.n} type="button" aria-pressed={ch === c.n} onClick={() => setCh(c.n)}>
-                  Chương {c.n}
+                  {c.pe ? 'PE' : `Chương ${c.n}`}
                   <span className="dk-n">{n}</span>
                 </button>
               ) : null;

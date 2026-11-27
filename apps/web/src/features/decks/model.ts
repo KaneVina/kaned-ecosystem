@@ -19,7 +19,10 @@ import {
   type DeckProgress,
   type DeckQuestion,
   type DeckTip,
+  type DeckPaper,
   type TermFilter,
+  chapterTag as chapterTagOf,
+  isWritten,
 } from '@kaned/shared';
 import { deckKeys, saveDeckProgress, saveDeckProgressOnExit } from './api';
 
@@ -35,6 +38,13 @@ export interface StudyQuestion extends DeckQuestion {
   freq: number;
   /** Rank of the newest term it was asked in (0 = never). */
   latest: number;
+  /** A PE question answered in writing and checked against the model answer. */
+  written: boolean;
+}
+
+/** A PE paper with its term tags taken off the statement. */
+export interface StudyPaper extends DeckPaper {
+  seen: AskedTag[];
 }
 
 /** Which exam terms and how often: a second cut over the questions, on top of chapter and scope. */
@@ -279,17 +289,34 @@ export interface DeckModel {
   warnings: DeckQuestion[];
   chapters: DeckChapter[];
   chapterName: (n: number) => string;
+  /** "PE" or "Chương 3", for a question's chapter number (empty for none). */
+  chapterTag: (n: number) => string;
+  /** PE papers and the questions asked about each, in deck order. */
+  papers: Map<number, StudyPaper>;
+  paperQuestions: Map<number, string[]>;
   base: number;
   search: string[];
 }
 
 export function useDeckModel(deck: DeckDetailDto): DeckModel {
   return useMemo(() => {
-    const { questions: raw, tips: T, chapters } = deck.content;
+    const { questions: raw, tips: T, chapters, papers: P = [] } = deck.content;
+    const papers = new Map<number, StudyPaper>(
+      P.map((p) => {
+        const { tags, text } = splitAskedTags(p.body);
+        return [p.n, { ...p, body: text, seen: tags }];
+      }),
+    );
     const Q: StudyQuestion[] = raw.map((q) => {
-      const { tags, text } = splitAskedTags(q.text);
-      return { ...q, text, seen: tags, freq: tags.length, latest: tags[0]?.rank ?? 0 };
+      const own = splitAskedTags(q.text);
+      // A paper's terms belong to every question asked about it.
+      const extra = q.paper != null ? (papers.get(q.paper)?.seen ?? []) : [];
+      const byCode = new Map([...own.tags, ...extra].map((t) => [t.code, t]));
+      const tags = [...byCode.values()].sort((a, b) => b.rank - a.rank || Number(b.retake) - Number(a.retake) || (b.block ?? 0) - (a.block ?? 0));
+      return { ...q, text: own.text, seen: tags, freq: tags.length, latest: tags[0]?.rank ?? 0, written: isWritten(q) };
     });
+    const paperQuestions = new Map<number, string[]>([...papers.keys()].map((n) => [n, []]));
+    for (const q of Q) if (q.paper != null) paperQuestions.get(q.paper)?.push(q.id);
     const termCount = new Map<string, { code: string; rank: number; block: number; count: number }>();
     for (const q of Q) for (const t of q.seen) {
       const e = termCount.get(t.code) ?? { code: t.code, rank: t.rank, block: t.block ?? 0, count: 0 };
@@ -301,6 +328,7 @@ export function useDeckModel(deck: DeckDetailDto): DeckModel {
     const tipQuestions = new Map<number, string[]>(T.map((t) => [t.n, []]));
     for (const q of Q) for (const n of q.tips) tipQuestions.get(n)?.push(q.id);
     const names = new Map(chapters.map((c) => [c.n, c.name]));
+    const byN = new Map(chapters.map((c) => [c.n, c]));
     return {
       Q,
       QI,
@@ -311,8 +339,15 @@ export function useDeckModel(deck: DeckDetailDto): DeckModel {
       warnings: Q.filter((q) => q.warning),
       chapters,
       chapterName: (n: number) => names.get(n) ?? '',
+      chapterTag: (n: number) => (n ? chapterTagOf(byN.get(n), n) : ''),
+      papers,
+      paperQuestions,
       base: Q.filter((q) => !q.parent).length,
-      search: Q.map((q) => foldVi(`${q.id} ${q.text} ${q.options.join(' ')} ${q.note ?? ''} ${q.explain ?? ''} ${q.seen.map((t) => t.label).join(' ')}`)),
+      search: Q.map((q) =>
+        foldVi(
+          `${q.id} ${q.text} ${q.options.join(' ')} ${q.note ?? ''} ${q.explain ?? ''} ${q.solution ?? ''} ${q.paper != null ? `de ${q.paper} ${papers.get(q.paper)?.title ?? ''}` : ''} ${q.seen.map((t) => t.label).join(' ')}`,
+        ),
+      ),
     };
   }, [deck.content]);
 }
@@ -340,12 +375,13 @@ export function countsOf(m: DeckModel, state: DeckProgress, srs: boolean, ch = 0
 }
 
 /** Questions for a session. With scheduling on, "Cần ôn" puts the closest to forgotten first. */
-export function poolOf(m: DeckModel, state: DeckProgress, ch: number, scope: Scope, srs: boolean, slice: Slice = NO_SLICE) {
+export function poolOf(m: DeckModel, state: DeckProgress, ch: number, scope: Scope, srs: boolean, slice: Slice = NO_SLICE, choiceOnly = false) {
   const now = Date.now();
   const { status, marked } = makeStatus(state, srs, now);
   const ids = m.Q.filter(
     (q) =>
       (!ch || q.chapter === ch) &&
+      (!choiceOnly || !q.written) &&
       matchesTermFilter(q.seen, slice.term) &&
       q.freq >= slice.min &&
       (scope === 'all' || (scope === 'new' && status(q.id) === 'new') || (scope === 'bad' && status(q.id) === 'bad') || (scope === 'mk' && marked(q.id))),

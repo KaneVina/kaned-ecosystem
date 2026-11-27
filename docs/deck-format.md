@@ -63,6 +63,29 @@ Vận dụng quy luật để điều chỉnh chính sách → chức năng **th
 
 Đoạn cách nhau bằng một dòng trống, `**chữ đậm**` cho từ khoá, dòng bắt đầu bằng `- ` thành danh sách.
 
+## Thi thực hành (PE)
+
+Phần PE nằm cuối cùng file, như một chương tên **PE**:
+
+~~~
+# PE: Thi thực hành
+
+## Đề 1: Ứng dụng quản lý sách
+[SU26_B10]
+Nội dung đề…
+
+## Câu 501
+Yêu cầu 1: …
+Lời giải:
+```dart
+…
+```
+> Giải thích: …
+Mẹo: 60
+~~~
+
+`## Đề n: tên` mở một đề; mọi `## Câu` bên dưới thuộc đề đó và luôn hiện kèm đề khi học. Câu không có phương án là câu tự luận, bắt buộc có `Lời giải:`. Hướng dẫn đầy đủ (đưa được cho AI soạn): [deck-format-pe.md](deck-format-pe.md).
+
 ## Chuyển từ file HTML ôn thi cũ
 
 `python3 scripts/html2deck.py "file-on-thi.html" decks/MON.kaned.md` đọc `window.__DATA__` của file HTML ôn thi kiểu MLN122 và viết ra file bộ đề.

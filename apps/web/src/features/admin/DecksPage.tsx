@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CircleAlert, Download, Users, Eye, EyeOff, FileText, FileUp, Layers, Pencil, Plus, Trash2, TriangleAlert, Upload } from 'lucide-react';
-import { DECK_TEMPLATE, parseDeck, type AdminDeckDto, type DeckStatus } from '@kaned/shared';
+import { DECK_TEMPLATE, chapterTag, parseDeck, type AdminDeckDto, type DeckStatus } from '@kaned/shared';
+import PE_GUIDE from '../../../../../docs/deck-format-pe.md?raw';
 import { SearchSelect } from '@/components/ui/SearchSelect';
 import { useSubjects, useUniversities } from '@/features/catalog/queries';
 import { useAuth } from '@/providers/AuthProvider';
@@ -68,6 +69,10 @@ export function DecksPage() {
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => download('mau-bo-de-kaned.md', DECK_TEMPLATE)}>
               <Download className="ic ic-sm" />
               Tải file mẫu
+            </button>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => download('huong-dan-viet-PE-kaned.md', PE_GUIDE)} title="Đưa file này cho AI kèm đề PE gốc để soạn phần PE">
+              <Download className="ic ic-sm" />
+              Hướng dẫn viết PE
             </button>
             {isAdmin && (
               <button type="button" className="btn btn-primary btn-sm" onClick={() => setParams({ new: '1' })}>
@@ -410,6 +415,7 @@ function DeckEditor({ open, id, onClose }: { open: boolean; id: string | null; o
                   <span>
                     {fmtInt(c!.questions.length)} câu
                     {variants ? ` (${fmtInt(variants)} kiểu hỏi khác)` : ''} · {fmtInt(c!.tips.length)} mẹo · {fmtInt(c!.chapters.length)} chương
+                    {c!.papers?.length ? ` · PE: ${fmtInt(c!.papers.length)} đề, ${fmtInt(c!.questions.filter((q) => q.paper != null).length)} câu (${fmtInt(c!.questions.filter((q) => !q.options.length).length)} tự luận)` : ''}
                     {multi ? ` · ${fmtInt(multi)} câu nhiều đáp án` : ''}
                     {warn ? ` · ${fmtInt(warn)} lưu ý đáp án` : ''}
                   </span>
@@ -431,7 +437,7 @@ function DeckEditor({ open, id, onClose }: { open: boolean; id: string | null; o
                 <ol className="dke-chapters">
                   {c!.chapters.map((ch) => (
                     <li key={ch.n}>
-                      <span>{ch.n ? `Chương ${ch.n}` : '—'}</span>
+                      <span>{chapterTag(ch) || '—'}</span>
                       {ch.name}
                       <small>
                         {fmtInt(c!.questions.filter((q) => q.chapter === ch.n).length)} câu · {fmtInt(c!.tips.filter((t) => t.chapter === ch.n).length)} mẹo
@@ -548,7 +554,14 @@ function DeckEditor({ open, id, onClose }: { open: boolean; id: string | null; o
               <li>
                 <code>## Mẹo 4: Tên mẹo</code> rồi nội dung, <code>**chữ đậm**</code> cho từ khoá. Câu dùng mẹo ghi <code>Mẹo: 4</code>; câu dễ nhầm ghi <code>Dễ nhầm: 8, 9</code>.
               </li>
+              <li>
+                Thi thực hành: <code># PE</code> mở chương PE, <code>## Đề 1: Tên đề</code> rồi nội dung đề (dòng đầu ghi mã kỳ <code>[SU26_B10]</code>), các <code>## Câu</code> bên dưới thuộc đề đó. Câu tự luận không có phương án, thay bằng <code>Lời giải:</code> và code mẫu.
+              </li>
             </ul>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => download('huong-dan-viet-PE-kaned.md', PE_GUIDE)}>
+              <Download className="ic ic-sm" />
+              Hướng dẫn viết PE (đưa cho AI)
+            </button>
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => download('mau-bo-de-kaned.md', DECK_TEMPLATE)}>
               <Download className="ic ic-sm" />
               Tải file mẫu
