@@ -476,11 +476,11 @@ const QUICK = [
   { mode: 'exam', label: 'Thi thử', Icon: Timer },
 ] as const;
 
-/** FE and PE tags, only for decks that have PE questions. */
+/** FE and PE tags, counted from each deck's own questions: a tag shows when the deck has that kind. */
 function ExamTags({ d }: { d: DeckSummaryDto }) {
   const pe = d.peCount ?? 0;
-  if (!pe) return null;
-  const fe = d.questionCount - pe;
+  const fe = Math.max(0, d.questionCount - pe);
+  if (!fe && !pe) return null;
   return (
     <span className="dk-kinds">
       {fe > 0 && (
@@ -488,9 +488,11 @@ function ExamTags({ d }: { d: DeckSummaryDto }) {
           FE
         </span>
       )}
-      <span className="dk-kind is-pe" title={`${fmtInt(pe)} câu thi thực hành PE`}>
-        PE
-      </span>
+      {pe > 0 && (
+        <span className="dk-kind is-pe" title={`${fmtInt(pe)} câu thi thực hành PE`}>
+          PE
+        </span>
+      )}
     </span>
   );
 }
