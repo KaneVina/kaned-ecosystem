@@ -713,6 +713,8 @@ export interface DeckSummaryDto {
   questionCount: number;
   tipCount: number;
   chapterCount: number;
+  /** Practical-exam (PE) questions; the rest are FE multiple choice. */
+  peCount?: number;
   subject: DeckSubjectRef;
   updatedAt: string;
   progress: DeckProgressSummary | null;

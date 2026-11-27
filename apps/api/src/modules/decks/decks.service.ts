@@ -28,6 +28,12 @@ const listColumns = {
   questionCount: decks.questionCount,
   tipCount: decks.tipCount,
   chapterCount: decks.chapterCount,
+  /** Practical-exam questions: in a PE chapter, about a paper, or answered in writing. */
+  peCount: sql<number>`(select count(*)::int from jsonb_array_elements(coalesce(${decks.content}->'questions', '[]'::jsonb)) q
+    where (q->>'paper') is not null
+       or jsonb_array_length(coalesce(q->'options', '[]'::jsonb)) < 2
+       or exists (select 1 from jsonb_array_elements(coalesce(${decks.content}->'chapters', '[]'::jsonb)) c
+                  where c->>'pe' = 'true' and c->>'n' = q->>'chapter'))`,
   createdById: decks.createdById,
   createdAt: decks.createdAt,
   updatedAt: decks.updatedAt,
@@ -47,6 +53,7 @@ type ListRow = {
   questionCount: number;
   tipCount: number;
   chapterCount: number;
+  peCount: number;
   createdById: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -66,6 +73,7 @@ const summaryOf = (r: ListRow): Omit<DeckSummaryDto, 'progress'> => ({
   questionCount: r.questionCount,
   tipCount: r.tipCount,
   chapterCount: r.chapterCount,
+  peCount: Number(r.peCount) || 0,
   updatedAt: r.updatedAt.toISOString(),
   subject: {
     id: r.subjectId,

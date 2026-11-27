@@ -886,3 +886,10 @@ html.exam-live .dk-body { padding-top: 26px; }
 }
 @media (hover: none) and (pointer: coarse) { .pe-scale .dk-conf-btn kbd { display: none; } }
 @media (prefers-reduced-motion: reduce) { .pe-step, .pe-switch > i::after { animation: none; transition: none; } }
+
+/* FE / PE tags on deck cards, shown when a deck has PE questions */
+.dk-kinds { display: inline-flex; gap: 4px; margin-left: auto; }
+.dk-kind { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 6px; font-size: 11.5px; font-weight: 800; letter-spacing: .04em; white-space: nowrap; border: 1px solid transparent; }
+.dk-kind.is-fe { background: var(--brand-50); color: var(--brand-700); border-color: var(--brand-100); }
+.dk-kind.is-pe { background: #13213F; color: #fff; }
+.dk-drow-tags .dk-kinds { margin: 0; }

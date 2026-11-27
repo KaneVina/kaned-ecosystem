@@ -476,6 +476,25 @@ const QUICK = [
   { mode: 'exam', label: 'Thi thử', Icon: Timer },
 ] as const;
 
+/** FE and PE tags, only for decks that have PE questions. */
+function ExamTags({ d }: { d: DeckSummaryDto }) {
+  const pe = d.peCount ?? 0;
+  if (!pe) return null;
+  const fe = d.questionCount - pe;
+  return (
+    <span className="dk-kinds">
+      {fe > 0 && (
+        <span className="dk-kind is-fe" title={`${fmtInt(fe)} câu trắc nghiệm FE`}>
+          FE
+        </span>
+      )}
+      <span className="dk-kind is-pe" title={`${fmtInt(pe)} câu thi thực hành PE`}>
+        PE
+      </span>
+    </span>
+  );
+}
+
 function DeckCard({ d, srs, terms, i }: { d: DeckSummaryDto; srs: boolean; terms: string[]; i: number }) {
   const f = useCardFacts(d, srs);
   return (
@@ -486,12 +505,7 @@ function DeckCard({ d, srs, terms, i }: { d: DeckSummaryDto; srs: boolean; terms
         </span>
         <span className="dk-uni">{d.subject.university.code}</span>
         {d.status === 'DRAFT' && <span className="badge badge-amber">Bản nháp</span>}
-        {f.fresh && (
-          <span className="dk-new" title={`Cập nhật ${fmtDateTime(d.updatedAt)}`}>
-            <Sparkles className="ic ic-xs" />
-            {f.p ? 'Có câu mới' : 'Mới'}
-          </span>
-        )}
+        <ExamTags d={d} />
       </div>
       <h3>
         <Link to={`/app/flashcards/${d.id}`} className="dk-deck-link">
@@ -569,7 +583,7 @@ function DeckRow({ d, srs, terms, i }: { d: DeckSummaryDto; srs: boolean; terms:
         </small>
       </div>
       <div className="dk-drow-tags">
-        {f.fresh && <span className="dk-new">Mới</span>}
+        <ExamTags d={d} />
         {f.due > 0 && <span className="dk-due">{fmtInt(f.due)} cần ôn</span>}
       </div>
       <div className="dk-drow-prog">
