@@ -134,6 +134,13 @@
       "when": 1796169600000,
       "tag": "0018_meet",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1796256000000,
+      "tag": "0019_lecturer_birth",
+      "breakpoints": true
     }
   ]
 }

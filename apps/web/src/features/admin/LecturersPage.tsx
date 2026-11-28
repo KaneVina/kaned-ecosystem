@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ClipboardPaste, ExternalLink, Pencil, Plus, SearchX, Trash2, UsersRound, X } from 'lucide-react';
 import {
   LECTURER_GENDERS,
+  ageFrom,
   LECTURER_GENDER_LABELS,
   LECTURER_KINDS,
   LECTURER_KIND_LABELS,
@@ -142,6 +143,7 @@ export function LecturersPage() {
                           <span className="cell-sub">
                             <b>{l.code}</b> · {LECTURER_KIND_LABELS[l.kind]} · {l.university.code}
                             {l.gender ? ` · ${LECTURER_GENDER_LABELS[l.gender]}` : ''}
+                            {ageFrom(l.birthDate) != null ? ` · ${ageFrom(l.birthDate)} tuổi` : ''}
                           </span>
                         </div>
                       </div>
@@ -199,6 +201,7 @@ interface Draft {
   fullName: string;
   department: string;
   gender: LecturerGender | '';
+  birthDate: string;
   phone: string;
   email: string;
   description: string;
@@ -214,12 +217,13 @@ const toDraft = (l: LecturerDto | null, uni: string): Draft =>
         fullName: l.fullName,
         department: l.department ?? '',
         gender: l.gender ?? '',
+        birthDate: l.birthDate ?? '',
         phone: l.phone ?? '',
         email: l.email ?? '',
         description: l.description ?? '',
         links: l.links.map((x) => ({ label: x.label ?? '', url: x.url })),
       }
-    : { universityId: uni, kind: 'LECTURER', code: '', fullName: '', department: '', gender: '', phone: '', email: '', description: '', links: [] };
+    : { universityId: uni, kind: 'LECTURER', code: '', fullName: '', department: '', gender: '', birthDate: '', phone: '', email: '', description: '', links: [] };
 
 function LecturerForm({
   open,
@@ -251,7 +255,7 @@ function LecturerForm({
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const links = d.links.filter((l) => l.url.trim()).map((l) => ({ label: l.label.trim() || null, url: l.url.trim() }));
-    const parsed = lecturerInputSchema.safeParse({ ...d, gender: d.gender || null, links });
+    const parsed = lecturerInputSchema.safeParse({ ...d, gender: d.gender || null, birthDate: d.birthDate || null, links });
     if (!parsed.success) {
       const next: Record<string, string> = {};
       for (const i of parsed.error.issues) {
@@ -327,6 +331,9 @@ function LecturerForm({
                 </option>
               ))}
             </select>
+          </Field>
+          <Field label="Ngày sinh" htmlFor="lf-birth" error={errors.birthDate} hint={ageFrom(d.birthDate) != null ? `${ageFrom(d.birthDate)} tuổi tính đến hôm nay.` : 'Không bắt buộc. Tuổi tự tính theo ngày hiện tại.'}>
+            <input id="lf-birth" className="input" type="date" min="1900-01-01" max={new Date().toISOString().slice(0, 10)} value={d.birthDate} onChange={(e) => set('birthDate', e.target.value)} />
           </Field>
           <Field label={d.kind === 'STAFF' ? 'Đơn vị / phòng ban' : 'Bộ môn'} htmlFor="lf-dept" error={errors.department} className="span-2">
             <input id="lf-dept" className="input" list="lf-depts" maxLength={160} placeholder="Kỹ thuật phần mềm" value={d.department} onChange={(e) => set('department', e.target.value)} />

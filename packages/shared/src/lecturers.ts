@@ -76,6 +76,13 @@ export const lecturerInputSchema = z.object({
   /** Bộ môn. */
   department: optionalText(160),
   gender: z.enum(LECTURER_GENDERS).nullish().transform((v) => v ?? null),
+  /** Ngày sinh, YYYY-MM-DD. */
+  birthDate: z
+    .string()
+    .trim()
+    .nullish()
+    .transform((v) => v || null)
+    .refine((v) => !v || (/^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v)) && v <= new Date().toISOString().slice(0, 10) && v >= '1900-01-01'), 'Ngày sinh không hợp lệ.'),
   phone: optionalText(32).refine((v) => !v || /^[+\d][\d\s.()-]{5,30}$/.test(v), 'Số điện thoại không hợp lệ.'),
   email: optionalText(160).refine((v) => !v || z.string().email().safeParse(v).success, 'Email không hợp lệ.'),
   description: optionalText(2000),
@@ -112,6 +119,7 @@ export interface LecturerDto {
   fullName: string;
   department: string | null;
   gender: LecturerGender | null;
+  birthDate: string | null;
   phone: string | null;
   email: string | null;
   description: string | null;
@@ -226,4 +234,13 @@ export function parseLecturerSheet(text: string) {
     else issues.push(`Dòng ${i + (hasHeader ? 2 : 1)}: ${ok.error.issues[0].message}`);
   });
   return { rows, issues };
+}
+
+/** Full years from a YYYY-MM-DD birth date to today (or to `at`). */
+export function ageFrom(birth: string | null | undefined, at: Date = new Date()): number | null {
+  if (!birth || !/^\d{4}-\d{2}-\d{2}$/.test(birth)) return null;
+  const [y, m, d] = birth.split('-').map(Number);
+  let age = at.getFullYear() - y;
+  if (at.getMonth() + 1 < m || (at.getMonth() + 1 === m && at.getDate() < d)) age--;
+  return age >= 0 ? age : null;
 }

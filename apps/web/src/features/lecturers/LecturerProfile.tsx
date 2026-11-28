@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { BadgeCheck, BookOpen, Building2, Check, Copy, ExternalLink, Facebook, FileText, FlaskConical, Github, Globe, GraduationCap, Linkedin, Mail, Phone, UserRound, Youtube, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
-import { LECTURER_GENDER_LABELS, LECTURER_KIND_LABELS, LECTURER_LINK_LABELS, type LecturerDetailDto, type LecturerDto, type LecturerLinkKind } from '@kaned/shared';
+import { ageFrom, LECTURER_GENDER_LABELS, LECTURER_KIND_LABELS, LECTURER_LINK_LABELS, type LecturerDetailDto, type LecturerDto, type LecturerLinkKind } from '@kaned/shared';
 import { DocCard } from '@/components/library/DocCard';
 import { useToast } from '@/providers/ToastProvider';
 import { fmtInt } from '@/lib/format';
@@ -173,6 +173,18 @@ export function LecturerFacts({ l }: { l: LecturerDto }) {
       <div>
         <dt>Giới tính</dt>
         <dd>{l.gender ? LECTURER_GENDER_LABELS[l.gender] : <span className="lec-none">Chưa cập nhật</span>}</dd>
+      </div>
+      <div>
+        <dt>Tuổi</dt>
+        <dd>
+          {ageFrom(l.birthDate) != null ? (
+            <>
+              {ageFrom(l.birthDate)} tuổi <span className="lec-none">(sinh {l.birthDate!.split('-').reverse().join('/')})</span>
+            </>
+          ) : (
+            <span className="lec-none">Chưa cập nhật</span>
+          )}
+        </dd>
       </div>
     </dl>
   );

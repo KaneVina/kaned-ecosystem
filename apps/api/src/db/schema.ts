@@ -169,6 +169,8 @@ export const lecturers = pgTable(
     department: text('department'),
     /** MALE | FEMALE | OTHER */
     gender: varchar('gender', { length: 8 }),
+    /** YYYY-MM-DD */
+    birthDate: varchar('birth_date', { length: 10 }),
     phone: varchar('phone', { length: 32 }),
     email: varchar('email', { length: 160 }),
     description: text('description'),
